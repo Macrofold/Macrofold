@@ -3,6 +3,8 @@ import { decisionOnlyModel } from './decision-models';
 import type { components } from '../../contracts/api';
 import type { ModelRequestBounds, ModelUsage } from './model-protocol';
 import { AppError } from './errors';
+import type { EncodedJson } from './prepared-json';
+import type { CanonicalEncoder } from './crypto';
 
 type Schema = components['schemas'];
 export type InferenceCreate = Schema['InferenceCreate'];
@@ -79,7 +81,7 @@ export interface DecisionProtocol {
     streaming: boolean;
     immutableModelRevision: boolean;
   };
-  prepare(request: DecisionRequest): Record<string, unknown>;
+  prepare(request: DecisionRequest, encode?: CanonicalEncoder): Record<string, unknown>;
   /** Optional transient diagnostics are not authority. Complete but malformed
    * responses throw DecisionProviderError with independently validated evidence. */
   invoke(
@@ -102,15 +104,19 @@ export function inferenceInputBound(
   provider: string,
   model: string,
   native: boolean,
-  serialized?: string,
+  encoded?: EncodedJson<Record<string, unknown>>,
 ) {
   return native && !decisionOnlyModel(provider, model)
-    ? modelInputBound(body, {
-        provider,
-        model,
-        harness: provider === 'anthropic' ? 'claude-code' : 'opencode',
-      })
-    : Buffer.byteLength(serialized ?? JSON.stringify(body)) + 1024;
+    ? modelInputBound(
+        body,
+        {
+          provider,
+          model,
+          harness: provider === 'anthropic' ? 'claude-code' : 'opencode',
+        },
+        encoded,
+      )
+    : (encoded?.value === body ? encoded.bytes : Buffer.byteLength(JSON.stringify(body))) + 1024;
 }
 
 /** Transport-neutral fragments. Partial tool arguments are never executable authority. */

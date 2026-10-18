@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
-import pg from 'pg';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import type { PerformanceRecord } from '../packages/contracts/performance';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -23,10 +24,12 @@ if (!process.argv.includes('--fixture')) {
     { createWorktree },
     { admitRun },
     { config, isLocal },
-    { seal },
+    { seal, id },
     { runtimeToken },
     { handleRuntimeMcp, exposedToolName },
     { connectionToolCatalog },
+    { configurePerformance, capturePerformanceTicket, runPerformanceRoot },
+    { observeDatabasePools },
   ] = await Promise.all([
     import('../tests/fixtures/account'),
     import('../packages/db'),
@@ -38,10 +41,13 @@ if (!process.argv.includes('--fixture')) {
     import('../packages/core/src/runtime-auth'),
     import('../packages/core/src/tool-broker'),
     import('../packages/core/src/connection-tool-catalog'),
+    import('../packages/core/src/performance'),
+    import('../packages/db/diagnostics'),
   ]);
   assert(isLocal() && !config.allowPaid && config.execution === 'simulator');
   assert(/^\/platform_test_[a-f0-9]+$/.test(new URL(config.databaseUrl).pathname));
   let calls = 0;
+  const protocolCounts = { discoveries: 0, tool_calls: 0 };
   const server = createServer(async (request, response) => {
     assert.equal(request.url, '/mcp', 'A selected tool must not discover the unrelated connection');
     assert.equal(request.headers.authorization, 'Bearer synthetic-tool-profile');
@@ -52,9 +58,9 @@ if (!process.argv.includes('--fixture')) {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const message: unknown = JSON.parse(Buffer.concat(chunks).toString());
-    if (current && message && typeof message === 'object' && 'method' in message) {
-      if (message.method === 'tools/list') current.discoveries++;
-      if (message.method === 'tools/call') current.tool_calls++;
+    if (message && typeof message === 'object' && 'method' in message) {
+      if (message.method === 'tools/list') protocolCounts.discoveries++;
+      if (message.method === 'tools/call') protocolCounts.tool_calls++;
     }
     const upstream = new McpServer({ name: 'synthetic-tool-profile', version: '1' });
     upstream.registerTool('read_customer_notes', { inputSchema: {} }, async () => {
@@ -81,40 +87,78 @@ if (!process.argv.includes('--fixture')) {
   process.env.LOCAL_MCP_ALLOWED_ORIGINS = origin;
   const account = await fixtureAccount('Synthetic broker profile');
   const org = account.p.organizationId;
-  const originalQuery = pg.Client.prototype.query;
   const originalFetch = globalThis.fetch;
   let client: Client | undefined;
   type Sample = {
     elapsed_ms: number;
     statements: number;
-    sql_parameter_text_bytes: number;
-    sql_result_json_bytes: number;
+    groups: number;
+    sql_parameter_known_bytes: number;
+    sql_unknown_parameters: number;
     discoveries: number;
     tool_calls: number;
+    profiles: PerformanceRecord[];
   };
-  let current: Sample | undefined;
-  const bytes = (value: unknown) =>
-    Buffer.byteLength(
-      JSON.stringify(value, (_key, entry: unknown) =>
-        typeof entry === 'bigint' ? entry.toString() : entry,
-      ) ?? '',
-    );
+  // The broker deliberately creates an independent request root. This fixture
+  // trial tag associates its completed summaries without global time windows.
+  const trials = new AsyncLocalStorage<Sample>();
+  let droppedProfiles = 0;
+  const profiler = configurePerformance({
+    sampleRate: 1,
+    durationSeconds: 300,
+    sink: {
+      enqueue(record) {
+        const sample = trials.getStore();
+        if (!sample || record.type !== 'operation' || record.state === 'started') return;
+        if (sample.profiles.length >= 16) {
+          droppedProfiles++;
+          return;
+        }
+        sample.profiles.push(record);
+      },
+      flush: async () => {},
+      close: async () => {},
+    },
+  });
+  profiler.onClose(
+    observeDatabasePools(
+      [
+        [pool, 'domain'],
+        [authPool, 'identity'],
+        [credentialPool, 'credential'],
+      ],
+      capturePerformanceTicket,
+    ),
+  );
   const measure = async <T>(action: () => Promise<T>) => {
     const sample: Sample = {
       elapsed_ms: 0,
       statements: 0,
-      sql_parameter_text_bytes: 0,
-      sql_result_json_bytes: 0,
+      groups: 0,
+      sql_parameter_known_bytes: 0,
+      sql_unknown_parameters: 0,
       discoveries: 0,
       tool_calls: 0,
+      profiles: [],
     };
-    current = sample;
+    const before = { ...protocolCounts };
     const started = performance.now();
     try {
-      return { sample, value: await action() };
+      const value = await trials.run(sample, () =>
+        runPerformanceRoot('run', { requestId: id(), organizationId: org }, action),
+      );
+      return { sample, value };
     } finally {
       sample.elapsed_ms = performance.now() - started;
-      current = undefined;
+      sample.discoveries = protocolCounts.discoveries - before.discoveries;
+      sample.tool_calls = protocolCounts.tool_calls - before.tool_calls;
+      for (const profile of sample.profiles) {
+        if (profile.phase === 'background') continue;
+        sample.statements += profile.counters.statements ?? 0;
+        sample.groups += profile.counters.groups ?? 0;
+        sample.sql_parameter_known_bytes += profile.counters.parameter_bytes ?? 0;
+        sample.sql_unknown_parameters += profile.counters.unknown_parameters ?? 0;
+      }
     }
   };
   try {
@@ -124,26 +168,6 @@ if (!process.argv.includes('--fixture')) {
       assert.equal(url.pathname, '/mcp', 'A selected tool must not discover the unrelated connection');
       return originalFetch(input, init);
     };
-    // The typed Proxy preserves node-postgres overloads. It records only byte
-    // counts, never SQL text, arguments, credentials, object names or row content.
-    pg.Client.prototype.query = new Proxy(originalQuery, {
-      apply(target, receiver: unknown, args: unknown[]) {
-        const sample = current;
-        if (sample) {
-          sample.statements++;
-          const first = args[0];
-          const parameters = first && typeof first === 'object' && 'values' in first ? first.values : args[1];
-          if (Array.isArray(parameters)) sample.sql_parameter_text_bytes += bytes(parameters);
-        }
-        const result: unknown = Reflect.apply(target, receiver, args);
-        if (!(result instanceof Promise)) return result;
-        return result.then((response: unknown) => {
-          if (sample && response && typeof response === 'object' && 'rows' in response)
-            sample.sql_result_json_bytes += bytes(response.rows);
-          return response;
-        });
-      },
-    });
     const fixture = await transaction(org, async (tx) => {
       const workspace = await resources.create(tx, 'workspaces', org, { name: 'Synthetic profile' });
       const connection = await resources.create(tx, 'connections', org, {
@@ -234,22 +258,28 @@ if (!process.argv.includes('--fixture')) {
       assert(!value.isError);
       assert.equal(sample.discoveries, 0);
       assert.equal(sample.tool_calls, 1);
-      assert(sample.sql_result_json_bytes < 12_000, 'Tool authority must not download the 70 KB prompt');
       warm.push(sample);
     }
     assert.equal(calls, 11);
+    assert.equal(droppedProfiles, 0);
+    assert(warm.every((sample) => sample.statements > 0 && sample.profiles.length > 0));
     const summary = (samples: Sample[]) => {
       const sorted = samples.map((sample) => sample.elapsed_ms).sort((a, b) => a - b);
-      const average = (key: keyof Sample) =>
-        samples.reduce((sum, sample) => sum + sample[key], 0) / samples.length;
+      const average = (
+        key: 'elapsed_ms' | 'statements' | 'groups' | 'sql_parameter_known_bytes' | 'sql_unknown_parameters',
+      ) => samples.reduce((sum, sample) => sum + sample[key], 0) / samples.length;
       return {
         samples: samples.length,
         mean_ms: average('elapsed_ms'),
         p50_ms: sorted[Math.floor(sorted.length / 2)],
         p95_ms: sorted[Math.ceil(sorted.length * 0.95) - 1],
         statements_mean: average('statements'),
-        sql_parameter_text_bytes_mean: average('sql_parameter_text_bytes'),
-        sql_result_json_bytes_mean: average('sql_result_json_bytes'),
+        groups_mean: average('groups'),
+        sql_parameter_known_bytes_mean: average('sql_parameter_known_bytes'),
+        sql_unknown_parameters_mean: average('sql_unknown_parameters'),
+        sql_parameter_text_bytes_mean: null,
+        sql_result_json_bytes_mean: null,
+        sql_wire_bytes_mean: null,
         discoveries: samples.reduce((sum, sample) => sum + sample.discoveries, 0),
         tool_calls: samples.reduce((sum, sample) => sum + sample.tool_calls, 0),
       };
@@ -258,11 +288,17 @@ if (!process.argv.includes('--fixture')) {
       JSON.stringify(
         {
           fixture: 'restricted_local_postgres_and_loopback_mcp',
-          measurements_include_sql_byte_instrumentation: true,
+          schema_version: 2,
+          profiling: 'shared_correlated_collector',
+          measurements_include_sql_byte_instrumentation: false,
+          byte_measurement:
+            'Known small scalar/buffer parameter bytes only; result and wire bytes are not measured.',
           native_admission_prompt_bytes: Buffer.byteLength(prompt),
           native_admission: summary(admission),
+          native_admission_profiles: admission.map((sample) => sample.profiles),
           tool_cold: cold.sample,
           tool_warm: summary(warm),
+          tool_warm_profiles: warm.map((sample) => sample.profiles),
           unrelated_discoveries: 0,
         },
         null,
@@ -271,8 +307,7 @@ if (!process.argv.includes('--fixture')) {
     );
   } finally {
     await client?.close();
-    current = undefined;
-    pg.Client.prototype.query = originalQuery;
+    await profiler.close();
     globalThis.fetch = originalFetch;
     config.allowPaid = false;
     config.execution = 'simulator';

@@ -4,29 +4,43 @@ import type { TraceObservation, TraceSink } from './trace';
 
 let sink: TraceSink | undefined;
 let initialized = false;
+type TracePolicy = Readonly<{ enabled: boolean; captureContent: boolean }>;
+let policy: TracePolicy | undefined;
+let captureContent = true;
 /** Composition may select another diagnostics backend before serving requests.
  * This also lets qualification exercise the real SDK with an offline exporter. */
-export function configureTraceSink(target: TraceSink) {
-  if (initialized) throw new Error('Tracing has already been configured.');
+export function configureTraceSink(target: TraceSink, options: { captureContent?: boolean } = {}) {
+  if (initialized || policy) throw new Error('Tracing has already been configured.');
   sink = target;
+  captureContent = options.captureContent ?? true;
   initialized = true;
 }
 /** Explicit disable wins over credentials, especially in disposable test fixtures. */
+export function tracePolicy(): TracePolicy {
+  return (policy ??= Object.freeze({
+    enabled:
+      process.env.TRACING_ENABLED !== 'false' &&
+      (Boolean(sink) ||
+        Boolean(
+          process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY && process.env.LANGFUSE_BASE_URL,
+        )),
+    captureContent: captureContent && process.env.TRACING_CAPTURE_CONTENT !== 'false',
+  }));
+}
 export function tracingEnabled() {
-  return (
-    process.env.TRACING_ENABLED !== 'false' &&
-    (Boolean(sink) ||
-      Boolean(
-        process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY && process.env.LANGFUSE_BASE_URL,
-      ))
-  );
+  return tracePolicy().enabled;
+}
+/** Producer policy avoids preparing content that a backend would discard. */
+export function tracingContentEnabled() {
+  const current = tracePolicy();
+  return current.enabled && current.captureContent;
 }
 function tracing(): TraceSink | undefined {
   if (!tracingEnabled()) return undefined;
   if (!initialized) {
     initialized = true;
     try {
-      sink = new LangfuseTraceSink();
+      sink = new LangfuseTraceSink({ capture: tracingContentEnabled() });
     } catch {
       traceDiagnostic('tracing_configuration_failed');
     }
@@ -41,7 +55,26 @@ export function recordTrace(observation: TraceObservation) {
   try {
     const target = tracing();
     if (!target) return;
-    target.record(observation);
+    // Copy only allowed fields: spreading or destructuring input/output would
+    // still evaluate content getters in metadata mode, including custom sinks.
+    target.record(
+      tracingContentEnabled()
+        ? observation
+        : {
+            context: observation.context,
+            id: observation.id,
+            name: observation.name,
+            type: observation.type,
+            startedAt: observation.startedAt,
+            endedAt: observation.endedAt,
+            metadata: observation.metadata,
+            level: observation.level,
+            model: observation.model,
+            usage: observation.usage,
+            chargedMicroUsd: observation.chargedMicroUsd,
+            firstOutputAt: observation.firstOutputAt,
+          },
+    );
     const { context: c, metadata: m } = observation;
     console.info(
       JSON.stringify({

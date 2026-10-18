@@ -65,13 +65,16 @@ Withdrawing a definition prevents new reference resolution while retaining its i
 
 | Record                                              | Owner and lifetime                                                                            |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Run input, provider request/response, tool receipts | Run diagnostics; expire under account history retention                                       |
+| Immediate inference input/request history           | Optional external trace capture; best effort and not stored as executable Run input            |
+| Queued/native input, provider responses, tool receipts | Run-owned evidence; expires under account history retention                                  |
 | Published definition                                | Workspace; withdrawal hides future resolution, workspace purge removes content                    |
 | Published context or proposal                       | Independent workspace artifact; source run is provenance only                                   |
 | Active task evidence                                | Explicit pins through its configured evidence horizon; release at cycle completion or closure |
 | Application outcome                                 | Separate task receipt; does not rewrite provider evidence                                     |
 
 `artifacts.delete(artifactId)` releases independently published artifacts. `inferences.deleteContextArtifact` is the context-specific equivalent. A live task pin produces `evidence_in_use`; complete or close the task first. Physical collection follows the existing asynchronous object-storage grace policy. Deleting a diagnostic is governed by run retention, not this release operation.
+
+Immediate inference saves its final result and billing together, but does not promise retained input history. Keep original inputs your application needs; [delivery and recovery](README.md#immediate-delivery-and-recovery) explains the response-loss window. Metadata-only or disabled tracing omits input/output trace content without changing required result and accounting persistence. External tracing has its own retention policy; later Run deletion cannot retract content already exported.
 
 Workspace purge removes published content as well as diagnostics and task evidence, preserving financial identifiers. Revoking access, expiring diagnostics, withdrawing a definition and deleting its workspace are distinct actions.
 

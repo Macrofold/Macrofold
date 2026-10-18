@@ -49,7 +49,7 @@ export async function growthMetrics(tx: Tx, from: string, to: string, org?: stri
     metric('human_dau', activity.dau),
     metric('human_wau', activity.wau),
     metric('human_mau', activity.mau),
-    metric('active_service_principals', service.n),
+    metric('active_service_principals', service.n, undefined, 'insufficient_data'),
   ];
   const days = (
     await tx.query(

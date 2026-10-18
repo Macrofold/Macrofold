@@ -1,10 +1,26 @@
 import { createServer } from 'node:http';
 import { once } from 'node:events';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Readable } from 'node:stream';
 import { handleApi } from '../../packages/core/src/http';
 
+const requestKeys = new AsyncLocalStorage<string>();
+export function fixtureRequestKey() {
+  return requestKeys.getStore();
+}
+
 /** Loopback transport for SDK acceptance; no alternate API or auth implementation. */
-export async function fixtureHttpApi(options: { retainBackground?: boolean } = {}) {
+export async function fixtureHttpApi(
+  options: {
+    retainBackground?: boolean;
+    onResponse?: (sample: {
+      key: string;
+      requestId: string | null;
+      runId: string | null;
+      durationMs: number;
+    }) => void;
+  } = {},
+) {
   const tasks = new Set<Promise<void>>();
   const failures: unknown[] = [];
   const background = (task: () => Promise<void>) => {
@@ -19,6 +35,12 @@ export async function fixtureHttpApi(options: { retainBackground?: boolean } = {
         failures.push(error);
       },
     );
+  };
+  // Qualification drains warmup work without closing its warmed HTTP socket.
+  // Call only between offered workloads; nested retained callbacks drain too.
+  const drainBackground = async () => {
+    while (tasks.size) await Promise.allSettled([...tasks]);
+    if (failures.length) throw new AggregateError(failures, 'Fixture background work failed');
   };
   const server = createServer(async (incoming, outgoing) => {
     const abort = new AbortController();
@@ -35,7 +57,16 @@ export async function fixtureHttpApi(options: { retainBackground?: boolean } = {
           ? {}
           : { body: Readable.toWeb(incoming), duplex: 'half' }),
       } as RequestInit);
-      const response = await handleApi(request, 'rest', options.retainBackground ? background : undefined);
+      const began = options.onResponse ? performance.now() : 0;
+      const key = request.headers.get('idempotency-key') ?? '';
+      const action = () => handleApi(request, 'rest', options.retainBackground ? background : undefined);
+      const response = await (options.onResponse ? requestKeys.run(key, action) : action());
+      options.onResponse?.({
+        key,
+        requestId: response.headers.get('x-request-id'),
+        runId: response.headers.get('x-run-id'),
+        durationMs: performance.now() - began,
+      });
       outgoing.writeHead(response.status, Object.fromEntries(response.headers));
       if (response.body)
         Readable.fromWeb(response.body as import('node:stream/web').ReadableStream)
@@ -49,13 +80,13 @@ export async function fixtureHttpApi(options: { retainBackground?: boolean } = {
   await once(server, 'listening');
   return {
     origin: `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`,
+    drainBackground,
     close: async () => {
       const closed = once(server, 'close');
       server.closeAllConnections();
       server.close();
       await closed;
-      while (tasks.size) await Promise.allSettled([...tasks]);
-      if (failures.length) throw new AggregateError(failures, 'Fixture background work failed');
+      await drainBackground();
     },
   };
 }

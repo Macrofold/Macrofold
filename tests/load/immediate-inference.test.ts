@@ -61,7 +61,7 @@ const report: Record<string, unknown> = {
     'Short local correctness/calibration profile; sustained and hosted acceptance require the explicit larger settings.',
   source_revision: process.env.IMMEDIATE_SOURCE_REVISION ?? null,
   sql_measurement:
-    'Sum of pg query Promise durations across concurrent queries and all pools; not wall-clock critical-path time.',
+    'Submission-correlated completed-operation aggregates across owned pools, including retained background. Query duration sums are not wall-clock critical-path time. Historical fixture exports may use the prior driver-wide boundary.',
   fixture_domain_pool_per_replica: 32,
   baseline_worker_claim_delay_ms: baselineRoot
     ? Number(process.env.IMMEDIATE_LOAD_CLAIM_DELAY_MS ?? 250)
@@ -75,6 +75,7 @@ const replicaMessage = z.discriminatedUnion('type', [
     node: z.string(),
     sql_queries: z.number(),
     sql_milliseconds: z.number(),
+    metrics_boundary: z.literal('correlated-operation-aggregates').optional(),
     sql_query_mean_ms: z.number().optional(),
     sql_query_p95_ms: z.number().optional(),
     pool_acquisition_p95_ms: z.number().optional(),

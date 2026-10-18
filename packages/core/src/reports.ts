@@ -10,6 +10,7 @@ import { assert } from './errors';
 import { growthMetrics } from './growth';
 import { config, realExecutionEnabled, readinessErrors } from './config';
 import type { components } from '../../contracts/api';
+import { requestObservationPolicy } from './request-observations';
 type Report = components['schemas']['Report'];
 type Metric = components['schemas']['Metric'];
 export function period(query: URLSearchParams) {
@@ -143,9 +144,9 @@ export async function usageReport(tx: Tx, query: URLSearchParams, admin = false,
     query,
     [
       ...current,
-      metric('requests', requestCount.count),
-      metric('request_errors', requestCount.errors),
-      metric('requests_incomplete', requestCount.incomplete),
+      metric('requests', requestCount.count, 'count', 'insufficient_data'),
+      metric('request_errors', requestCount.errors, 'count', 'insufficient_data'),
+      metric('requests_incomplete', requestCount.incomplete, 'count', 'insufficient_data'),
       metric('runs', runs.total),
       metric('runs_succeeded', runs.succeeded),
       metric('runs_failed', runs.failed),
@@ -171,6 +172,7 @@ export async function usageReport(tx: Tx, query: URLSearchParams, admin = false,
       ...grouped,
     ],
     [
+      'request_observations',
       ...(Number(tokens.missing) ? ['provider_usage'] : []),
       ...(groupsTruncated ? ['group_limit'] : []),
       ...(Date.parse(dates.from) < Date.now() - 400 * 86400000 ? ['request_retention'] : []),
@@ -178,6 +180,9 @@ export async function usageReport(tx: Tx, query: URLSearchParams, admin = false,
     {
       ...(organization ? { organization_id: organization } : {}),
       execution_provider: config.execution,
+      request_observation_collection_currently_enabled: requestObservationPolicy().requests,
+      request_observations:
+        'Retained best-effort observations, not total traffic. Current configuration does not describe the historical collection policy.',
       ...(group ? { group_by: group, group_limit: 1000, groups_truncated: groupsTruncated } : {}),
     },
   );
@@ -367,7 +372,10 @@ export async function adminReport(
       return report(
         query,
         await growthMetrics(tx, from, to, org),
-        Date.parse(to) - 30 * 86400000 < Date.now() - 400 * 86400000 ? ['activity_retention'] : [],
+        [
+          'request_observations',
+          ...(Date.parse(to) - 30 * 86400000 < Date.now() - 400 * 86400000 ? ['activity_retention'] : []),
+        ],
         {
           qualified_activity:
             'Successful authenticated human product mutations; polling and service keys excluded.',
@@ -377,6 +385,8 @@ export async function adminReport(
             'UTC dates. Humans belong to a current included account; historical counts can change after membership removal.',
           exclusions: 'Organizations with settings.analytics_excluded=true; configure with operator SQL.',
           active_windows: 'Rolling 1, 7 and 30 days ending at to, independent of from.',
+          service_activity:
+            'Distinct successful service keys in retained best-effort request observations; not all active credentials.',
           ...(org ? { organization_id: org } : {}),
         },
       );
@@ -441,7 +451,7 @@ export async function adminReport(
             ),
         ),
       ),
-      metric('request_observations_incomplete_24h', incomplete),
+      metric('request_observations_incomplete_24h', incomplete, 'count', 'insufficient_data'),
       metric('database_available', 1, 'boolean'),
       ...states.map((r) => metric(`runs_${r.status}`, r.count)),
       metric('configuration_errors', errors.length),
@@ -499,7 +509,9 @@ export async function adminReport(
         action_executed: false,
       });
     return {
-      ...report(query, metrics, ['live_provider_telemetry'], { environment: config.mode }),
+      ...report(query, metrics, ['live_provider_telemetry', 'request_observations'], {
+        environment: config.mode,
+      }),
       recommendations,
       scheduling,
     };

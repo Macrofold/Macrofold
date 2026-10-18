@@ -21,6 +21,7 @@ import { id } from '../../packages/core/src/crypto';
 import { SlackClient, SlackError } from '../../packages/providers/src/slack';
 import { fixtureAccount } from '../fixtures/account';
 import * as catalog from '../../packages/core/src/catalog';
+import * as modelCatalog from '../../packages/core/src/model-catalog';
 import { credit } from '../../packages/core/src/ledger';
 import { purgeWorkspaces } from '../../packages/core/src/deletion';
 
@@ -517,7 +518,7 @@ describe('trigger authorization, limits and recovery', () => {
           allowPaid: config.allowPaid,
           orchestration: config.orchestration,
         };
-      vi.spyOn(catalog, 'models').mockResolvedValue(models);
+      vi.spyOn(modelCatalog, 'selectedModel').mockResolvedValue({ model: models[0], revision: null });
       config.execution = 'docker';
       config.allowPaid = true;
       config.orchestration = 'poller';

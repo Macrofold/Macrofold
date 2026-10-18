@@ -1,6 +1,6 @@
 import { harnessNames } from '../../contracts/harnesses';
 import { pool, transaction, type Tx } from '../../db';
-import type { QueryResultRow } from 'pg';
+import type { QueryResultRow, QueryResult } from 'pg';
 import { isSimulated } from './config';
 import { id } from './crypto';
 import { assert } from './errors';
@@ -157,20 +157,38 @@ export async function selectedModel(
 
 /** Admission rechecks current terms without loading a replacement catalog under
  * locks. Preparation must be repeated when the immutable source changed. */
-export async function currentSelectedModel(tx: Pick<Tx, 'query'>, selection: ModelSelection): Promise<Model> {
-  const row = (
-    await tx.query<CatalogVersion>(
-      'SELECT provider,revision,fetched_at FROM model_catalog_cache WHERE provider=$1',
-      [selection.model.provider],
-    )
-  ).rows[0];
+export function currentSelectedModelQuery(selection: ModelSelection) {
+  return {
+    text: 'SELECT provider,revision,fetched_at FROM model_catalog_cache WHERE provider=$1',
+    values: [selection.model.provider],
+  };
+}
+export function currentSelectedModelFromResult(
+  selection: ModelSelection,
+  result: QueryResult<Record<string, unknown>>,
+): Model {
+  const row = result.rows[0];
   assert(
     (row?.revision ?? null) === selection.revision,
     409,
     'model_terms_changed',
     'Model terms changed during preparation. Submit the same intended request again.',
   );
-  return available(selection.model, row);
+  if (!row) return available(selection.model);
+  assert(
+    (row.provider === 'openrouter' || row.provider === 'openai' || row.provider === 'anthropic') &&
+      (row.fetched_at === null || row.fetched_at instanceof Date),
+    503,
+    'model_catalog_unavailable',
+    'The current model catalog is unavailable.',
+  );
+  return available(selection.model, { provider: row.provider, fetched_at: row.fetched_at });
+}
+export async function currentSelectedModel(tx: Pick<Tx, 'query'>, selection: ModelSelection): Promise<Model> {
+  return currentSelectedModelFromResult(
+    selection,
+    await tx.query<CatalogVersion>(currentSelectedModelQuery(selection)),
+  );
 }
 
 export function cachedModels(rows: CatalogCacheRow[], now = Date.now()): Model[] {

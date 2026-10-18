@@ -1,11 +1,19 @@
 import { randomUUID } from 'node:crypto';
+import { initializePerformance } from './performance-composition';
+import { performanceEnabled, runPerformanceJob } from './performance';
 
 const workerId = `${process.pid}:${randomUUID()}`;
 function diagnostic(observation: string, fields: Record<string, unknown>) {
   try {
-    console.info(JSON.stringify({
-      component: 'worker', observation, timestamp: new Date().toISOString(), worker_id: workerId, ...fields,
-    }));
+    console.info(
+      JSON.stringify({
+        component: 'worker',
+        observation,
+        timestamp: new Date().toISOString(),
+        worker_id: workerId,
+        ...fields,
+      }),
+    );
   } catch {
     // Diagnostics cannot change execution or expose raw exceptions/content.
   }
@@ -30,23 +38,32 @@ export function observeRuntimeEvents(
   for (const event of events)
     if (event.emitted_at !== undefined)
       diagnostic('worker.native_event.observed', {
-        ...fields, source_sequence: event.sequence, source_emitted_at: event.emitted_at,
+        ...fields,
+        source_sequence: event.sequence,
+        source_emitted_at: event.emitted_at,
       });
 }
 
 /** Opt-in, content-free progress independent of Langfuse and database availability.
  * In-progress events identify a hung await; they never cancel or retry its work. */
-export async function observeWorkerStep<T>(
-  stage: string,
-  fields: Fields,
-  action: () => Promise<T>,
-): Promise<T> {
+export function observeWorkerStep<T>(stage: string, fields: Fields, action: () => Promise<T>): Promise<T> {
+  initializePerformance();
+  if (!performanceEnabled()) return observeProgress(stage, fields, action);
+  return runPerformanceJob(
+    stage.startsWith('maintenance.') ? 'maintenance' : 'run',
+    { runId: fields.run_id, organizationId: fields.organization_id, requestId: fields.request_id },
+    () => observeProgress(stage, fields, action),
+  );
+}
+async function observeProgress<T>(stage: string, fields: Fields, action: () => Promise<T>): Promise<T> {
   if (process.env.WORKER_DIAGNOSTICS !== '1') return action();
   const started = performance.now();
   const operationId = randomUUID();
   const write = (state: 'started' | 'waiting' | 'completed' | 'failed') => {
     diagnostic(`worker.${stage}.${state}`, {
-      operation_id: operationId, duration_ms: Math.round(performance.now() - started), ...fields,
+      operation_id: operationId,
+      duration_ms: Math.round(performance.now() - started),
+      ...fields,
     });
   };
   write('started');

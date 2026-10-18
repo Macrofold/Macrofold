@@ -458,3 +458,61 @@ it('applies migration 054 to populated invocation history without inventing comp
     [],
   );
 });
+
+it('requires every requested current actor scope without a repeated key lookup', async () => {
+  const account = await fixtureAccount('Composed actor scopes');
+  extraOrganizations.push(account.p.organizationId);
+  const run = await controlRun(account);
+  expect(
+    await transaction(run.organization_id, (tx) => actorAuthorized(tx, run, ['runs:write', 'runs:read'])),
+  ).toBe(true);
+  await transaction(run.organization_id, (tx) =>
+    tx.query("UPDATE api_keys SET scopes=ARRAY['runs:write'] WHERE id=$1", [run.config.principal_id]),
+  );
+  expect(await transaction(run.organization_id, (tx) => actorAuthorized(tx, run, 'runs:write'))).toBe(true);
+  expect(
+    await transaction(run.organization_id, (tx) => actorAuthorized(tx, run, ['runs:write', 'runs:read'])),
+  ).toBe(false);
+});
+
+it('uses the expiry clock after a capacity-lock wait rather than transaction start', async () => {
+  const account = await fixtureAccount('Actor expiry after capacity wait');
+  extraOrganizations.push(account.p.organizationId);
+  const run = await controlRun(account);
+  let acquired = () => {},
+    release = () => {};
+  const ready = new Promise<void>((resolve) => {
+    acquired = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const holder = transaction(run.organization_id, async (tx) => {
+    await lock(tx, 'capacity:global');
+    acquired();
+    await gate;
+    await tx.query("UPDATE api_keys SET expires_at=clock_timestamp()-interval '1 microsecond' WHERE id=$1", [
+      run.config.principal_id,
+    ]);
+  });
+  await ready;
+  const pending = transaction(run.organization_id, async (tx) => {
+    await lock(tx, 'capacity:global');
+    return actorAuthorized(tx, run);
+  });
+  try {
+    await expect
+      .poll(
+        async () =>
+          (
+            await pool.query(`SELECT count(*)::integer AS n FROM pg_stat_activity
+      WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%pg_advisory_xact_lock%'`)
+          ).rows[0].n,
+      )
+      .toBeGreaterThan(0);
+  } finally {
+    release();
+  }
+  await holder;
+  expect(await pending).toBe(false);
+});

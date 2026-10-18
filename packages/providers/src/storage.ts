@@ -11,6 +11,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config, isLocal } from '../../core/src/config';
 import { createHash } from 'node:crypto';
 import { sha256, seal, unseal } from '../../core/src/crypto';
+import { performanceEnabled, startPerformanceStage } from '../../core/src/performance';
 export interface ObjectStore {
   put(key: string, bytes: Buffer): Promise<void>;
   get(key: string, options?: { signal?: AbortSignal }): Promise<Buffer>;
@@ -66,14 +67,29 @@ export class LocalStore implements ObjectStore {
     return { objects, next_cursor: selected.length > limit ? selected[limit - 1] : undefined };
   }
   async put(key: string, bytes: Buffer) {
-    const dest = path.join(this.directory, 'objects', safeKey(key));
-    await mkdir(path.dirname(dest), { recursive: true });
-    const tmp = `${dest}.${crypto.randomUUID()}.tmp`;
-    await writeFile(tmp, bytes, { mode: 0o600 });
-    await rename(tmp, dest);
+    const stopTiming = startPerformanceStage('storage.write');
+    try {
+      const dest = path.join(this.directory, 'objects', safeKey(key));
+      await mkdir(path.dirname(dest), { recursive: true });
+      const tmp = `${dest}.${crypto.randomUUID()}.tmp`;
+      await writeFile(tmp, bytes, { mode: 0o600 });
+      await rename(tmp, dest);
+    } finally {
+      stopTiming();
+    }
   }
   get(key: string, options?: { signal?: AbortSignal }) {
-    return readFile(path.join(this.directory, 'objects', safeKey(key)), { signal: options?.signal });
+    if (!performanceEnabled())
+      return readFile(path.join(this.directory, 'objects', safeKey(key)), { signal: options?.signal });
+    const stopTiming = startPerformanceStage('storage.read');
+    try {
+      return readFile(path.join(this.directory, 'objects', safeKey(key)), {
+        signal: options?.signal,
+      }).finally(stopTiming);
+    } catch (error) {
+      stopTiming();
+      throw error;
+    }
   }
   async delete(key: string) {
     await unlink(path.join(this.directory, 'objects', safeKey(key))).catch((e) => {
@@ -116,15 +132,20 @@ export class R2Store implements ObjectStore {
     };
   }
   async put(key: string, bytes: Buffer) {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: safeKey(key),
-        Body: bytes,
-        ContentType: 'application/octet-stream',
-      }),
-      { abortSignal: AbortSignal.timeout(60_000) },
-    );
+    const stopTiming = startPerformanceStage('storage.write');
+    try {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: safeKey(key),
+          Body: bytes,
+          ContentType: 'application/octet-stream',
+        }),
+        { abortSignal: AbortSignal.timeout(60_000) },
+      );
+    } finally {
+      stopTiming();
+    }
   }
   async get(key: string, options?: { signal?: AbortSignal }) {
     return this.readObject(key, undefined, options?.signal);
@@ -160,43 +181,50 @@ export class R2Store implements ObjectStore {
     return this.readObject(key, expectedSize);
   }
   private async readObject(key: string, expectedSize?: number, requestedSignal?: AbortSignal) {
-    // The SDK request deadline must cover body consumption as well as headers.
-    // Keep explicit cleanup for adapters whose HTTP request closes before its body.
-    const timeout = AbortSignal.timeout(60_000),
-      signal = requestedSignal ? AbortSignal.any([timeout, requestedSignal]) : timeout,
-      deadline = Date.now() + 60_000;
-    signal.throwIfAborted();
-    const response = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }),
-      { abortSignal: signal },
-    );
-    const body = response.Body as AsyncIterable<Uint8Array> & { destroy(error?: Error): void };
-    const abort = () =>
-      body.destroy(new Error(requestedSignal?.aborted ? 'Object read interrupted' : 'Object read timed out'));
-    signal.addEventListener('abort', abort, { once: true });
-    const parts: Buffer[] = [];
-    let total = 0,
-      emptyChunks = 0;
+    const stopTiming = startPerformanceStage('storage.read');
     try {
+      // The SDK request deadline must cover body consumption as well as headers.
+      // Keep explicit cleanup for adapters whose HTTP request closes before its body.
+      const timeout = AbortSignal.timeout(60_000),
+        signal = requestedSignal ? AbortSignal.any([timeout, requestedSignal]) : timeout,
+        deadline = Date.now() + 60_000;
       signal.throwIfAborted();
-      if (expectedSize !== undefined && response.ContentLength !== expectedSize)
-        throw new Error('Upload size mismatch');
-      for await (const part of body) {
+      const response = await this.client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }),
+        { abortSignal: signal },
+      );
+      const body = response.Body as AsyncIterable<Uint8Array> & { destroy(error?: Error): void };
+      const abort = () =>
+        body.destroy(
+          new Error(requestedSignal?.aborted ? 'Object read interrupted' : 'Object read timed out'),
+        );
+      signal.addEventListener('abort', abort, { once: true });
+      const parts: Buffer[] = [];
+      let total = 0,
+        emptyChunks = 0;
+      try {
         signal.throwIfAborted();
-        if (Date.now() >= deadline) throw new Error('Object read timed out');
-        emptyChunks = part.byteLength ? 0 : emptyChunks + 1;
-        if (emptyChunks >= 16) throw new Error('Object stream did not make progress');
-        total += part.byteLength;
-        if (expectedSize !== undefined && total > expectedSize)
-          throw new Error('Upload exceeds planned size');
-        parts.push(Buffer.from(part));
+        if (expectedSize !== undefined && response.ContentLength !== expectedSize)
+          throw new Error('Upload size mismatch');
+        for await (const part of body) {
+          signal.throwIfAborted();
+          if (Date.now() >= deadline) throw new Error('Object read timed out');
+          emptyChunks = part.byteLength ? 0 : emptyChunks + 1;
+          if (emptyChunks >= 16) throw new Error('Object stream did not make progress');
+          total += part.byteLength;
+          if (expectedSize !== undefined && total > expectedSize)
+            throw new Error('Upload exceeds planned size');
+          parts.push(Buffer.from(part));
+        }
+        signal.throwIfAborted();
+        if (expectedSize !== undefined && total !== expectedSize) throw new Error('Upload incomplete');
+        return Buffer.concat(parts);
+      } finally {
+        signal.removeEventListener('abort', abort);
+        body.destroy();
       }
-      signal.throwIfAborted();
-      if (expectedSize !== undefined && total !== expectedSize) throw new Error('Upload incomplete');
-      return Buffer.concat(parts);
     } finally {
-      signal.removeEventListener('abort', abort);
-      body.destroy();
+      stopTiming();
     }
   }
 }

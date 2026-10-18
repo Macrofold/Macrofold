@@ -420,6 +420,13 @@
     "description": "Read activity, execution demand, account metrics, and management MCP reports."
   },
   {
+    "slug": "operations/performance",
+    "source": "docs/features/observability/performance.md",
+    "title": "Performance profiling",
+    "section": "Deploy and operate",
+    "description": "Capture bounded, content-free profiles of API and worker execution with an optional startup flag."
+  },
+  {
     "slug": "local-development",
     "source": "docs/getting-started/local-development.md",
     "title": "Run and test",

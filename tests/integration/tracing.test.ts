@@ -3,7 +3,7 @@ import { authPool, pool, transaction, afterCommit } from '../../packages/db';
 import { fixtureAccount } from '../fixtures/account';
 import { ensureCustomerAgent } from '../../packages/core/src/customer-agents';
 import { admitRun, getRun, cancelRun } from '../../packages/core/src/runs';
-import { runTraceContext } from '../../packages/core/src/run-tracing';
+import { runTraceContext, traceRunEvent } from '../../packages/core/src/run-tracing';
 import { emit } from '../../packages/core/src/events';
 import * as tracing from '../../packages/core/src/tracing';
 
@@ -79,6 +79,39 @@ it('resolves customer/worktree labels in the owning tenant and discards rolled b
     }),
   ).rejects.toThrow('rollback');
   expect(trace).not.toHaveBeenCalled();
+  vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(false);
+  await transaction(p.organizationId, async (tx) => {
+    const current = await getRun(tx, run.run_id);
+    current.status = 'succeeded';
+    Object.defineProperty(current.config, 'prompt', {
+      get() {
+        throw new Error('Prompt capture is forbidden');
+      },
+    });
+    Object.defineProperty(current, 'result', {
+      get() {
+        throw new Error('Result capture is forbidden');
+      },
+    });
+    const now = new Date();
+    await traceRunEvent(
+      tx,
+      current,
+      {
+        id: 'metadata-root',
+        run_id: run.run_id,
+        sequence: '7',
+        type: 'run.succeeded',
+        occurred_at: now,
+        ingested_at: now,
+        data: {},
+      },
+      context,
+    );
+  });
+  expect(trace).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'run', input: undefined, output: undefined }),
+  );
   await transaction(p.organizationId, (tx) => cancelRun(tx, p, run.run_id));
   expect(trace.mock.calls.some(([o]) => o.id === 'run' && o.context.customer_id === 'customer-42')).toBe(
     true,

@@ -6,6 +6,8 @@ This guide covers the implemented Vercel-first application, the smallest useful 
 
 [Execution scheduling](../features/execution/scheduling.md) defines the three plans, 24-hour new-job deadlines, PostgreSQL fairness, queue visibility and operator metrics. Its verification section records local multi-process load evidence. This guide describes current controls and the measurements required before increasing them; it does not certify production capacity or an SLA.
 
+Use the default-off [performance profiler](../features/observability/performance.md) for correlated foreground, stream, job and background measurements. Database submission groups are not measured wire round trips, and provider transport time is not provider computation-only time.
+
 ## 1. What we can establish now
 
 Documentation answers what a provider offers, how its limits work, and how to configure it. It cannot establish our account's overrides, actual database pressure, or the throughput of this particular application.

@@ -16,7 +16,9 @@ export function nativeInferenceBody(
     'invalid_request',
     'Provider input must be a request object.',
   );
-  const body = structuredClone(z.record(z.string(), z.unknown()).parse(request.input));
+  // Zod creates the owned root. Rewrites below only replace root fields; nested
+  // messages/tools remain immutable, so copying their whole graph wastes CPU.
+  const body = z.record(z.string(), z.unknown()).parse(request.input);
   assert(
     body.model === undefined || body.model === request.model,
     400,

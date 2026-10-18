@@ -6,8 +6,11 @@ import * as resources from '../../packages/core/src/resources';
 
 vi.mock('better-auth', () => ({ betterAuth: () => ({}) }));
 
-vi.mock('../../packages/core/src/catalog', () => ({
-  models: () => [{ id: 'test-model', provider: 'test-provider', enabled: true, harnesses: ['codex'] }],
+vi.mock('../../packages/core/src/model-catalog', () => ({
+  selectedModel: () => ({
+    model: { id: 'test-model', provider: 'test-provider', enabled: true, harnesses: ['codex'] },
+    revision: null,
+  }),
 }));
 vi.mock('../../packages/core/src/resources', () => ({ get: vi.fn() }));
 const p: Principal = {

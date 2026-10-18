@@ -95,13 +95,14 @@ export function UsageView() {
       )}
       {!!report.data?.missing_sources.length && (
         <div className="info-note" role="status">
-          Some usage is incomplete. Unreported values appear as unknown; they are never counted as zero.
+          Request activity is collected on a best-effort basis and may be incomplete. Unreported provider
+          usage remains unknown.
         </div>
       )}
       <section className="usage-requests">
         <SectionHeading
-          title="Request activity"
-          description="Every API and dashboard request, with prompts and secrets kept out of the audit trail."
+          title="Observed request activity"
+          description="Retained API and dashboard observations may omit requests when collection is disabled or busy. Prompts and secrets are excluded."
         />
         {requests.isPending ? (
           <Loading />

@@ -20,6 +20,7 @@ import { computeMaximum } from './catalog';
 import { runtimeToken } from './runtime-auth';
 import * as resources from './resources';
 import { prepareCheckpoint, saveCheckpoint, checkpointState, type FileRecord } from './files';
+import { startPerformanceStage } from './performance';
 import { storagePreparation } from './storage-preparation';
 import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
@@ -216,6 +217,11 @@ export async function advanceCloudRun(
   });
   if (!owns) return { done: false, delaySeconds: 5 };
   const phase = state.phase;
+  const stopStorageTiming = ['input', 'hydrate', 'restore', 'restore_wait'].includes(phase)
+    ? startPerformanceStage('storage.restore')
+    : ['index', 'upload', 'publish'].includes(phase)
+      ? startPerformanceStage('storage.checkpoint')
+      : undefined;
   const started = performance.now();
   const timings = (state.phaseTimings ??= {});
   const timing = (timings[phase] ??= { startedAt: Date.now(), activeMs: 0, attempts: 0 });
@@ -609,6 +615,7 @@ export async function advanceCloudRun(
     }
     delaySeconds = Math.min(60, 2 ** state.failures);
   } finally {
+    stopStorageTiming?.();
     timing.activeMs += Math.round(performance.now() - started);
     timing.attempts++;
     if (state.phase !== phase) timing.completedAt = Date.now();

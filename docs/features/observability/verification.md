@@ -56,3 +56,7 @@ September 28, 2026: focused provider and tracing tests verify reported zero, sub
 ## Remaining deployment acceptance
 
 Configure the same region/workspace keys in the deployed web application and every worker. Verify hosted request/stream `after()` flushing, Workflow step flushing, shutdown behavior, customer filtering, and one native run plus continuation. Exercise a tracing outage while checking that normal completion and billing remain intact. Confirm access/retention and the separate deletion policy. The [release TODO](../../maintainers/TODO.md) tracks these unverified gates.
+
+## Serving performance profiler
+
+The shared default-off profiler, producer-aware content policy and independent HTTP observation settings are covered by the [optimization verification record](../../projects/execution-efficiency/optimization-verification.md). This includes matched synthetic protocol cohorts, bounded-lifecycle/privacy tests, source identities and explicit observer-effect/full-gate limitations. It does not establish hosted latency or exactly-once diagnostic delivery.

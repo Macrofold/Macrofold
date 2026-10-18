@@ -79,16 +79,16 @@ Negative checks deliberately zeroed the runtime-capability branches and then all
 
 ## GitHub Actions
 
-| Job                                | Purpose                                                                                                                                                                                        |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Change scope`                     | On pull requests, decides whether application acceptance is needed from the changed paths. Pushes, the merge queue, schedules and manual runs always run it.                                    |
-| `acceptance`                       | Strict TypeScript and production build, parallel domain tests with module floors, load/installation/package checks, Python and cost tests, documentation, generated contracts, dependency audit. Each step runs even after an earlier failure. |
-| `Application acceptance`           | Browser journeys on parallel workers (one seeded account each, shared-state files afterwards and serially), CLI subprocesses, the POSIX terminal and Python HTTP/SSE checks, with coverage observations. |
-| `Generated SDK contracts and transports` | Pinned generation drift, all five resource journeys, Python type checking, native HTTP/SSE fixtures, and actual API/simulator execution on a disposable database. |
-| `Native runtime image`             | Current Docker image, three real harnesses, restore/continuation, OpenCode input and stdio MCP with external networking disabled; native coverage observations.                                |
-| `Combined coverage gates`          | Required aggregate: fails when acceptance, application or native verification failed. Then merges that run's observations, enforces the application and combined floors, retains reports and optionally uploads Codecov flags. |
-| `Critical policy mutation tests`   | Fast runtime-credential and execution-plan mutation checks on PR/push/merge-queue/manual events; 90% minimum.                                                                                  |
-| `Extended critical mutation tests` | Separate weekly/manual workflow for database authorization, financial and restore mutations; 85% minimum with a 90% target.                                                                    |
+| Job                                      | Purpose                                                                                                                                                                                                                                        |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Change scope`                           | On pull requests, decides whether application acceptance is needed from the changed paths. Pushes, the merge queue, schedules and manual runs always run it.                                                                                   |
+| `acceptance`                             | Strict TypeScript and production build, parallel domain tests with module floors, load/installation/package checks, Python and cost tests, documentation, generated contracts, dependency audit. Each step runs even after an earlier failure. |
+| `Application acceptance`                 | Browser journeys on parallel workers (one seeded account each, shared-state files afterwards and serially), CLI subprocesses, the POSIX terminal and Python HTTP/SSE checks, with coverage observations.                                       |
+| `Generated SDK contracts and transports` | Pinned generation drift, all five resource journeys, Python type checking, native HTTP/SSE fixtures, and actual API/simulator execution on a disposable database.                                                                              |
+| `Native runtime image`                   | Current Docker image, three real harnesses, restore/continuation, OpenCode input and stdio MCP with external networking disabled; native coverage observations.                                                                                |
+| `Combined coverage gates`                | Required aggregate: fails when acceptance, application or native verification failed. Then merges that run's observations, enforces the application and combined floors, retains reports and optionally uploads Codecov flags.                 |
+| `Critical policy mutation tests`         | Fast runtime-credential and execution-plan mutation checks on PR/push/merge-queue/manual events; 90% minimum.                                                                                                                                  |
+| `Extended critical mutation tests`       | Separate weekly/manual workflow for database authorization, financial and restore mutations; 85% minimum with a 90% target.                                                                                                                    |
 
 Workflows use pinned actions, read-only repository permissions, checkout without persisted credentials and synthetic local profiles. Fork jobs receive no production secrets, do not use `pull_request_target`, and make no paid provider calls. The scheduled job provisions only disposable fixture infrastructure. Evidence is retained for seven days. Failed tests remain failures even when other surfaces and reports are collected afterward.
 
@@ -99,3 +99,37 @@ These are implemented workflow definitions; a local pass does not establish a Gi
 The `Main requires verification` ruleset requires `acceptance`, `Native runtime image`, `Combined coverage gates`, `Critical policy mutation tests` and `Generated SDK contracts and transports` on `main`. Commits reach `main` through pull requests whose checks passed. Repository administrators can bypass the rule (for example to push a local merge); use that only when a check is broken for reasons unrelated to the change, and record why. The optional Codecov upload uses `CODECOV_ENABLED=true` with approved tokenless public uploads and separate TypeScript/Python flags. Forks receive no production or upload secrets. Enabled upload failures fail the job.
 
 Coverage comparisons supplement the mandatory local/global/module floors. Repository connection, first hosted verification, and badge activation are tracked in [release TODO](../maintainers/TODO.md).
+
+For a focused browser check, pass `--no-deps` with the selected files/grep. Playwright otherwise runs the entire dependent project when a shared-state test is selected. For example:
+
+```sh
+pnpm test:dashboard:isolated tests/browser/usage.spec.ts tests/browser/operator.spec.ts \
+  --no-deps --grep 'usage charts|operator sees'
+```
+
+Install the pinned Chromium build before application acceptance (`pnpm exec playwright install chromium`). A missing browser executable is an environment failure, not a failed UI assertion. Full CI acceptance keeps the normal project dependencies.
+
+## Execution performance experiments
+
+The [operator profiler](../features/observability/performance.md) is off by default. The isolated runner below uses the same collector as serving, a disposable database, synthetic upstream responses and an independent handler boundary clock:
+
+```sh
+PLATFORM_MODE=local EXECUTION_PROVIDER=simulator ALLOW_PAID_EXECUTION=false \
+  PROFILE_INFERENCE_MODEL=jev PROFILE_INFERENCE_CALLS=100 PROFILE_INFERENCE_RATE=5 \
+  PROFILE_INFERENCE_CONTEXT_BYTES=1494000 PROFILE_INFERENCE_OBSERVER=light \
+  pnpm exec tsx scripts/profile-inference.ts
+```
+
+Use `PROFILE_INFERENCE_OBSERVER=off|light|cpu` (default light); CPU inspector mode is fixture-only. Select `PROFILE_INFERENCE_MODEL=anthropic|openrouter-chat` for the other protocols. `PROFILE_INFERENCE_CALLS` accepts 1–10000 measured calls, default 20. `PROFILE_INFERENCE_WARMUPS` accepts 0–200, default 2; qualification can set 20 for steadier initialization, and 0 skips warmup calls. These are fixture bounds, not API limits. `PROFILE_INFERENCE_CONCURRENCY` defaults to 1 and accepts 1–64; the paced generator retains intended arrivals and reports actual lag. `PROFILE_INFERENCE_SAMPLE_RATE=0` measures installed instrumentation without selected operations; `0.01` and `1` exercise one-percent and full sampling. `PROFILE_INFERENCE_TRACING=1` independently enables the official exporter against a loopback collector. No real model calls occur.
+
+Version-three reports retain submission-correlated scope counters and existing latency fields. They also record effective trace-content and HTTP-observation policies so metadata-only cohorts cannot be mistaken for full capture. Ordinary disposable tests restore both HTTP observation defaults to enabled, regardless of developer opt-outs; this profiling runner explicitly reapplies requested `REQUEST_ANALYTICS_ENABLED`/`API_PRODUCT_EVENTS_ENABLED` overrides for deliberate comparisons. Enabled cohorts use the actual bounded JSONL sink with asynchronous private-file output, parsed only after measurement; reports expose written bytes, records and drops. The SDK driver and loopback OTLP receiver run in a separate peer process. API-process CPU starts after warmup/background/export drains and ends after measured business, trace and JSONL drains, before financial-verification SQL, JSONL parsing and report construction. Reports identify both process IDs, actual Linux affinity and the exact CPU/wall boundary. The API process still contains the synthetic upstream stub and fixture boundary clocks; this is not hosted-provider CPU evidence.
+
+Observer-off database/stage measurements are unavailable, not zeros. Handler clocks, upstream timing and event-loop diagnostics remain identical across modes. Historical version-two/in-memory and timestamp-window reports retain their original boundaries; do not treat them as actual-sink server-CPU qualification. Preserve matched source, topology, input, arrivals, tracing mode and accounting assertions. A hundred calls at one-percent sampling may select no foreground operation; sustained CPU acceptance needs adequate samples and paired repetitions, not a selected faster cohort.
+
+### Independent Linux qualification
+
+Use a fixed-performance four-vCPU, eight-GiB machine for the declared isolated topology. Keep the API on CPUs 0–1, PostgreSQL on CPU 2 and the SDK/OTLP peer on CPU 3. For the API command, combine `taskset --cpu-list 0,1` with `PROFILE_INFERENCE_PEER_CPUS=3`; the fixture pins all peer threads before warmup. This optional fixture-only setting requires Linux, `taskset` and CPUs available within the machine/container cpuset; unsupported affinity fails instead of silently measuring another topology. Leave it unset for ordinary local runs. Apply the same affinity in every compared mode.
+
+Before provisioning cloud resources, verify the explicitly approved account and profile with `aws sts get-caller-identity --profile <approved-profile>`, confirm spending authorization, and install a bounded automatic cleanup watchdog. Copy reviewed credential-free source only: exclude environment files, credentials, developer data and private keys. Preserve private reports and destroy only the qualification's owned resources afterward. An AWS Free account plan can block fixed-performance instances; resolve that account prerequisite with the operator rather than silently substituting a burstable instance. Actual topology, results and unmet budgets belong in the [optimization verification record](../projects/execution-efficiency/optimization-verification.md).
+
+The CPU-only `pnpm exec tsx scripts/performance/payload-profile.ts` asserts byte-for-byte request equivalence while comparing preparation ownership. It is not an API, paid provider or hosting qualification. Runtime I/O and tool-admission scripts retain their own source/transport correctness assertions. See [the implementation designs](../projects/execution-efficiency/remaining-optimizations.md) and [existing evidence](../projects/execution-efficiency-verification.md) for scope and remaining gates.

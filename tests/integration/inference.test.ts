@@ -363,6 +363,7 @@ it('performs one typed request with no worktree/session and shares result/events
 it('traces explicit decision context, billing, actor and final receipt under one run identity', async () => {
   const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
   vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+  vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(true);
   provider();
   const runId = await submit();
   await complete(runId);

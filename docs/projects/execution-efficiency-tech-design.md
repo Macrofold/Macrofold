@@ -300,7 +300,7 @@ Do not claim an absolute optimum or choose a throughput ceiling without measurem
 
 ## Remaining optimization implementation plan
 
-The [detailed follow-up design](execution-efficiency/remaining-optimizations.md) specifies the remaining SQL dependency graph, transaction-owned interfaces, canonical payload reuse, producer-aware trace policy and optional HTTP-observation controls. It is a proposal, not an implementation claim or a replacement for E0–E6's open acceptance gates. Its stage order starts with the separate [opt-in profiling design](performance-profiling-tech-design.md), then measures shared SQL and CPU changes against the current [verification record](execution-efficiency-verification.md). Preserve full tracing and request-observation defaults unless the operator explicitly chooses otherwise.
+The [detailed follow-up design](execution-efficiency/remaining-optimizations.md) specifies the remaining SQL dependency graph, transaction-owned interfaces, canonical payload reuse, producer-aware trace policy and optional HTTP-observation controls. The shared modules are implemented locally; their measured qualification remains separate from E0–E6's open acceptance gates. Its stage order starts with the separate [opt-in profiling design](performance-profiling-tech-design.md), then measures shared SQL and CPU changes against the current [verification record](execution-efficiency-verification.md). Preserve full tracing and request-observation defaults unless the operator explicitly chooses otherwise.
 
 ## Changelog
 

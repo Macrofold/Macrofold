@@ -1,11 +1,13 @@
 import { transaction, queryGroup, type Tx } from '../../db';
-import { canonical, id, sealJSON, sha256 } from './crypto';
+import type { QueryResult } from 'pg';
+import { id, sealJSON, sha256 } from './crypto';
+import { createJsonPreparation, type JsonPreparation } from './prepared-json';
 import { assert } from './errors';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
 import { boundedRequest } from './bounded-decisions';
 import { inferenceInputBound } from './decision';
 import { emptyUsage } from './model-protocol';
-import { costForUsage } from './model-gateway';
+import { costForUsage, modelSettlementQuery, modelSettlementFromResult } from './model-gateway';
 import { emit, emitBatch, type EventInput } from './events';
 import {
   getRun,
@@ -21,7 +23,7 @@ import {
 } from './runs';
 import { initialReceipt } from './inference-receipt';
 import { digest, schemaValidator } from './explicit-context';
-import { settle } from './ledger';
+import { prepareSettlement, settlementQueries, finishSettlement } from './ledger';
 import type { DecisionResponse, InferenceReceipt } from './decision';
 import { inferencePublicationReceipt } from './inference-publication';
 
@@ -62,7 +64,24 @@ export function prepareInvocation(
   step = 0,
   steps: { artifact_id: string; context: import('./decision').ExplicitContext }[] = [],
   outputBound = configuration.limits.max_output_tokens,
+  preparation?: JsonPreparation,
 ): PreparedInvocation {
+  const json = preparation ?? createJsonPreparation();
+  try {
+    return prepareInvocationBody(configuration, step, steps, outputBound, json);
+  } finally {
+    if (!preparation) json.dispose();
+  }
+}
+
+function prepareInvocationBody(
+  configuration: InferenceConfig,
+  step: number,
+  steps: { artifact_id: string; context: import('./decision').ExplicitContext }[],
+  outputBound: number,
+  preparation: JsonPreparation,
+): PreparedInvocation {
+  const encode = preparation.stringify;
   const provider = configuration.rate_card.provider;
   const dependencyTokens = { ...configuration.context.dependency_tokens };
   for (const entry of steps)
@@ -85,6 +104,18 @@ export function prepareInvocation(
     'stale_input',
     'Context expired before dispatch.',
   );
+  // Native requests rewrite the input root and ignore explicit context, so
+  // pre-encoding those roots adds work rather than reusable subtrees.
+  if (configuration.definition.question.kind !== 'provider') {
+    if (configuration.input !== null && typeof configuration.input === 'object')
+      preparation.remember(configuration.input);
+    preparation.remember(configuration.context.items);
+    preparation.remember(configuration.context);
+    for (const entry of steps) {
+      preparation.remember(entry.context.items);
+      preparation.remember(entry.context);
+    }
+  }
   const body = decisionProtocol(provider, configuration.model).prepare(
     boundedRequest({
       model: configuration.model,
@@ -100,16 +131,18 @@ export function prepareInvocation(
       },
       ...(steps.length ? { steps } : {}),
     }),
+    encode,
   );
   // The same immutable JSON supplies size, encrypted evidence and digest;
   // large contexts should not be serialized separately for each boundary.
-  const serialized = canonical(body);
+  const encoded = preparation.remember(body);
+  const { json: serialized, bytes } = encoded;
   const inputBound = inferenceInputBound(
     body,
     provider,
     configuration.model,
     configuration.definition.question.kind === 'provider',
-    serialized,
+    encoded,
   );
   const bound = costForUsage(configuration.rate_card, {
     ...emptyUsage(),
@@ -122,7 +155,7 @@ export function prepareInvocation(
     id: id(),
     step,
     body,
-    bytes: Buffer.byteLength(serialized),
+    bytes,
     serialized,
     ciphertext: configuration.execution_owner === 'request' ? '' : sealJSON(serialized),
     digest: sha256(serialized),
@@ -130,7 +163,7 @@ export function prepareInvocation(
     outputBound,
     dependencyTokens,
     contextDigest: steps.length
-      ? digest({ context: configuration.context, steps })
+      ? digest({ context: configuration.context, steps }, encode)
       : configuration.context_digest,
     expiresAt,
   };
@@ -251,13 +284,18 @@ export async function invocationEvidence(tx: Tx, runId: string) {
 }
 /** Ordered Run lock and current invocation read share one wire wait. Both
  * statements use known identity; decisions still consume their actual rows. */
-export async function currentInferenceState<R extends InferenceRunRow>(tx: Tx, admitted: R) {
-  const [runs, calls] = await queryGroup<RunControl | InvocationEvidence>(tx, [
+export async function currentInferenceState<R extends InferenceRunRow>(
+  tx: Tx,
+  admitted: R,
+  requestId?: string,
+) {
+  const results = await queryGroup<RunControl | InvocationEvidence>(tx, [
     currentRunControlQuery(admitted.id),
     invocationEvidenceQuery(admitted.id),
+    ...(requestId ? [modelSettlementQuery(admitted.id, requestId)] : []),
   ]);
-  const control = runs.rows[0],
-    call = calls.rows[0];
+  const control = results[0].rows[0],
+    call = results[1].rows[0];
   assert(control && 'organization_id' in control, 404, 'not_found', 'Run not found.');
   assert(
     !call || 'provider_request_digest' in call,
@@ -265,9 +303,41 @@ export async function currentInferenceState<R extends InferenceRunRow>(tx: Tx, a
     'inference_intent_missing',
     'The invocation identity is unavailable.',
   );
-  return { run: mergeCurrentRunControl(admitted, control), call };
+  return {
+    run: mergeCurrentRunControl(admitted, control),
+    call,
+    settlement: requestId
+      ? modelSettlementFromResult(
+          tx,
+          { organization: admitted.organization_id, run: admitted.id },
+          requestId,
+          results[2],
+        )
+      : undefined,
+  };
 }
 
+export type InvocationResponseRow = Omit<InvocationEvidence, 'response_ciphertext'>;
+export function invocationResponseQuery(
+  invocationId: string,
+  ciphertext: string,
+  completedAt: Date | null,
+  timings: Record<string, number>,
+) {
+  return {
+    text: `UPDATE decision_invocations SET state='responded',response_ciphertext=$2,
+       responded_at=clock_timestamp(),provider_completed_at=$3,timings_ms=$4
+       WHERE id=$1 AND state='dispatch_started'
+       RETURNING ${invocationControlColumns}`,
+    values: [invocationId, ciphertext, completedAt, JSON.stringify(timings)],
+  };
+}
+export function invocationResponseFromResult(result: QueryResult<InvocationResponseRow>, ciphertext: string) {
+  const saved = result.rows[0];
+  assert(saved, 409, 'inference_owner_changed', 'The invocation is no longer dispatching.');
+  // The live owner already has these bytes; avoid returning the large ciphertext from SQL.
+  return { ...saved, response_ciphertext: ciphertext };
+}
 export async function recordInvocationResponse(
   tx: Tx,
   invocationId: string,
@@ -275,20 +345,14 @@ export async function recordInvocationResponse(
   completedAt: Date | null,
   timings: Record<string, number>,
 ) {
-  const saved = (
-    await tx.query<Omit<InvocationEvidence, 'response_ciphertext'>>(
-      `UPDATE decision_invocations SET state='responded',response_ciphertext=$2,
-       responded_at=clock_timestamp(),provider_completed_at=$3,timings_ms=$4
-       WHERE id=$1 AND state='dispatch_started'
-       RETURNING ${invocationControlColumns}`,
-      [invocationId, ciphertext, completedAt, JSON.stringify(timings)],
-    )
-  ).rows[0];
-  assert(saved, 409, 'inference_owner_changed', 'The invocation is no longer dispatching.');
-  // The caller already owns these exact immutable bytes. Returning them again
-  // from SQL doubles response traffic for large outputs without new evidence.
-  return { ...saved, response_ciphertext: ciphertext };
+  return invocationResponseFromResult(
+    await tx.query<InvocationResponseRow>(
+      invocationResponseQuery(invocationId, ciphertext, completedAt, timings),
+    ),
+    ciphertext,
+  );
 }
+
 export async function invocation(tx: Tx, runId: string) {
   return (
     await tx.query<Invocation>(
@@ -375,7 +439,14 @@ export async function finishInferenceInTransaction(
     };
   }
   const { value: _value, ...receiptMetadata } = receipt;
-  const [finished] = await queryGroup<Omit<InferenceRunRow, 'config'>>(tx, [
+  const settlement = prepareSettlement(
+    tx,
+    org,
+    `run:${runId}`,
+    BigInt(run.reservation_micro_usd),
+    BigInt(run.cost_micro_usd),
+  );
+  const writes = await queryGroup<Omit<InferenceRunRow, 'config'>>(tx, [
     {
       text: `UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1 RETURNING ${inferenceRunStateColumns}`,
       values: [
@@ -399,15 +470,22 @@ export async function finishInferenceInTransaction(
       text: "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
       values: [runId],
     },
+    ...settlementQueries(tx, settlement),
   ]);
-  const updatedRow = finished.rows[0];
+  const updatedRow = writes[0].rows[0];
+  assert(
+    updatedRow && writes[0].rowCount === 1,
+    409,
+    'inference_owner_changed',
+    'Run completion lost its owner.',
+  );
   const { kind: _kind, ...currentFields } = updatedRow;
   const updated = {
     ...run,
     ...currentFields,
     result: run.result.content_expired ? updatedRow.result : { ...updatedRow.result, inference: receipt },
   };
-  await settle(tx, org, runId, BigInt(run.reservation_micro_usd), BigInt(run.cost_micro_usd));
+  await finishSettlement(tx, settlement, writes.slice(2));
   await emit(tx, org, runId, `run.${status}`, { status, outcome: receipt.outcome }, undefined, updated);
   return updated;
 }

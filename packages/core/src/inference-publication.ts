@@ -7,13 +7,17 @@ import { principalFor } from './engine';
 import { AppError, assert } from './errors';
 
 /** The caller holds the fresh Run lock. Provider usage is independent of
- * publication authority: denial removes the value, never incurred accounting. */
+ * publication authority: denial removes the value, never incurred accounting.
+ * Optional actor facts must be decoded from this same transaction after its
+ * Run lock, never inferred from the admitted configuration or a prior request.
+ * See docs/features/decisions/implementation.md#shared-sql-ownership. */
 export async function inferencePublicationReceipt(
   tx: Tx,
   current: InferenceRunRow,
   expectedGeneration: string,
   receipt: InferenceReceipt,
   contextExpiresAt?: Date | null,
+  currentActorAllowed?: boolean,
 ): Promise<InferenceReceipt> {
   assert(
     current.lease_generation === expectedGeneration,
@@ -21,7 +25,8 @@ export async function inferencePublicationReceipt(
     'inference_owner_changed',
     'Recovery owns this invocation.',
   );
-  let allowed = !current.result.content_expired && (await actorAuthorized(tx, current));
+  let allowed =
+    !current.result.content_expired && (currentActorAllowed ?? (await actorAuthorized(tx, current)));
   const references = current.config.context_reference ? [current.config.context_reference] : [];
   if (allowed && current.kind === 'bounded_agent' && current.config.definition.bounded_agent) {
     // Evidence retained for recovery does not retain a revoked disclosure grant.

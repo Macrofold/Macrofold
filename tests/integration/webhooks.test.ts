@@ -8,7 +8,12 @@ import { handleApi } from '../../packages/core/src/http';
 import { executeRun } from '../../packages/core/src/engine';
 import * as resources from '../../packages/core/src/resources';
 import * as network from '../../packages/providers/src/network';
-import { deliverWebhook, dispatchWebhooks, enqueueWebhook } from '../../packages/core/src/webhooks';
+import {
+  deliverWebhook,
+  dispatchWebhooks,
+  enqueueWebhook,
+  enqueueWebhookBatch,
+} from '../../packages/core/src/webhooks';
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 beforeAll(async () => {
   account = await fixtureAccount('Webhook fixture');
@@ -181,4 +186,60 @@ it('drains a backlog over bounded sweeps without duplicating completed deliverie
   } finally {
     vi.unstubAllEnvs();
   }
+});
+
+it('publishes all eligible destinations in bounded pages with one job per newly inserted delivery', async () => {
+  const eventId = id();
+  const endpointIds = Array.from({ length: 270 }, () => id());
+  await transaction(account.p.organizationId, async (tx) => {
+    await tx.query(
+      `INSERT INTO webhooks(id,organization_id,data)
+      SELECT entry.id,$1,entry.data FROM jsonb_to_recordset($2::jsonb) AS entry(id uuid,data jsonb)`,
+      [
+        account.p.organizationId,
+        JSON.stringify(
+          endpointIds.map((endpointId, index) => ({
+            id: endpointId,
+            data: {
+              events: ['connection.expired'],
+              enabled: index !== 0,
+              deleted: index === 1,
+              url: 'https://receiver.example.test/bulk',
+              secret_ciphertext: seal('fixture-secret'),
+            },
+          })),
+        ),
+      ],
+    );
+    await enqueueWebhookBatch(tx, account.p.organizationId, [
+      { event: 'connection.expired', data: { connection_id: id() }, options: { eventId, endpointIds } },
+      { event: 'connection.expired', data: {}, options: { eventId, endpointIds } },
+    ]);
+  });
+  const facts = await transaction(account.p.organizationId, (tx) =>
+    tx.query(
+      `SELECT
+    (SELECT count(*)::integer FROM deliveries WHERE data->>'event_id'=$1) AS deliveries,
+    (SELECT count(*)::integer FROM dispatch_jobs j JOIN deliveries d ON d.id=j.resource_id
+      WHERE j.kind='webhook' AND d.data->>'event_id'=$1) AS jobs`,
+      [eventId],
+    ),
+  );
+  expect(facts.rows[0]).toEqual({ deliveries: 268, jobs: 268 });
+  const rolledBack = id();
+  await expect(
+    transaction(account.p.organizationId, async (tx) => {
+      await enqueueWebhookBatch(tx, account.p.organizationId, [
+        { event: 'connection.expired', data: {}, options: { eventId: rolledBack, endpointIds } },
+      ]);
+      throw new Error('fixture rollback');
+    }),
+  ).rejects.toThrow('fixture rollback');
+  expect(
+    (
+      await transaction(account.p.organizationId, (tx) =>
+        tx.query("SELECT id FROM deliveries WHERE data->>'event_id'=$1", [rolledBack]),
+      )
+    ).rows,
+  ).toEqual([]);
 });

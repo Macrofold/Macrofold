@@ -30,7 +30,7 @@ export class LangfuseTraceSink implements TraceSink {
     const baseUrl = process.env.LANGFUSE_BASE_URL;
     if (!options.exporter && (!baseUrl || new URL(baseUrl).protocol !== 'https:'))
       throw new Error('Langfuse requires an explicit HTTPS base URL.');
-    this.capture = options.capture ?? process.env.TRACING_CAPTURE_CONTENT !== 'false';
+    this.capture = options.capture ?? true;
     this.maxBytes = options.maxBytes ?? 1024 * 1024;
     // SDK debug/error objects may contain span bodies or HTTP credentials. Our
     // exporter reports fixed diagnostic codes instead, even if SDK debug is set.
@@ -99,8 +99,12 @@ export class LangfuseTraceSink implements TraceSink {
       ...(c.customer_binding_id ? ['integration:customer-agents'] : []),
     ];
     const attributes = createObservationAttributes(observation.type, {
-      input: traceContent(observation.input, this.maxBytes, this.capture),
-      output: traceContent(observation.output, this.maxBytes, this.capture),
+      input: this.capture
+        ? traceContent(observation.input, this.maxBytes)
+        : { omitted: 'content_capture_disabled' },
+      output: this.capture
+        ? traceContent(observation.output, this.maxBytes)
+        : { omitted: 'content_capture_disabled' },
       metadata: traceContent({ ...c, ...metadata }, this.maxBytes) as Record<string, unknown>,
       level: observation.level,
       model: observation.model,

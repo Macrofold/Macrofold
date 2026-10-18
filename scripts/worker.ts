@@ -9,7 +9,10 @@ import { pool, authPool, credentialPool } from '../packages/db';
 import { shutdownTracing } from '../packages/core/src/tracing';
 import { observeWorkerStep } from '../packages/core/src/worker-diagnostics';
 import { runPollerLoop } from '../packages/core/src/poller-loop';
+import { initializePerformance } from '../packages/core/src/performance-composition';
+import { shutdownPerformance } from '../packages/core/src/performance';
 assertSecurityConfiguration();
+initializePerformance();
 if (!isLocal() && (config.execution !== 'vercel' || config.orchestration !== 'poller'))
   throw new Error(
     'The standalone worker requires EXECUTION_PROVIDER=vercel and ORCHESTRATION_BACKEND=poller in production.',
@@ -45,6 +48,7 @@ await runPollerLoop(
   () => closing,
 );
 await shutdownTracing();
+await shutdownPerformance();
 await pool.end();
 await authPool.end();
 await credentialPool.end();

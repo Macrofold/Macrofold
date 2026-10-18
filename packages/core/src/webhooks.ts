@@ -7,6 +7,7 @@ import { isLocal } from './config';
 import { safeFetch } from '../../providers/src/network';
 import * as resources from './resources';
 import { dispatchFailed } from './dispatch-failures';
+import { assert } from './errors';
 
 export const webhookEvents = [
   'run.completed',
@@ -22,51 +23,114 @@ export function webhookSignature(secret: string, timestamp: string, body: string
 }
 /** Payloads contain stable resource references, never prompts, files, secrets or complete transcripts.
  * The outbox and event are committed together. Consumers must deduplicate the stable event ID. */
+export type WebhookInput = {
+  event: WebhookEvent;
+  data: Record<string, unknown>;
+  options?: { eventId?: string; endpointIds?: string[]; workspaceId?: string };
+};
+export type WebhookSelection = { event_index: number; endpoint_id: string };
+/** IDs only: fan-out publication neither needs nor retains destination secrets. */
+export function webhookEligibilityQuery(events: readonly WebhookInput[]) {
+  return {
+    text: `SELECT event.ordinal AS event_index,endpoint.id AS endpoint_id
+      FROM jsonb_to_recordset($1::jsonb) AS event(ordinal integer,type text,endpoint_ids uuid[])
+      JOIN webhooks endpoint ON endpoint.data->>'enabled'='true'
+        AND coalesce(endpoint.data->>'deleted','false')<>'true' AND endpoint.data->'events' ? event.type
+        AND (coalesce(cardinality(event.endpoint_ids),0)=0 OR endpoint.id=ANY(event.endpoint_ids))
+      ORDER BY event.ordinal,endpoint.id`,
+    values: [
+      JSON.stringify(
+        events.map((entry, ordinal) => ({
+          ordinal,
+          type: entry.event,
+          endpoint_ids: entry.options?.endpointIds ?? [],
+        })),
+      ),
+    ],
+  };
+}
 export async function enqueueWebhook(
   tx: Tx,
   org: string,
   event: WebhookEvent,
   data: Record<string, unknown>,
-  options: { eventId?: string; endpointIds?: string[]; workspaceId?: string } = {},
+  options: WebhookInput['options'] = {},
 ) {
-  const eventId = options.eventId || id();
-  const endpoints = await tx.query(
-    "SELECT id,data FROM webhooks WHERE data->>'enabled'='true' AND COALESCE(data->>'deleted','false')<>'true' AND data->'events' ? $1",
-    [event],
-  );
-  for (const endpoint of endpoints.rows) {
-    if (options.endpointIds?.length && !options.endpointIds.includes(endpoint.id)) continue;
-    const deliveryId = id();
-    const payload = JSON.stringify({
-      id: eventId,
-      schema_version: 1,
-      type: event,
-      created_at: new Date().toISOString(),
-      data,
-    });
-    const inserted = await tx.query(
-      `INSERT INTO deliveries(id,organization_id,data) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING id`,
-      [
-        deliveryId,
-        org,
-        JSON.stringify({
-          event_id: eventId,
-          endpoint_id: endpoint.id,
-          status: 'pending',
-          attempts: 0,
-          payload,
-          ...(options.workspaceId ? { workspace_id: options.workspaceId } : {}),
-        }),
-      ],
-    );
-    if (inserted.rowCount)
-      await tx.query(
-        "INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id) VALUES($1,$2,'webhook',$3)",
-        [id(), org, deliveryId],
-      );
-  }
-  return eventId;
+  return (await enqueueWebhookBatch(tx, org, [{ event, data, options }]))[0];
 }
+/** Every selected delivery and its job commit with the source transaction.
+ * Byte-bounded pages avoid a SQL round trip per destination without dropping any. */
+export async function enqueueWebhookBatch(
+  tx: Tx,
+  org: string,
+  events: readonly WebhookInput[],
+  selection?: readonly WebhookSelection[],
+) {
+  const prepared = events.map(({ event, data, options }) => {
+    const eventId = options?.eventId || id();
+    return {
+      eventId,
+      workspaceId: options?.workspaceId,
+      payload: JSON.stringify({
+        id: eventId,
+        schema_version: 1,
+        type: event,
+        created_at: new Date().toISOString(),
+        data,
+      }),
+    };
+  });
+  if (!events.length) return [];
+  const endpoints = selection ?? (await tx.query<WebhookSelection>(webhookEligibilityQuery(events))).rows;
+  const page: string[] = [];
+  let pageBytes = 2;
+  const publish = async () => {
+    if (!page.length) return;
+    const result = await tx.query<{ deliveries: number; jobs: number }>(
+      `WITH entries AS MATERIALIZED (
+        SELECT * FROM jsonb_to_recordset($2::jsonb) AS entry(id uuid,job_id uuid,data jsonb)
+      ), inserted AS (
+        INSERT INTO deliveries(id,organization_id,data) SELECT id,$1,data FROM entries
+        ON CONFLICT DO NOTHING RETURNING id
+      ), jobs AS (
+        INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id)
+        SELECT entry.job_id,$1,'webhook',inserted.id FROM inserted JOIN entries entry USING(id) RETURNING id
+      ) SELECT (SELECT count(*) FROM inserted)::integer AS deliveries,(SELECT count(*) FROM jobs)::integer AS jobs`,
+      [org, `[${page.join(',')}]`],
+    );
+    assert(
+      result.rows[0]?.deliveries === result.rows[0]?.jobs,
+      500,
+      'webhook_publication_failed',
+      'A webhook delivery is missing its dispatch job.',
+    );
+    page.length = 0;
+    pageBytes = 2;
+  };
+  for (const endpoint of endpoints) {
+    const source = prepared[endpoint.event_index];
+    assert(source, 500, 'webhook_publication_failed', 'The selected webhook event is unavailable.');
+    const entry = JSON.stringify({
+      id: id(),
+      job_id: id(),
+      data: {
+        event_id: source.eventId,
+        endpoint_id: endpoint.endpoint_id,
+        status: 'pending',
+        attempts: 0,
+        payload: source.payload,
+        ...(source.workspaceId ? { workspace_id: source.workspaceId } : {}),
+      },
+    });
+    const bytes = Buffer.byteLength(entry) + 1;
+    if (page.length >= 256 || (page.length && pageBytes + bytes > 512 * 1024)) await publish();
+    page.push(entry);
+    pageBytes += bytes;
+  }
+  await publish();
+  return prepared.map((entry) => entry.eventId);
+}
+
 export async function deliverWebhook(org: string, deliveryId: string, transport: typeof fetch = safeFetch) {
   return transaction(org, async (tx) => {
     const acquired = await tx.query('SELECT pg_try_advisory_xact_lock(hashtextextended($1,0)) AS locked', [

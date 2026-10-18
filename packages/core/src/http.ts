@@ -27,22 +27,47 @@ import { organizationManager } from './organizations';
 import { boundedBody } from './body';
 import { requestCapacity } from './request-capacity';
 import { startInferenceTiming } from './inference-timing';
+import { initializePerformance } from './performance-composition';
+import {
+  performanceEnabled,
+  performanceBackground,
+  runPerformanceRoot,
+  linkPerformanceRun,
+} from './performance';
+import { beginRequestObservation, enrichRequestObservation, observeRequest } from './request-observations';
 import {
   acquireImmediateInferencePermit,
   acquireInferenceAdmission,
   acquireInferenceRequestPermit,
 } from './inference-control';
 
-let requestSummariesInFlight = 0;
-
-export async function handleApi(
+export function handleApi(
   request: Request,
   surface: 'rest' | 'mcp' = 'rest',
   background?: (task: () => Promise<void>) => void,
   options: { hostDeadlineAtMs?: number; onMutation?: () => void } = {},
 ) {
-  const requestId = id(),
-    start = Date.now();
+  initializePerformance();
+  const requestId = id();
+  if (!performanceEnabled()) return handleApiRequest(request, surface, background, options, requestId);
+  return runPerformanceRoot(surface, { requestId }, () =>
+    handleApiRequest(
+      request,
+      surface,
+      background ? (task) => background(performanceBackground(task)) : undefined,
+      options,
+      requestId,
+    ),
+  );
+}
+async function handleApiRequest(
+  request: Request,
+  surface: 'rest' | 'mcp',
+  background?: (task: () => Promise<void>) => void,
+  options: { hostDeadlineAtMs?: number; onMutation?: () => void } = {},
+  requestId = id(),
+) {
+  const start = Date.now();
   const hostDeadlineAtMs = options.hostDeadlineAtMs ?? start + immediateInferencePolicy.hostMs;
   let releaseInference: (() => void) | undefined;
   let releaseRequest: (() => void) | undefined;
@@ -65,15 +90,7 @@ export async function handleApi(
     'X-Content-Type-Options': 'nosniff',
   });
   if (!background && !(request.method === 'POST' && new URL(request.url).pathname === '/v1/inferences'))
-    await pool
-      .query('INSERT INTO api_requests(request_id,method,route) VALUES($1,$2,$3)', [
-        requestId,
-        request.method,
-        'unmatched',
-      ])
-      .catch(() => {
-        console.error(JSON.stringify({ request_id: requestId, code: 'request_observation_start_failed' }));
-      });
+    await beginRequestObservation({ requestId, method: request.method });
   try {
     const matched = matchRoute(request);
     route = matched.path;
@@ -122,17 +139,14 @@ export async function handleApi(
     stopAuthentication();
     const p = principal;
     if (!background && operationId !== 'createInference')
-      await pool.query(
-        'UPDATE api_requests SET organization_id=$2,principal_id=$3,principal_type=$4,user_id=$5,route=$6 WHERE request_id=$1',
-        [
-          requestId,
-          p.organizationId,
-          p.id,
-          p.kind === 'api_key' ? 'service' : admin ? 'operator' : 'human',
-          p.userId || null,
-          route,
-        ],
-      );
+      await enrichRequestObservation({
+        requestId,
+        organizationId: p.organizationId,
+        principalId: p.id,
+        principalType: p.kind === 'api_key' ? 'service' : admin ? 'operator' : 'human',
+        userId: p.userId,
+        route,
+      });
     // Scopes apply to every credential kind, including API-key-only operations.
     const scopes = operationScopes(matched.operation);
     requireScopes(p, scopes);
@@ -277,9 +291,11 @@ export async function handleApi(
     const advisory = matched.operation.operationId === 'resolveConnectionAccess';
     const idempotencyKey = advisory ? '' : request.headers.get('idempotency-key') || '';
     const stopFingerprint = startInferenceTiming('http.fingerprint', operationId === 'createInference');
-    const fingerprint = sha256(
-      `${request.method}\n${new URL(request.url).pathname}?${query.toString()}\n${request.headers.get('if-match') || ''}\n${binary ? sha256(bytes) : canonical(body)}`,
-    );
+    const fingerprint = idempotencyKey
+      ? sha256(
+          `${request.method}\n${new URL(request.url).pathname}?${query.toString()}\n${request.headers.get('if-match') || ''}\n${binary ? sha256(bytes) : canonical(body)}`,
+        )
+      : '';
     stopFingerprint();
     const cachedResponse = async (tx: import('../../db').Tx, writing = true) => {
       if (idempotencyKey) {
@@ -497,8 +513,10 @@ export async function handleApi(
       typeof outcome.body === 'object' &&
       'run_id' in outcome.body &&
       typeof outcome.body.run_id === 'string'
-    )
+    ) {
       headers.set('X-Run-Id', outcome.body.run_id);
+      linkPerformanceRun(outcome.body.run_id);
+    }
     if (directStream && background) {
       const response = await directInferenceStream(
         p,
@@ -648,61 +666,24 @@ export async function handleApi(
             ? 'human'
             : 'anonymous';
     const duration = Date.now() - start;
-    const recordRequest = async () => {
-      // Request analytics are best effort, unlike financial and actor journals.
-      // Refusal storms must not consume the SQL headroom reserved for B/C.
-      const maximum = Math.max(1, Math.min(4, Math.floor((pool.options.max ?? 80) / 8)));
-      if (requestSummariesInFlight >= maximum || pool.waitingCount > 0) return;
-      requestSummariesInFlight++;
-      try {
-        await transaction(
-          productEvent?.organizationId ?? null,
-          async (tx) => {
-            await tx.query(
-              'INSERT INTO api_requests(request_id,organization_id,principal_id,principal_type,user_id,method,route,status,duration_ms,client_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(request_id) DO UPDATE SET organization_id=excluded.organization_id,principal_id=excluded.principal_id,principal_type=excluded.principal_type,user_id=excluded.user_id,route=excluded.route,status=excluded.status,duration_ms=excluded.duration_ms,client_type=excluded.client_type',
-              [
-                requestId,
-                principal?.organizationId || null,
-                principal?.id || null,
-                type,
-                principal?.userId || null,
-                request.method,
-                route,
-                status,
-                duration,
-                ['dashboard', 'cli', 'sdk', 'api', 'internal'].includes(
-                  request.headers.get('x-client-type') || '',
-                )
-                  ? request.headers.get('x-client-type')
-                  : 'api',
-              ],
-            );
-            if (productEvent && status >= 200 && status < 300)
-              await tx.query(
-                'INSERT INTO product_events(id,organization_id,user_id,name,data) VALUES($1,$2,$3,$4,$5)',
-                [
-                  id(),
-                  productEvent.organizationId,
-                  productEvent.userId ?? null,
-                  operationId,
-                  JSON.stringify({
-                    principal_type: productEvent.principalType,
-                    source: 'public_api',
-                    principal_id: productEvent.principalId,
-                  }),
-                ],
-              );
-          },
-          { deadlineAtMs: Date.now() + 500 },
-        );
-      } catch {
-        console.error(JSON.stringify({ request_id: requestId, code: 'request_observation_failed' }));
-      } finally {
-        requestSummariesInFlight--;
-      }
-    };
-    if (background) background(recordRequest);
-    else if (operationId !== 'createInference') await recordRequest();
+    const clientType = request.headers.get('x-client-type') || 'api';
+    await observeRequest(
+      {
+        requestId,
+        organizationId: principal?.organizationId,
+        principalId: principal?.id,
+        principalType: type,
+        userId: principal?.userId,
+        method: request.method,
+        route,
+        status,
+        durationMs: duration,
+        clientType: ['dashboard', 'cli', 'sdk', 'api', 'internal'].includes(clientType) ? clientType : 'api',
+        ...(productEvent && status >= 200 && status < 300 ? { operation: operationId } : {}),
+      },
+      background,
+      { fallback: operationId !== 'createInference' },
+    );
     stopRequestTiming();
   }
 }

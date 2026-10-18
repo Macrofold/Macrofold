@@ -18,7 +18,7 @@ The domain emits completed, vendor-neutral observations. A single composition mo
 | [database transactions](../../../packages/db/index.ts)                                                                                                                                                                                                           | Synchronous `afterCommit` notifications after releasing SQL connections; discard on rollback     |
 | [trace-flush.ts](../../../apps/web/lib/trace-flush.ts), [trace-background.ts](../../../apps/web/lib/trace-background.ts), [dispatch.ts](../../../apps/web/lib/dispatch.ts), [Workflow](../../../apps/web/workflows/run.ts), [worker](../../../scripts/worker.ts) | Request/step completion flushing and worker shutdown                                             |
 
-To replace Langfuse, implement `TraceSink` and call `configureTraceSink` once at process composition before serving requests (the default remains Langfuse); leave execution hooks and domain data unchanged. New model transports should use the existing gateway/decision protocol ports, not add another independent tracing or billing calculation. A provider invoked outside these paths needs an explicit observation hook.
+To replace Langfuse, implement `TraceSink` and call `configureTraceSink` once at process composition before serving requests (the default remains Langfuse); leave execution hooks and domain data unchanged. `tracing.ts` resolves one startup policy for built-in and injected sinks. `configureTraceSink(sink, { captureContent: false })` can narrow content collection; explicit environment disable always wins. `tracingContentEnabled()` gates producer work, and `recordTrace` independently strips input/output before every metadata-only sink. Langfuse retains its redaction and size bounds as defense in depth and receives the effective policy from composition. New model transports should use the existing gateway/decision protocol ports, not add another independent tracing or billing calculation. A provider invoked outside these paths needs an explicit observation hook.
 
 ## Trace structure and identity
 
@@ -27,7 +27,12 @@ One run is one trace. SHA-256-derived OTel trace/span IDs incorporate the organi
 Generations, tools, context retrievers and lifecycle events are siblings beneath a single `agent` observation. Cross-process child spans carry an explicit parent and Langfuse trace baggage, preventing each serverless process from becoming another logical root. Only the terminal root covers the entire run. No active in-memory span must survive a durable wait. A killed process or unfinished run can leave an incomplete tree.
 
 Decision generations own provider request/response content under the existing capture
-limits. Immediate full-content export is admitted before retaining its host callback,
+limits. Metadata mode emits compact generations directly, without scheduling content jobs,
+retaining request-body callbacks, decrypting requests solely for traces or issuing the
+optional retention transaction. Native first-output classification is shared with full
+frame capture, so metadata timing does not require serializing provider frames. Tool,
+context and terminal-root callbacks retain a prepared compact observation; tool-start
+queries omit arguments in metadata mode. Immediate full-content export is admitted before retaining its host callback,
 bounded by 16 jobs and 32 MiB of encoded input plus sealed response. A current
 retention check suppresses delayed content after purge; unavailable capacity or
 dependency failure emits compact usage/cost metadata with `content_capture:omitted`.
@@ -60,9 +65,11 @@ The SDK batches 16 observations or one second. HTTP export has a three-second ti
 
 Fixed diagnostic codes include `tracing_configuration_failed`, `trace_record_failed`, `trace_export_failed`, `trace_queue_full`, `trace_flush_failed`, `trace_shutdown_failed`, `trace_flush_schedule_failed`, and `commit_observer_failed`. Exceptions are not printed because upstream errors can embed authorization headers or content. Capture removes known credential fields/text tokens, signed URL authentication, opaque reasoning/signatures and inline binary media. It does not promise to discover arbitrary secrets or PII in prose.
 
-## Performance profiling proposal
+## Performance profiling
 
-Execution tracing and performance profiling are separate. Current inference/database timing channels are subscriber-gated; detailed SQL/CPU collection is installed by the disposable profiling script, not by a single normal-application flag. The proposed [profiling feature](../../projects/performance-profiling-feature-spec.md) and [technical design](../../projects/performance-profiling-tech-design.md) specify a default-off, bounded, content-free operator profiler. The [execution follow-up](../../projects/execution-efficiency/remaining-optimizations.md) separately proposes applying the existing trace-content policy before producer-side capture. These settings/changes are not implemented by the design documents; current tracing configuration and accounting behavior above remain authoritative.
+Execution tracing and content-free performance profiling have separate policy and lifetimes. The [operator guide](performance.md) owns the startup flags, bounds and interpretation. [Performance composition](../../../packages/core/src/performance-composition.ts) wires the shared collector, owned database-pool adapter and bounded JSONL sink once per Node process. API, model/tool, worker, stream and storage owners supply explicit scopes. Optional background work receives copied correlation IDs rather than retaining Request or payload objects. Submission-time tickets prevent driver callbacks and overlapping requests from borrowing another request's attribution.
+
+Disabled profiling installs no collection timers, inspector, subscribers or database wrappers. Enabled profiling expires automatically; sink failures and capacity refusal lose diagnostics rather than customer work. An idle or in-flight output error clears outstanding diagnostic debt once and emits `performance_profile_sink_failed`; late write acknowledgments cannot corrupt its counters. Detaching preserves any newer database wrappers and reports `performance_profile_detach_conflict` once instead of overwriting another instrumentation owner. Hosted stdout can block depending on deployment logging, so the local asynchronous private-file sink is preferable to a slow terminal. No SQL text, parameters, model content or arbitrary labels enter profiles. Required business clocks and financial/recovery writes remain unchanged. The [technical design](../../projects/performance-profiling-tech-design.md) and [execution follow-up](../../projects/execution-efficiency/remaining-optimizations.md) retain the exact acceptance criteria; local measurements do not establish hosted overhead or capacity.
 
 ## Verification and deferred work
 

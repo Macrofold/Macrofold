@@ -5,6 +5,7 @@ import { config } from '../../packages/core/src/config';
 import { pool, authPool, transaction } from '../../packages/db';
 import { fixtureAccount } from '../fixtures/account';
 import * as catalog from '../../packages/core/src/catalog';
+import * as modelCatalog from '../../packages/core/src/model-catalog';
 import * as connections from '../../packages/core/src/connections';
 import * as resources from '../../packages/core/src/resources';
 import { validateConfiguration } from '../../packages/core/src/runs';
@@ -44,7 +45,10 @@ it('allows owned key selection only for the local simulation model without relax
   };
   expect((await sdk.agents.create(input)).provider_connection_id).toBe(key.id);
   const fixtureModels = await catalog.models();
-  const models = vi.spyOn(catalog, 'models').mockResolvedValue(fixtureModels);
+  const selection = vi.spyOn(modelCatalog, 'selectedModel').mockResolvedValue({
+    model: fixtureModels[0],
+    revision: null,
+  });
   const execution = config.execution;
   try {
     config.execution = 'docker';
@@ -54,9 +58,12 @@ it('allows owned key selection only for the local simulation model without relax
   } finally {
     config.execution = execution;
   }
-  models.mockResolvedValue([{ ...fixtureModels[0], provider: 'anthropic', simulated: false }]);
+  selection.mockResolvedValue({
+    model: { ...fixtureModels[0], provider: 'anthropic', simulated: false },
+    revision: null,
+  });
   await expect(sdk.agents.create(input)).rejects.toMatchObject({ code: 'credentials_incompatible' });
-  models.mockResolvedValue(fixtureModels);
+  selection.mockResolvedValue({ model: fixtureModels[0], revision: null });
   await transaction(owner.p.organizationId, (tx) =>
     resources.update(tx, 'connections', key.id, { owner_subject_id: other.p.userId }),
   );
@@ -183,8 +190,8 @@ it('validates explicit backup ownership, provider and spending limits without ex
 });
 
 it('keeps presets on their selected account and rejects execution before reserving funds or creating a dispatch', async () => {
-  vi.spyOn(catalog, 'models').mockResolvedValue([
-    {
+  vi.spyOn(modelCatalog, 'selectedModel').mockResolvedValue({
+    model: {
       id: 'fixture-claude',
       name: 'Fixture Claude',
       provider: 'anthropic',
@@ -193,7 +200,8 @@ it('keeps presets on their selected account and rejects execution before reservi
       input_micro_usd_per_million: '1',
       output_micro_usd_per_million: '1',
     },
-  ]);
+    revision: null,
+  });
   const sdk = client(owner.key);
   const first = await sdk.connections.create({
     name: 'Claude preset account',

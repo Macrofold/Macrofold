@@ -82,6 +82,7 @@
 - [PostgreSQL and Neon](docs/operations/neon.md): Configure restricted roles, connection pooling, migrations, and recovery.
 - [Provider integrations](docs/operations/launch-integrations.md): Register models, tools, billing, storage, email, and GitHub.
 - [Usage and operator reporting](docs/features/operations/README.md): Read activity, execution demand, account metrics, and management MCP reports.
+- [Performance profiling](docs/features/observability/performance.md): Capture bounded, content-free profiles of API and worker execution with an optional startup flag.
 - [Host long-running servers](docs/features/execution/workers/operations.md): Configure disposable Render services and operate their lifecycle and compute budgets.
 
 ## Development

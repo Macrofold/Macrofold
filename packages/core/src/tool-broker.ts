@@ -21,6 +21,13 @@ import type { components } from '../../contracts/api';
 import { approvedStdio } from './stdio-catalog';
 import type { MachineTools, MachineBinding } from './ports';
 import { searchWeb, searchKey } from './search';
+import {
+  performanceEnabled,
+  runPerformanceRoot,
+  linkPerformanceRun,
+  startPerformanceStage,
+} from './performance';
+import { initializePerformance } from './performance-composition';
 type Tool = components['schemas']['Tool'];
 type ToolRunConfig = RuntimeConnectionRun['config'] &
   Pick<NativeRunRow['config'], 'limits' | 'compute_rate_micro_usd_per_minute'>;
@@ -260,8 +267,10 @@ async function executePreparedTool(
   });
   if (admission.prior) return admission.prior;
   let result: Record<string, unknown>;
+  let stopProviderTiming: (() => void) | undefined;
   try {
     if (connection.kind === 'search') {
+      stopProviderTiming = startPerformanceStage('provider.tool');
       result = await searchWeb(
         connection,
         args,
@@ -278,6 +287,7 @@ async function executePreparedTool(
         (await import('../../providers/src/machines')).machines(
           await transaction(cap.organization, (tx) => getNativeRun(tx, cap.run)),
         );
+      stopProviderTiming = startPerformanceStage('provider.tool');
       result = await executor.invokeStdio(binding, {
         id: admission.id,
         runId: run.id,
@@ -291,6 +301,7 @@ async function executePreparedTool(
       });
     } else if (connection.kind === 'composio') {
       assert(setup, 503, 'integration_not_configured', 'This app needs operator setup.');
+      stopProviderTiming = startPerformanceStage('provider.tool');
       const response = await composio().tools.execute(
         tool.name,
         {
@@ -305,10 +316,13 @@ async function executePreparedTool(
         content: [{ type: 'text', text: JSON.stringify(response.data) }],
         isError: !response.successful,
       };
-    } else
+    } else {
+      stopProviderTiming = startPerformanceStage('provider.tool');
       result = (await withMcp(connection, (client) =>
         client.callTool({ name: tool.name, arguments: args }, undefined, { timeout: 45000 }),
       )) as Record<string, unknown>;
+    }
+    stopProviderTiming?.();
     assert(
       Buffer.byteLength(JSON.stringify(result)) <= 2 * 1024 * 1024,
       502,
@@ -316,6 +330,7 @@ async function executePreparedTool(
       'The tool returned more than 2 MiB. Its external action may have completed.',
     );
   } catch (error) {
+    stopProviderTiming?.();
     await transaction(cap.organization, async (tx) => {
       await tx.query("UPDATE tool_invocations SET status='unknown',completed_at=now() WHERE id=$1", [
         admission.id,
@@ -342,8 +357,15 @@ async function executePreparedTool(
   });
   return result;
 }
-export async function handleRuntimeMcp(request: Request, runId: string) {
+export function handleRuntimeMcp(request: Request, runId: string) {
+  initializePerformance();
   const requestId = id();
+  if (!performanceEnabled()) return handleAuthorizedRuntimeMcp(request, runId, requestId);
+  return runPerformanceRoot('tool', { requestId }, () =>
+    handleAuthorizedRuntimeMcp(request, runId, requestId),
+  );
+}
+async function handleAuthorizedRuntimeMcp(request: Request, runId: string, requestId: string) {
   try {
     assert(request.method === 'POST', 405, 'method_not_allowed', 'This stateless MCP accepts POST requests.');
     const cap = verifyRuntime(request, runId);
@@ -365,6 +387,7 @@ export async function handleRuntimeMcp(request: Request, runId: string) {
       );
       return run;
     });
+    linkPerformanceRun(cap.run);
     const bytes = await boundedBody(request.body, 1024 * 1024);
     let body: Record<string, unknown> = {};
     try {

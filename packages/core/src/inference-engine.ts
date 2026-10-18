@@ -21,7 +21,8 @@ import {
 } from './model-gateway';
 import { emptyUsage } from './model-protocol';
 import { runTraceContext } from './run-tracing';
-import { recordTrace, tracingEnabled } from './tracing';
+import { recordTrace, tracingEnabled, tracingContentEnabled } from './tracing';
+import { startPerformanceStage } from './performance';
 import { providerErrorDetails } from './provider-diagnostics';
 import { observeWorkerStep } from './worker-diagnostics';
 import { recoverImmediateInference } from './direct-inference';
@@ -36,6 +37,7 @@ import {
   prepareInvocation,
   insertInvocation,
   currentInferenceRun,
+  currentInferenceState,
   type PreparedInvocation,
   type StoredDecisionResponse,
 } from './inference-invocations';
@@ -145,8 +147,8 @@ async function advanceInferenceStep(
             ? new Date(call.dispatch_started_at.getTime() + call.timings_ms.first_output)
             : undefined,
         level: response.incomplete || response.failure_code ? 'ERROR' : 'DEFAULT',
-        input: unseal<Record<string, unknown>>(call.body_ciphertext),
-        output: response,
+        input: tracingContentEnabled() ? unseal<Record<string, unknown>>(call.body_ciphertext) : undefined,
+        output: tracingContentEnabled() ? response : undefined,
         model: run.config.model,
         usage: response.usage,
         chargedMicroUsd: billing?.charged_micro_usd ?? undefined,
@@ -224,8 +226,11 @@ async function advanceInferenceStep(
           startedAt: call.dispatch_started_at || run.created_at,
           endedAt: new Date(),
           model: run.config.model,
-          input: call.body_ciphertext ? unseal<Record<string, unknown>>(call.body_ciphertext) : undefined,
-          output: { outcome: 'uncertain' },
+          input:
+            tracingContentEnabled() && call.body_ciphertext
+              ? unseal<Record<string, unknown>>(call.body_ciphertext)
+              : undefined,
+          output: tracingContentEnabled() ? { outcome: 'uncertain' } : undefined,
           level: 'ERROR',
           chargedMicroUsd: billing?.charged_micro_usd ?? undefined,
           metadata: {
@@ -440,6 +445,7 @@ async function advanceInferenceStep(
       const preparedBody = preparedBodies.get(call.id);
       const requestBody = preparedBody?.body ?? unseal<Record<string, unknown>>(call.body_ciphertext);
       let response: StoredDecisionResponse;
+      const stopProviderTiming = startPerformanceStage('provider.model');
       try {
         response = await observeWorkerStep(
           'inference_provider',
@@ -455,9 +461,12 @@ async function advanceInferenceStep(
               requestBody,
               authorization.secret,
               controller.signal,
-              (output) => {
-                rawResponse = output;
-              },
+              tracingContentEnabled() ||
+                (run.config.stream && run.config.definition.question.kind !== 'provider')
+                ? (output) => {
+                    rawResponse = output;
+                  }
+                : undefined,
               run.config.definition.question.kind === 'provider',
               async (event) => {
                 if (event.type === 'output.delta' && firstOutputMs === undefined)
@@ -485,6 +494,8 @@ async function advanceInferenceStep(
           transport_complete: evidence.complete,
           ...(evidence.complete ? {} : { incomplete: 'provider_error' }),
         };
+      } finally {
+        stopProviderTiming();
       }
       const providerMs = performance.now() - providerStarted;
       if (
@@ -505,7 +516,11 @@ async function advanceInferenceStep(
           : null;
       const settlement = await transaction(org, async (tx) => {
         // Cancellation and purge share Run-first ordering even without SSE.
-        const latest = await currentInferenceRun(tx, run);
+        const { run: latest, settlement: lockedSettlement } = await currentInferenceState(
+          tx,
+          run,
+          prepared.id,
+        );
         assert(
           latest.lease_generation === run.lease_generation,
           409,
@@ -535,6 +550,7 @@ async function advanceInferenceStep(
           response.usage,
           false,
           run.config.provider_cost_rate_card,
+          lockedSettlement,
         );
         // Publish the final replay batch atomically with its response evidence.
         await durable?.flush(tx);
@@ -554,7 +570,12 @@ async function advanceInferenceStep(
       };
       if (background) background(recordPersistenceTiming);
     } catch (error) {
-      if (rawResponse !== undefined && failureStage === 'provider_request' && authorization.traceContext)
+      if (
+        tracingContentEnabled() &&
+        rawResponse !== undefined &&
+        failureStage === 'provider_request' &&
+        authorization.traceContext
+      )
         recordTrace({
           context: authorization.traceContext,
           id: `response:${call.id}`,

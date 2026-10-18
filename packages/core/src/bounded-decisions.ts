@@ -1,6 +1,7 @@
 import { transaction, afterCommit, type Tx } from '../../db';
 import { runTraceContext } from './run-tracing';
-import { recordTrace } from './tracing';
+import { recordTrace, tracingContentEnabled } from './tracing';
+import type { TraceObservation } from './trace';
 import type { ExecutableInferenceRunRow } from './runs';
 import { terminal } from './runs';
 import { currentInferenceRun } from './inference-invocations';
@@ -145,20 +146,21 @@ export async function applyBoundedResponse(
         outcome: 'read',
       });
       const traceContext = await runTraceContext(tx, run);
-      if (traceContext)
-        afterCommit(tx, () =>
-          recordTrace({
-            context: traceContext,
-            id: `read:${call.id}`,
-            name: 'context.read',
-            type: 'retriever',
-            startedAt,
-            endedAt: new Date(),
-            input: reference,
-            output: context,
-            metadata: { invocation_id: call.id, step: call.step, artifact_id: reference.artifact_id },
-          }),
-        );
+      if (traceContext) {
+        const content = tracingContentEnabled();
+        const observation: TraceObservation = {
+          context: traceContext,
+          id: `read:${call.id}`,
+          name: 'context.read',
+          type: 'retriever',
+          startedAt,
+          endedAt: new Date(),
+          input: content ? reference : undefined,
+          output: content ? context : undefined,
+          metadata: { invocation_id: call.id, step: call.step, artifact_id: reference.artifact_id },
+        };
+        afterCommit(tx, () => recordTrace(observation));
+      }
     });
   }
   return null;

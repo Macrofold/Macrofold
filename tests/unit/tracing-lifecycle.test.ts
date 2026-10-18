@@ -53,14 +53,63 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 it('requires complete credentials and honors explicit disable without creating an exporter', async () => {
-  const tracing = await import('../../packages/core/src/tracing');
   vi.stubEnv('TRACING_ENABLED', 'false');
+  const tracing = await import('../../packages/core/src/tracing');
   tracing.recordTrace(observation);
-  vi.stubEnv('TRACING_ENABLED', 'true');
-  vi.stubEnv('LANGFUSE_SECRET_KEY', '');
-  tracing.recordTrace(observation);
-  await tracing.flushTraces();
   expect(tracing.tracingEnabled()).toBe(false);
+  // Configuration is fixed for the serving process; enabling requires restart.
+  vi.stubEnv('TRACING_ENABLED', 'true');
+  expect(tracing.tracingEnabled()).toBe(false);
+  vi.resetModules();
+  vi.stubEnv('LANGFUSE_SECRET_KEY', '');
+  const missing = await import('../../packages/core/src/tracing');
+  missing.recordTrace(observation);
+  await missing.flushTraces();
+  expect(missing.tracingEnabled()).toBe(false);
+  expect(backend.construct).not.toHaveBeenCalled();
+});
+it('applies metadata policy before custom sinks without evaluating content getters', async () => {
+  vi.stubEnv('TRACING_CAPTURE_CONTENT', 'false');
+  const tracing = await import('../../packages/core/src/tracing');
+  const record = vi.fn();
+  tracing.configureTraceSink({ record, flush: async () => {}, shutdown: async () => {} });
+  const poison = {
+    ...observation,
+    get input() {
+      throw new Error('Input capture must not run');
+    },
+    get output() {
+      throw new Error('Output capture must not run');
+    },
+  };
+  tracing.recordTrace(poison);
+  expect(tracing.tracingContentEnabled()).toBe(false);
+  expect(record).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ usage: observation.usage, chargedMicroUsd: '12' }),
+  );
+  expect(record.mock.calls[0][0]).not.toHaveProperty('input');
+  expect(record.mock.calls[0][0]).not.toHaveProperty('output');
+  expect(vi.mocked(console.warn)).not.toHaveBeenCalled();
+});
+it('supports a metadata-only injected sink and lets explicit disable override it', async () => {
+  const tracing = await import('../../packages/core/src/tracing');
+  const record = vi.fn();
+  tracing.configureTraceSink(
+    { record, flush: async () => {}, shutdown: async () => {} },
+    { captureContent: false },
+  );
+  tracing.recordTrace(observation);
+  expect(record.mock.calls[0][0]).not.toHaveProperty('input');
+  expect(() =>
+    tracing.configureTraceSink({ record, flush: async () => {}, shutdown: async () => {} }),
+  ).toThrow();
+  vi.resetModules();
+  vi.stubEnv('TRACING_ENABLED', 'false');
+  const disabled = await import('../../packages/core/src/tracing');
+  disabled.configureTraceSink({ record, flush: async () => {}, shutdown: async () => {} });
+  record.mockClear();
+  disabled.recordTrace(observation);
+  expect(record).not.toHaveBeenCalled();
   expect(backend.construct).not.toHaveBeenCalled();
 });
 it('shares one exporter and writes content-free structured application logs', async () => {

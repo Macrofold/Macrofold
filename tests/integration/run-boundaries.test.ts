@@ -8,6 +8,7 @@ import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { id } from '../../packages/core/src/crypto';
 import { config } from '../../packages/core/src/config';
 import * as catalog from '../../packages/core/src/catalog';
+import * as modelCatalog from '../../packages/core/src/model-catalog';
 import { credit } from '../../packages/core/src/ledger';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
@@ -58,7 +59,7 @@ const query = (sql: string, values: unknown[]) =>
 describe('run state transitions and concurrent requests', () => {
   it('rejects an unfunded compute window before admission and releases an exact-boundary reservation on cancel', async () => {
     const models = await catalog.models();
-    vi.spyOn(catalog, 'models').mockResolvedValue(models);
+    vi.spyOn(modelCatalog, 'selectedModel').mockResolvedValue({ model: models[0], revision: null });
     config.execution = 'docker';
     config.allowPaid = true;
     // Local Docker is free. Exercise the accepted billable quote, not its local default.

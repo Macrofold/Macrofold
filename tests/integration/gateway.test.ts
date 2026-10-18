@@ -15,6 +15,9 @@ import { runtimeToken } from '../../packages/core/src/runtime-auth';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { saveConnection } from '../../packages/core/src/connections';
 import * as tracing from '../../packages/core/src/tracing';
+import { ModelOutputCapture } from '../../packages/providers/src/model-output-capture';
+import { configurePerformance } from '../../packages/core/src/performance';
+import type { PerformanceRecord } from '../../packages/contracts/performance';
 import { retireFixtureRuns } from '../fixtures/account';
 
 let p: Principal;
@@ -364,6 +367,7 @@ describe('model gateway metering without provider calls', () => {
   it('traces the actual streamed input/output and committed charges without forwarding credentials', async () => {
     const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
     vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+    vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(true);
     const s = await prepared();
     s.fetch.mockResolvedValue(
       new Response(
@@ -395,6 +399,7 @@ describe('model gateway metering without provider calls', () => {
   it('records rejected and interrupted requests without claiming complete usage', async () => {
     const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
     vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+    vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(true);
     const s = await prepared();
     s.fetch.mockResolvedValueOnce(new Response('provider secret', { status: 429 }));
     expect((await s.call({ stream: false })).status).toBe(429);
@@ -413,11 +418,82 @@ describe('model gateway metering without provider calls', () => {
     });
     expect(JSON.stringify(trace.mock.calls)).not.toContain('hidden-provider-secret');
   });
+  it('keeps streamed first-output, usage and cost metadata without capturing frames', async () => {
+    const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+    vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+    vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(false);
+    const capture = vi.spyOn(ModelOutputCapture.prototype, 'add').mockImplementation(() => {
+      throw new Error('Metadata tracing must not capture provider frames');
+    });
+    const s = await prepared();
+    s.fetch.mockResolvedValue(
+      new Response(
+        [
+          'data: {"type":"response.output_text.delta","delta":"Metadata answer"}',
+          'data: {"type":"response.completed","response":{"id":"metadata-fixture","usage":{"input_tokens":11,"output_tokens":3}}}',
+          'data: [DONE]',
+          '',
+        ].join('\n\n'),
+      ),
+    );
+    const response = await s.call();
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('Metadata answer');
+    expect(capture).not.toHaveBeenCalled();
+    const generations = trace.mock.calls
+      .map(([value]) => value)
+      .filter((value) => value.type === 'generation');
+    expect(generations).toHaveLength(1);
+    expect(generations[0]).toMatchObject({
+      input: undefined,
+      output: undefined,
+      firstOutputAt: expect.any(Date),
+      usage: { input: 11, output: 3, complete: true },
+      chargedMicroUsd: '17',
+    });
+  });
+  it('keeps a content-free profiling owner alive through native stream settlement', async () => {
+    const records: PerformanceRecord[] = [];
+    const collector = configurePerformance({
+      sampleRate: 1,
+      durationSeconds: 60,
+      sink: { enqueue: (record) => records.push(record), flush: async () => {}, close: async () => {} },
+    });
+    try {
+      const s = await prepared();
+      s.fetch.mockResolvedValue(
+        new Response(
+          [
+            'data: {"type":"response.output_text.delta","delta":"Private synthetic answer"}',
+            'data: {"type":"response.completed","response":{"id":"profile-fixture","usage":{"input_tokens":11,"output_tokens":3}}}',
+            'data: [DONE]',
+            '',
+          ].join('\n\n'),
+        ),
+      );
+      const response = await s.call();
+      expect(response.status).toBe(200);
+      await response.text();
+      await vi.waitFor(() => expect(records.some((record) => record.phase === 'stream_owner')).toBe(true));
+      const root = records.find((record) => record.operation === 'model' && record.phase === 'foreground');
+      const stream = records.find(
+        (record) => record.operation === 'model' && record.phase === 'stream_owner',
+      );
+      expect(root).toMatchObject({ run_id: s.runId });
+      expect(stream).toMatchObject({ run_id: s.runId, parent_id: root?.operation_id });
+      expect(stream?.stages['provider.model']?.count).toBe(1);
+      expect(JSON.stringify(records)).not.toContain('Private synthetic answer');
+      expect(JSON.stringify(records)).not.toContain('fixture-key-no-provider-account');
+    } finally {
+      await collector.close();
+    }
+  });
   it.each(['openai', 'anthropic', 'openrouter'])(
     'uses encrypted %s BYOK credentials and refuses local revocation without managed fallback',
     async (provider) => {
       const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
       vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+      vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(true);
       const s = await prepared();
       const connectionId = await transaction(p.organizationId, async (tx) => {
         const connection = await saveConnection(tx, p, {

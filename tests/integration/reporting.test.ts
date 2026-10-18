@@ -73,7 +73,18 @@ describe('operator reporting and MCP', () => {
       active_service_principals: '1',
     });
     const usage = await transaction(org, (tx) => usageReport(tx, new URLSearchParams()));
-    expect(usage.metrics.find((m) => m.name === 'requests')?.value).toBe('1');
+    expect(usage.metrics.find((m) => m.name === 'requests')).toMatchObject({
+      value: '1',
+      status: 'insufficient_data',
+    });
+    expect(usage.metrics.find((m) => m.name === 'runs')?.status).toBe('known');
+    expect(usage.missing_sources).toContain('request_observations');
+    expect(usage.filters.request_observations).toContain('not total traffic');
+    const growth = await adminReport('getGrowthMetrics', operator, query);
+    if (!('metrics' in growth)) throw new Error('Growth metrics were not returned');
+    expect(growth.metrics.find((m) => m.name === 'active_service_principals')?.status).toBe(
+      'insufficient_data',
+    );
     for (const group_by of ['day', 'hour', 'organization', 'model', 'provider', 'harness', 'billing_mode']) {
       const grouped = await transaction(org, (tx) => usageReport(tx, new URLSearchParams({ group_by })));
       expect(grouped.filters.group_by).toBe(group_by);

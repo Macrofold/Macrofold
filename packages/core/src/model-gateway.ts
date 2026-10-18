@@ -1,12 +1,21 @@
 import { modelInputBound } from './model-content';
 import { modelTransport } from '../../contracts/model-transport';
 import { prepareModelUpload, readModelBody } from './model-request-upload';
-import { queryGroup, transaction, type Tx } from '../../db';
+import { queryGroup, transaction, transactionIdentity, type Tx } from '../../db';
+import type { QueryResult } from 'pg';
 import type { components } from '../../contracts/api';
 import { runTraceContext } from './run-tracing';
-import { recordTrace } from './tracing';
-import { ModelOutputCapture } from '../../providers/src/model-output-capture';
+import { recordTrace, tracingContentEnabled } from './tracing';
+import { ModelOutputCapture, isModelOutputFrame } from '../../providers/src/model-output-capture';
 import type { TraceObservation } from './trace';
+import {
+  performanceEnabled,
+  runPerformanceRoot,
+  runPerformanceChild,
+  linkPerformanceRun,
+  startPerformanceStage,
+} from './performance';
+import { initializePerformance } from './performance-composition';
 import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
 import { id } from './crypto';
@@ -14,7 +23,7 @@ import { modelCredential } from './model-credentials';
 import { type NativeRunRow, type RunConfig } from './runs';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
 import { computeMaximum, type Model } from './catalog';
-import { emit } from './events';
+import { emit, prepareEventAppend, eventAppendQueries, finishEventAppend } from './events';
 import { actorAuthorized } from './actor-authorization';
 import { boundedBody } from './body';
 import { emptyUsage, type ModelUsage as Usage } from './model-protocol';
@@ -373,22 +382,120 @@ export async function settleModelRequestInTransaction(
   usage: Usage,
   upstreamRejected = false,
   providerCostModel?: Model,
+  locked?: LockedModelSettlement,
 ): Promise<ModelBillingReceipt | undefined> {
-  // Submission order retains the shared Run-before-request lock order without
-  // another wire wait. Neither statement needs a decision from the first row.
-  const locks = await queryGroup<GatewaySettlementRequest | { id: string }>(tx, [
-    {
-      text: 'SELECT id FROM runs WHERE id=$1 FOR UPDATE',
-      values: [cap.run],
+  const state = locked ?? (await loadModelSettlement(tx, cap, requestId));
+  if (!state) return undefined;
+  return settleLockedModelRequest(
+    tx,
+    state,
+    cap,
+    requestId,
+    model,
+    usage,
+    upstreamRejected,
+    providerCostModel,
+  );
+}
+export type LockedModelSettlement = Readonly<{ requestId: string }>;
+const currentSettlements = new WeakMap<object, Map<string, LockedModelSettlement>>();
+const settlements = new WeakMap<
+  LockedModelSettlement,
+  {
+    tx: Tx;
+    transaction: object;
+    organization: string;
+    runId: string;
+    request: GatewaySettlementRequest;
+    consumed: boolean;
+  }
+>();
+export function modelSettlementQuery(runId: string, requestId: string) {
+  return {
+    text: 'SELECT id,run_id,billing_mode,status,reserved_micro_usd,actual_micro_usd FROM gateway_requests WHERE id=$1 AND run_id=$2 FOR UPDATE',
+    values: [requestId, runId],
+  };
+}
+/** Trusted internal decoder for this owner's ordered lock query, not a public
+ * capability. Financial authority still comes from tenant SQL and current rows. */
+export function modelSettlementFromResult(
+  tx: Tx,
+  cap: Pick<RuntimeCapability, 'organization' | 'run'>,
+  requestId: string,
+  result: QueryResult<Record<string, unknown>>,
+): LockedModelSettlement | undefined {
+  const row = result.rows[0];
+  if (!row) return undefined;
+  assert(
+    row.id === requestId &&
+      row.run_id === cap.run &&
+      (row.billing_mode === 'managed' || row.billing_mode === 'byok') &&
+      typeof row.status === 'string' &&
+      typeof row.reserved_micro_usd === 'string' &&
+      (row.actual_micro_usd === null || typeof row.actual_micro_usd === 'string'),
+    500,
+    'billing_unavailable',
+    'The model accounting row is unavailable.',
+  );
+  const state = { requestId };
+  const transaction = transactionIdentity(tx);
+  let current = currentSettlements.get(transaction);
+  if (!current) currentSettlements.set(transaction, (current = new Map()));
+  current.set(requestId, state);
+  settlements.set(state, {
+    tx,
+    transaction,
+    organization: cap.organization,
+    runId: cap.run,
+    request: {
+      id: row.id,
+      run_id: row.run_id,
+      billing_mode: row.billing_mode,
+      status: row.status,
+      reserved_micro_usd: row.reserved_micro_usd,
+      actual_micro_usd: row.actual_micro_usd,
     },
-    {
-      text: 'SELECT id,run_id,billing_mode,status,reserved_micro_usd,actual_micro_usd FROM gateway_requests WHERE id=$1 AND run_id=$2 FOR UPDATE',
-      values: [requestId, cap.run],
-    },
+    consumed: false,
+  });
+  return state;
+}
+export async function loadModelSettlement(
+  tx: Tx,
+  cap: Pick<RuntimeCapability, 'organization' | 'run'>,
+  requestId: string,
+) {
+  const locks = await queryGroup(tx, [
+    { text: 'SELECT id FROM runs WHERE id=$1 FOR UPDATE', values: [cap.run] },
+    modelSettlementQuery(cap.run, requestId),
   ]);
-  const request = locks[1].rows[0];
-  if (!request) return undefined;
-  assert('billing_mode' in request, 500, 'billing_unavailable', 'The model accounting row is unavailable.');
+  return modelSettlementFromResult(tx, cap, requestId, locks[1]);
+}
+export async function settleLockedModelRequest(
+  tx: Tx,
+  locked: LockedModelSettlement,
+  cap: RuntimeCapability,
+  requestId: string,
+  model: Model,
+  usage: Usage,
+  upstreamRejected = false,
+  providerCostModel?: Model,
+): Promise<ModelBillingReceipt> {
+  const state = settlements.get(locked);
+  assert(
+    state &&
+      state.tx === tx &&
+      state.transaction === transactionIdentity(tx) &&
+      state.organization === cap.organization &&
+      state.runId === cap.run &&
+      state.request.id === requestId &&
+      currentSettlements.get(state.transaction)?.get(requestId) === locked &&
+      !state.consumed,
+    500,
+    'billing_state_stale',
+    'Reload the current model accounting state before settlement.',
+  );
+  state.consumed = true;
+  const request = state.request;
   if (request.status !== 'in_flight') {
     assert(
       request.actual_micro_usd !== null,
@@ -462,9 +569,21 @@ export async function settleModelRequestInTransaction(
       reported_micro_usd: reported.toString(),
     });
   }
-  await queryGroup(tx, [
+  const event = await prepareEventAppend(tx, cap.organization, cap.run, [
     {
-      text: 'UPDATE gateway_requests SET status=$2,actual_micro_usd=$3,completed_at=now() WHERE id=$1',
+      type: 'usage.updated',
+      data: {
+        request_id: requestId,
+        cost_micro_usd: actual.toString(),
+        billing_mode: request.billing_mode,
+        complete: usage.complete || upstreamRejected,
+      },
+    },
+  ]);
+  const eventQueries = eventAppendQueries(tx, event);
+  const writes = await queryGroup(tx, [
+    {
+      text: "UPDATE gateway_requests SET status=$2,actual_micro_usd=$3,completed_at=now() WHERE id=$1 AND status='in_flight'",
       values: [requestId, usage.complete || upstreamRejected ? 'complete' : 'unknown', actual.toString()],
     },
     {
@@ -512,13 +631,15 @@ export async function settleModelRequestInTransaction(
         }),
       ],
     },
+    ...eventQueries,
   ]);
-  await emit(tx, cap.organization, cap.run, 'usage.updated', {
-    request_id: requestId,
-    cost_micro_usd: actual.toString(),
-    billing_mode: request.billing_mode,
-    complete: usage.complete || upstreamRejected,
-  });
+  assert(
+    writes.slice(0, 3).every((result) => result.rowCount === 1),
+    500,
+    'billing_state_stale',
+    'Model accounting changed during settlement.',
+  );
+  await finishEventAppend(tx, event, writes.slice(3));
   const billing: ModelBillingReceipt = {
     ...reportedCost,
     charged_micro_usd: request.billing_mode === 'managed' ? actual.toString() : '0',
@@ -575,13 +696,26 @@ export async function settleOrphanModelRequests(org: string, runId: string) {
     await settleModelRequest(cap, request.id, model, emptyUsage());
   }
 }
-export async function handleModelRequest(
+export function handleModelRequest(
   request: Request,
   runId: string,
   path: string,
   transport: typeof fetch = fetch,
 ) {
+  initializePerformance();
   const requestId = id();
+  if (!performanceEnabled()) return handleAuthorizedModelRequest(request, runId, path, transport, requestId);
+  return runPerformanceRoot('model', { requestId }, () =>
+    handleAuthorizedModelRequest(request, runId, path, transport, requestId),
+  );
+}
+async function handleAuthorizedModelRequest(
+  request: Request,
+  runId: string,
+  path: string,
+  transport: typeof fetch,
+  requestId: string,
+) {
   try {
     assert(
       realExecutionEnabled(),
@@ -618,8 +752,11 @@ export async function handleModelRequest(
       'Only one completion per request is supported.',
     );
     const admission = await reserveRequest(cap, payload, path);
+    linkPerformanceRun(cap.run);
     const startedAt = new Date();
-    const capture = admission.traceContext ? new ModelOutputCapture() : undefined;
+    const captureContent = Boolean(admission.traceContext) && tracingContentEnabled();
+    const capture = captureContent ? new ModelOutputCapture() : undefined;
+    let firstOutputAt: Date | undefined;
     let output: unknown;
     let billing: Awaited<ReturnType<typeof settleModelRequest>>;
     let level: TraceObservation['level'] = 'DEFAULT';
@@ -648,11 +785,11 @@ export async function handleModelRequest(
         startedAt,
         endedAt: new Date(),
         model: admission.model.id,
-        input: payload,
-        output: output ?? capture?.result(),
+        input: captureContent ? payload : undefined,
+        output: captureContent ? (output ?? capture?.result()) : undefined,
         usage,
         chargedMicroUsd: billing?.charged_micro_usd,
-        firstOutputAt: capture?.firstOutputAt,
+        firstOutputAt,
         level,
         metadata: {
           request_id: admission.requestId,
@@ -672,6 +809,7 @@ export async function handleModelRequest(
     let ownsStream = false,
       usage = emptyUsage(),
       rejected = false;
+    const stopProviderTiming = startPerformanceStage('provider.model');
     try {
       const headers = admission.protocol.headers(admission.secret, request.headers);
       const upstream = await transport(admission.url, {
@@ -688,6 +826,7 @@ export async function handleModelRequest(
       if (!upstream.ok) {
         level = 'ERROR';
         output = { error: 'provider_rejected', http_status: upstream.status };
+        stopProviderTiming();
         await failRequest();
         await upstream.body?.cancel().catch(() => {});
         await settleRequest(rejected);
@@ -707,7 +846,7 @@ export async function handleModelRequest(
           (await boundedBody(upstream.body, modelResponseMaximumBytes)).toString(),
         ) as Record<string, unknown>;
         usage = admission.protocol.usage(data, usage);
-        output = data;
+        if (captureContent) output = data;
         assert(
           !modelResponseFailed(data),
           502,
@@ -715,6 +854,7 @@ export async function handleModelRequest(
           'The provider reported a model failure.',
         );
         if (typeof data.id === 'string') providerRequestId ||= data.id;
+        stopProviderTiming();
         await settleRequest();
         return Response.json(data);
       }
@@ -724,6 +864,7 @@ export async function handleModelRequest(
       const encoder = new TextEncoder();
       const observer = gateModelStream(path, (frame) => {
         usage = admission.protocol.usage(frame, usage);
+        if (!firstOutputAt && admission.traceContext && isModelOutputFrame(frame)) firstOutputAt = new Date();
         capture?.add(frame);
         const responseId =
           (frame.response as { id?: unknown } | undefined)?.id ??
@@ -734,68 +875,75 @@ export async function handleModelRequest(
       let total = 0;
       let emptyChunks = 0;
       let closed = false;
+      stopProviderTiming();
       const stream = new ReadableStream<Uint8Array>({
-        async start(downstream) {
-          try {
-            while (true) {
-              const part = await reader.read();
-              if (part.done) break;
-              assert(
-                !controller.signal.aborted,
-                504,
-                'model_stream_timeout',
-                'Model stream exceeded its deadline.',
-              );
-              emptyChunks = part.value.byteLength ? 0 : emptyChunks + 1;
-              assert(
-                emptyChunks < 16,
-                502,
-                'model_stream_not_progressing',
-                'Model stream did not make progress.',
-              );
-              total += part.value.length;
-              assert(
-                total <= modelResponseMaximumBytes,
-                413,
-                'response_too_large',
-                'Model output exceeded the stream limit.',
-              );
-              for (const bytes of observer.feed(decoder.decode(part.value, { stream: true })))
-                if (!closed) downstream.enqueue(encoder.encode(bytes));
-            }
-            for (const bytes of observer.feed(decoder.decode()))
-              if (!closed) downstream.enqueue(encoder.encode(bytes));
-            assert(
-              !controller.signal.aborted && !request.signal.aborted && !closed,
-              502,
-              'model_stream_interrupted',
-              'The model stream was interrupted.',
-            );
-            observer.finish();
-            await settleRequest();
-            if (!closed) {
-              for (const bytes of observer.release()) downstream.enqueue(encoder.encode(bytes));
-              closed = true;
-              downstream.close();
-            }
-          } catch (error) {
-            level = 'ERROR';
-            controller.abort();
+        start(downstream) {
+          return runPerformanceChild('stream_owner', async () => {
+            const stopStreamTiming = startPerformanceStage('provider.model');
             try {
-              await failRequest();
+              while (true) {
+                const part = await reader.read();
+                if (part.done) break;
+                assert(
+                  !controller.signal.aborted,
+                  504,
+                  'model_stream_timeout',
+                  'Model stream exceeded its deadline.',
+                );
+                emptyChunks = part.value.byteLength ? 0 : emptyChunks + 1;
+                assert(
+                  emptyChunks < 16,
+                  502,
+                  'model_stream_not_progressing',
+                  'Model stream did not make progress.',
+                );
+                total += part.value.length;
+                assert(
+                  total <= modelResponseMaximumBytes,
+                  413,
+                  'response_too_large',
+                  'Model output exceeded the stream limit.',
+                );
+                for (const bytes of observer.feed(decoder.decode(part.value, { stream: true })))
+                  if (!closed) downstream.enqueue(encoder.encode(bytes));
+              }
+              for (const bytes of observer.feed(decoder.decode()))
+                if (!closed) downstream.enqueue(encoder.encode(bytes));
+              assert(
+                !controller.signal.aborted && !request.signal.aborted && !closed,
+                502,
+                'model_stream_interrupted',
+                'The model stream was interrupted.',
+              );
+              observer.finish();
+              stopStreamTiming();
               await settleRequest();
-            } catch {
-              // Keep the in-flight reservation for reconciliation if the
-              // durable fence cannot commit. Settlement must not erase it.
+              if (!closed) {
+                for (const bytes of observer.release()) downstream.enqueue(encoder.encode(bytes));
+                closed = true;
+                downstream.close();
+              }
+            } catch (error) {
+              stopStreamTiming();
+              level = 'ERROR';
+              controller.abort();
+              try {
+                await failRequest();
+                await settleRequest();
+              } catch {
+                // Keep the in-flight reservation for reconciliation if the
+                // durable fence cannot commit. Settlement must not erase it.
+              }
+              if (!closed) {
+                closed = true;
+                downstream.error(new Error('Model stream interrupted'));
+              }
+            } finally {
+              stopStreamTiming();
+              clearTimeout(timeout);
+              finishTrace();
             }
-            if (!closed) {
-              closed = true;
-              downstream.error(new Error('Model stream interrupted'));
-            }
-          } finally {
-            clearTimeout(timeout);
-            finishTrace();
-          }
+          });
         },
         cancel() {
           closed = true;
@@ -813,6 +961,7 @@ export async function handleModelRequest(
         },
       });
     } catch (error) {
+      stopProviderTiming();
       level = 'ERROR';
       clearTimeout(timeout);
       await failRequest();

@@ -1,6 +1,7 @@
 import { validateImage } from '../../contracts/image-input';
 import { mediaLimits, supportsImageInput } from '../../contracts/media';
 import { assert } from './errors';
+import type { EncodedJson } from './prepared-json';
 
 /** Conservative reservation, not the customer's final charge. Current reviewed
  * models stay below 32k input tokens for a <=2048×2048 image; actual provider
@@ -9,12 +10,32 @@ const IMAGE_TOKEN_BOUND = 32_768;
 export function modelInputBound(
   payload: Record<string, unknown>,
   configuration: { harness: string; provider: string; model: string },
+  encoded?: EncodedJson<Record<string, unknown>>,
 ) {
   let images = 0;
-  function visit(value: unknown): unknown {
-    if (!value || typeof value !== 'object') return value;
-    if (Array.isArray(value)) return value.map(visit);
+  let jsonSafe = true;
+  function visit(value: unknown): void {
+    if (!value || typeof value !== 'object') {
+      if (
+        value !== null &&
+        (!['string', 'boolean', 'number'].includes(typeof value) ||
+          (typeof value === 'number' && !Number.isFinite(value)))
+      )
+        jsonSafe = false;
+      return;
+    }
+    if (Array.isArray(value)) {
+      if (typeof Reflect.get(value, 'toJSON') === 'function') jsonSafe = false;
+      // for..of also sees sparse slots, whose canonical and JSON encodings differ.
+      for (const child of value) visit(child);
+      return;
+    }
     const object = value as Record<string, unknown>;
+    if (
+      ![Object.prototype, null].includes(Object.getPrototypeOf(object)) ||
+      typeof object.toJSON === 'function'
+    )
+      jsonSafe = false;
     if (object.type === 'input_image' || object.type === 'image') {
       assert(
         supportsImageInput(configuration.harness, configuration.provider, configuration.model),
@@ -72,8 +93,7 @@ export function modelInputBound(
           'Use a valid PNG, JPEG or WebP up to 1 MiB and 2048 pixels per side.',
         );
       }
-      // Exclude base64 transport bytes from text-token reservations.
-      return { type: 'validated_image', cache_control: object.cache_control };
+      return;
     }
     assert(
       typeof object.type !== 'string' ||
@@ -84,8 +104,21 @@ export function modelInputBound(
     );
     for (const key of ['image_url', 'input_audio', 'audio', 'file_id', 'file_data'])
       assert(!(key in object), 400, 'unsupported_model_content', 'Unsupported media input.');
-    return Object.fromEntries(Object.entries(object).map(([key, child]) => [key, visit(child)]));
+    for (const child of Object.values(object)) visit(child);
   }
-  const text = visit(payload);
-  return Buffer.byteLength(JSON.stringify(text)) + 1024 + images * IMAGE_TOKEN_BOUND;
+  visit(payload);
+  if (!images && jsonSafe)
+    return (encoded?.value === payload ? encoded.bytes : Buffer.byteLength(JSON.stringify(payload))) + 1024;
+
+  // Only media and internal non-JSON values need the old projection semantics.
+  // Ordinary text requests validate in place without rebuilding every object.
+  function project(value: unknown): unknown {
+    if (!value || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(project);
+    const object = value as Record<string, unknown>;
+    if (object.type === 'input_image' || object.type === 'image')
+      return { type: 'validated_image', cache_control: object.cache_control };
+    return Object.fromEntries(Object.entries(object).map(([key, child]) => [key, project(child)]));
+  }
+  return Buffer.byteLength(JSON.stringify(project(payload))) + 1024 + images * IMAGE_TOKEN_BOUND;
 }

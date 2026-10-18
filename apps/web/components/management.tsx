@@ -820,9 +820,9 @@ export function OperatorView() {
           icon={<ChartNoAxesCombined />}
         />
         <Stat
-          label="Active service keys"
+          label="Observed active service keys"
           value={value('active_service_principals')}
-          detail="Separate from human activity"
+          detail="Best-effort request observations"
           icon={<KeyRound />}
         />
       </div>
@@ -903,7 +903,10 @@ export function OperatorView() {
         </table>
       </div>
       <More query={accounts} label="More accounts" />
-      <SectionHeading title="Platform request activity" />
+      <SectionHeading
+        title="Observed platform request activity"
+        description="Best-effort retained observations; an empty list does not establish zero traffic."
+      />
       {requests.data && <RequestsTable records={requests.data.data} />}
       <More query={requests} label="Older requests" />
       <Modal

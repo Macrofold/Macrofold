@@ -1,6 +1,8 @@
 import type { Tx } from '../../db';
+import type { QueryResult } from 'pg';
 import { capacitySetting, fleetLimits } from './capacity';
 import { getExecutionPolicy } from './plans';
+import { assert } from './errors';
 
 // Both queued and immediate admission read only current occupancy. Queue heads,
 // native placement and terminal history are not inputs to this shared policy.
@@ -31,13 +33,23 @@ export async function executionCapacity(
   // Immediate admission already resolved this policy under its organization
   // guard; reuse it instead of another read while holding the global lock.
   const policy = currentPolicy ?? (await getExecutionPolicy(tx, organizationId));
+  return capacityDecision(
+    await tx.query<CapacityFacts>(executionCapacityQuery(organizationId, kind, policy)),
+  );
+}
+export type CapacityFacts = { allowed: boolean; reason: CapacityReason };
+export function executionCapacityQuery(
+  organizationId: string,
+  kind: 'native_agent' | 'inference' | 'bounded_agent',
+  policy: Awaited<ReturnType<typeof getExecutionPolicy>>,
+) {
   const fleet = fleetLimits();
   const reserved = Math.min(
     policy.concurrency_limit,
     capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG', 0, 100_000, 0),
   );
-  const result = await tx.query<{ allowed: boolean; reason: CapacityReason }>(
-    `WITH active AS (${activeExecutionSQL}), candidate AS (
+  return {
+    text: `WITH active AS (${activeExecutionSQL}), candidate AS (
       SELECT $2::text AS kind,$3::integer AS account_limit,$4::integer AS lightweight_reserved,
         $5::integer AS lightweight_limit,$6::integer AS native_limit,
         coalesce((SELECT n FROM active WHERE organization_id=$1),0) AS account_active,
@@ -47,8 +59,34 @@ export async function executionCapacity(
         (kind='native_agent' AND native_active>=greatest(0,account_limit-lightweight_reserved)) THEN 'account_concurrency'
         WHEN kind<>'native_agent' AND (SELECT coalesce(sum(lightweight_n),0) FROM active)>=lightweight_limit THEN 'lightweight_capacity'
         ELSE 'global_capacity' END AS reason FROM candidate`,
-    [organizationId, kind, policy.concurrency_limit, reserved, fleet.inference, fleet.native, fleet.total],
-  );
+    values: [
+      organizationId,
+      kind,
+      policy.concurrency_limit,
+      reserved,
+      fleet.inference,
+      fleet.native,
+      fleet.total,
+    ],
+  };
+}
+export function capacityDecision(result: QueryResult<Record<string, unknown>>): CapacityDecision {
   const row = result.rows[0];
-  return row.allowed ? { allowed: true } : { allowed: false, reason: row.reason };
+  assert(
+    row &&
+      typeof row.allowed === 'boolean' &&
+      ['account_concurrency', 'lightweight_capacity', 'global_capacity'].includes(String(row.reason)),
+    500,
+    'capacity_unavailable',
+    'Current execution capacity is unavailable.',
+  );
+  if (row.allowed) return { allowed: true };
+  const reason = row.reason;
+  assert(
+    reason === 'account_concurrency' || reason === 'lightweight_capacity' || reason === 'global_capacity',
+    500,
+    'capacity_unavailable',
+    'Current execution capacity is unavailable.',
+  );
+  return { allowed: false, reason };
 }

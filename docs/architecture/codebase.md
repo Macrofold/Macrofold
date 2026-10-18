@@ -87,6 +87,10 @@ The pure connection-access-policy module defines exact matching and selection pr
 
 [Tracing](../features/observability/implementation.md) uses the vendor-neutral `TraceSink` port in `packages/core/src/trace.ts` and composition in `tracing.ts`. `run-tracing.ts` owns tenant-scoped attribution and lifecycle observations; the gateway and decision executor supply committed usage/billing. `packages/providers/src/langfuse.ts` uses the official SDK and OTLP API. Next `after()` and durable-step `waitUntil` flush exports in the background; only worker shutdown awaits delivery. No SQL trace store is added. `billing-usage.ts` separately queries existing financial records for the itemized billing API.
 
+[Performance profiling](../features/observability/performance.md) uses content-free contracts in `packages/contracts/performance.ts`, bounded process policy/ALS in `core/performance.ts`, one composition module, an instance-only `db/diagnostics.ts` adapter and the provider JSONL sink. Serving and fixtures share attribution; the inspector stays fixture-only. `core/request-observations.ts` independently owns default-on best-effort HTTP request/product observations. None of these modules grants authority or owns money.
+
+`prepared-json.ts` provides bounded, synchronous request-local canonical encoding reuse; no authorization or payload state survives across requests. Ledger, gateway and event owners expose single-use, transaction-bound preparation/query/result interfaces so coordinators batch independent waits without duplicating policy or financial SQL. The owning wrappers remain the ordinary shared entrypoints.
+
 ## Workers and execution infrastructure
 
 `packages/core/src/workers.ts` owns public CRUD, authorization, revision checks and batched observations. `worker-policy.ts` and `worker-types.ts` own resolved configuration/lifecycle policy; `worker-catalog.ts` validates deployment capabilities and accepted quotes. `worker-pricing.ts` owns exact cumulative money arithmetic. OpenAPI remains the public schema authority.

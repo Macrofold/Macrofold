@@ -1,6 +1,8 @@
 # Remaining execution optimizations: implementation design
 
-Status: **proposed; design only**. This is the detailed follow-up to the existing [feature specification](../execution-efficiency-feature-spec.md) and [technical design](../execution-efficiency-tech-design.md), not a second execution architecture. No application edits, setting changes or new performance results are authorized by this document. [Maintainer work](../../maintainers/TODO.md#execution-efficiency-redesign) keeps original unfinished qualification separate from these proposals.
+Status: **implemented locally; performance qualification in progress**. This is the detailed follow-up to the existing [feature specification](../execution-efficiency-feature-spec.md) and [technical design](../execution-efficiency-tech-design.md), not a second execution architecture. Implementation was approved in chat; actual completion and measurements are tracked below and in the maintainer checklist. [Maintainer work](../../maintainers/TODO.md#execution-efficiency-redesign) keeps original unfinished qualification separate from these proposals.
+
+The [optimization verification record](optimization-verification.md) owns source provenance, actual checks, matched measurements and remaining acceptance gaps.
 
 ## Decisions and order
 
@@ -16,7 +18,7 @@ Steps 2–3 preserve customer behavior. Step 4 preserves the existing operator p
 
 The [verified Linux cohorts](../execution-efficiency-verification.md#co-located-linux-hundred-call-cohorts) measured server-overhead p95 of 60–85 ms with full tracing for 1.494-MB context at five requests/second. This is a healthy local fixture result, not a production guarantee. Traced Jev caller-overhead p95 was 112.678 ms. The same-source macOS misses remain recorded.
 
-The foreground dependency graph is approximately **35 waits for Jev/Anthropic and 39 for OpenRouter chat**, including current HTTP protection, replay, A and F. Diagnostic-window totals additionally include background overlap. Do not compare those windows to future correlated foreground counts as if their definitions were identical. The original 12-wait target remains unmet; no stage here declares it achieved or changes it silently.
+The pre-change foreground dependency graph was approximately **35 waits for Jev/Anthropic and 39 for OpenRouter chat**, including current HTTP protection, replay, A and F. Diagnostic-window totals additionally include background overlap. Do not compare those windows to future correlated foreground counts as if their definitions were identical. The original 12-wait target remains unmet; no stage here declares it achieved or changes it silently.
 
 Traced near-full-context preparation averaged about 15–17 ms and request fingerprinting about 5–6 ms on the Linux fixture. These entire durations are not removable: schema validation, canonical identity, protocol adaptation and financial bounds are necessary. Savings below are hypotheses to measure, not latency promises.
 
@@ -31,6 +33,8 @@ Preserve:
 
 No database migration is expected for the core SQL/payload refactors. If source inspection proves one necessary, specify its invariant and activation/rollback procedure before adding it; do not change migration 055 in place. All original CI, pooler, hosted and sustained mixed-load gates remain open until actually verified.
 
+Current correlated profiles measure **25 foreground groups for Jev/Anthropic and 28 for OpenRouter chat**, meeting this stage's 25/29 target while preserving the original unmet twelve-group criterion. See the verification record for timing and observer-effect limitations.
+
 ## Dependency and delivery map
 
 | Stage | Depends on | Deliverable | Exit evidence |
@@ -42,7 +46,7 @@ No database migration is expected for the core SQL/payload refactors. If source 
 | O4 | O0; operator choice remains separate | Optional HTTP-observation controls and honest report semantics | Default unchanged; disabled mode omits only named observations; billing/security intact |
 | O5 | O1–O4 | Matched complete qualification and documentation | Actual results and remaining gaps published; no fixture result called hosted acceptance |
 
-The implementation checklist and exact owner contracts below are normative for this proposal. Function names marked proposed are new internal interfaces, not existing public endpoints. Keep implementation in existing packages and preserve the current public API unless a documented reporting semantic change requires regeneration and full SDK verification.
+The implementation checklist and exact owner contracts below are normative for this proposal. Named interfaces are internal module boundaries, not public endpoints; the current implementation guides own exact exported names. Keep implementation in existing packages and preserve the current public API unless a documented reporting semantic change requires regeneration and full SDK verification.
 
 ## SQL batching
 
@@ -163,7 +167,7 @@ Rollback is source-level reversal to the prior owner composition, preserving adm
 
 The co-located Linux traced cohorts measured mean preparation 15.42/16.34/17.31 ms and HTTP fingerprinting 5.99/5.17/5.59 ms for Jev/Anthropic/OpenRouter at 1.494 MB context. These stages include necessary validation, normalization and hashing; the figures are not promised removable time. Full traces also exported about 108 MB per hundred-call cohort. A disabled exporter can reduce background work but does not remove required accounting.
 
-Current preparation already does important work correctly: `prepareInvocation` canonicalizes the provider body once, derives its digest/length from that text, reuses the exact text for the HTTP transport, and only encrypts queued executable input. Keep that behavior. `TRACING_ENABLED=false` already prevents trace attribution/capture at many call sites. `TRACING_CAPTURE_CONTENT=false` currently applies inside `LangfuseTraceSink`, too late to prevent some producer allocations and retention SQL. HTTP request observations are already bounded/best effort in a retained background callback, but have no disable flag, retain the enclosing handler scope, and fallback paths still write starter/final rows synchronously.
+Current preparation already does important work correctly: `prepareInvocation` canonicalizes the provider body once, derives its digest/length from that text, reuses the exact text for the HTTP transport, and only encrypts queued executable input. Keep that behavior. `TRACING_ENABLED=false` already prevents trace attribution/capture at many call sites. Before this follow-up, `TRACING_CAPTURE_CONTENT=false` applied inside `LangfuseTraceSink`, too late to prevent some producer allocations and retention SQL. HTTP request observations were bounded/best effort but had no disable flag and retained the enclosing handler scope. The implementation now applies content policy at producers and extracts scalar HTTP observations into an independently configurable owner; the documented non-background fallback remains synchronous and bounded.
 
 Do not merge these different identities:
 
@@ -239,6 +243,8 @@ Implementation requirements:
 10. Do not share HTTP fingerprint and accepted/provider digest as a single hash. The initial version intentionally keeps the independent 5–6 ms keyed HTTP fingerprint pass. Sharing raw parsed subtrees across transport/domain requires another lifetime parameter and should be attempted only if this simpler scope remains a measured bottleneck.
 
 Before retaining C4, measure it against C1–C3 alone. If retained memory/GC or maintenance complexity outweighs repeated encoding savings, stop at the simpler stages and record the unchanged bounded preparation cost. No arbitrary millisecond improvement is guaranteed.
+
+The maintained [payload CPU qualifier](../../../scripts/performance/payload-profile.ts) runs with `pnpm exec tsx scripts/performance/payload-profile.ts`. It compares the same validation, context digest and provider encoding with and without request-local reuse across Jev, Anthropic and OpenRouter chat, asserts identical final provider bytes, and reports four alternating 80-call cohorts per route. It makes no database, network or paid calls. A Node 24.13.0 local run with 1,494,445 context bytes reduced aggregate CPU by 21.6%/16.7%/13.4% respectively; peak retained memo text stayed below 6 MiB and was released synchronously. Concurrent host load made wall-time results variable, including no consistent OpenRouter chat wall-time gain. These CPU fixtures justify retaining C4; they do not establish end-to-end or hosted latency.
 
 ## Producer-aware trace policy
 

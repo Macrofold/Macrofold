@@ -87,6 +87,22 @@ it('omits incomplete usage rather than inventing zero tokens and supports conten
   expect(span.status.code).toBe(2);
   await sink.shutdown();
 });
+it('does not evaluate input/output when the adapter content guard is disabled', async () => {
+  const exporter = new InMemorySpanExporter();
+  const sink = new LangfuseTraceSink({ exporter, capture: false });
+  sink.record({
+    ...observation,
+    get input() {
+      throw new Error('Input must not be evaluated');
+    },
+    get output() {
+      throw new Error('Output must not be evaluated');
+    },
+  });
+  await sink.flush();
+  expect(exporter.getFinishedSpans()).toHaveLength(1);
+  await sink.shutdown();
+});
 it('bounds outstanding traces and reports export failures without leaking error details', async () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const sink = new LangfuseTraceSink({

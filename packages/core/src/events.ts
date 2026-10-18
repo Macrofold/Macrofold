@@ -1,7 +1,14 @@
-import { afterCommit, transaction, type Tx } from '../../db';
+import { afterCommit, transaction, transactionIdentity, queryGroup, type Tx } from '../../db';
+import type { QueryConfig, QueryResult } from 'pg';
 import { canonical, id } from './crypto';
 import { assert } from './errors';
-import { enqueueWebhook, type WebhookEvent } from './webhooks';
+import {
+  enqueueWebhookBatch,
+  webhookEligibilityQuery,
+  type WebhookEvent,
+  type WebhookInput,
+  type WebhookSelection,
+} from './webhooks';
 import type { RunRow } from './runs';
 import { runTraceContext, traceRunEvent, tracedRunEvent } from './run-tracing';
 import { tracingEnabled } from './tracing';
@@ -17,10 +24,43 @@ export type EventInput = {
 type ProducedEventRow = RunEventRow & { producer_id: string | null; producer_sequence: string | null };
 type BatchOptions = { currentRun?: RunRow; execution?: { claim: string; offset: number } };
 
+const preparedEventAppend = Symbol('preparedEventAppend');
+export type PreparedEventAppend = { readonly [preparedEventAppend]: true };
+type PreparedEventState = {
+  tx: Tx;
+  transaction: object;
+  org: string;
+  runId: string;
+  events: readonly EventInput[];
+  options: BatchOptions;
+  unique: (EventInput & { id: string; ordinal: number })[];
+  stored: Map<string, ProducedEventRow>;
+  statements: QueryConfig[];
+  webhookInputs?: WebhookInput[];
+  consumed: boolean;
+  finished?: boolean;
+};
+const eventAppends = new WeakMap<PreparedEventAppend, PreparedEventState>();
+function identity(producer: NonNullable<EventInput['producer']>) {
+  return JSON.stringify([producer.id, producer.sequence]);
+}
+/** The shared owner prepares producer deduplication and append/effect identities.
+ * Coordinators may compose its statements only when no intervening policy decision is needed. */
+export async function emitBatch(
+  tx: Tx,
+  org: string,
+  runId: string,
+  events: readonly EventInput[],
+  options: BatchOptions = {},
+) {
+  const plan = await prepareEventAppend(tx, org, runId, events, options);
+  const statements = eventAppendQueries(tx, plan);
+  return finishEventAppend(tx, plan, statements.length ? await queryGroup(tx, statements) : []);
+}
 /** One publication owner for individual events and bounded native/model pages.
  * Producer identity, public sequence allocation and the source cursor commit
  * together; a lost acknowledgement can safely repeat this exact page. */
-export async function emitBatch(
+export async function prepareEventAppend(
   tx: Tx,
   org: string,
   runId: string,
@@ -35,19 +75,19 @@ export async function emitBatch(
   );
   const produced = events.filter((event) => event.producer);
   const stored = new Map<string, ProducedEventRow>();
-  const identity = (producer: NonNullable<EventInput['producer']>) =>
-    JSON.stringify([producer.id, producer.sequence]);
   if (produced.length) {
-    const locked = await tx.query(
-      `SELECT id FROM runs WHERE id=$1 AND ($2::text IS NULL OR execution_binding->>'lock'=$2) FOR UPDATE`,
-      [runId, options.execution?.claim ?? null],
-    );
+    const [locked, rows] = await queryGroup<ProducedEventRow>(tx, [
+      {
+        text: `SELECT id FROM runs WHERE id=$1 AND ($2::text IS NULL OR execution_binding->>'lock'=$2) FOR UPDATE`,
+        values: [runId, options.execution?.claim ?? null],
+      },
+      {
+        text: `SELECT e.* FROM run_events e JOIN jsonb_to_recordset($2::jsonb)
+        AS p(id text,sequence bigint) ON e.producer_id=p.id AND e.producer_sequence=p.sequence WHERE e.run_id=$1`,
+        values: [runId, JSON.stringify(produced.map((event) => event.producer))],
+      },
+    ]);
     assert(locked.rowCount, 409, 'lease_lost', 'Event publication no longer owns this Run.');
-    const rows = await tx.query<ProducedEventRow>(
-      `SELECT e.* FROM run_events e JOIN jsonb_to_recordset($2::jsonb)
-      AS p(id text,sequence bigint) ON e.producer_id=p.id AND e.producer_sequence=p.sequence WHERE e.run_id=$1`,
-      [runId, JSON.stringify(produced.map((event) => event.producer))],
-    );
     for (const row of rows.rows) {
       assert(
         row.producer_id !== null,
@@ -85,10 +125,10 @@ export async function emitBatch(
     }
     unique.push({ ...event, id: id(), ordinal: unique.length + 1 });
   }
-  let inserted: RunEventRow[] = [];
-  if (unique.length || options.execution) {
-    const result = await tx.query<ProducedEventRow>(
-      `WITH next AS (
+  const statements: QueryConfig[] = [];
+  if (unique.length || options.execution)
+    statements.push({
+      text: `WITH next AS (
       UPDATE runs SET event_sequence=event_sequence+$4::bigint,
         execution_binding=CASE WHEN $5::text IS NULL THEN execution_binding ELSE
           jsonb_set(execution_binding,'{eventOffset}',to_jsonb(greatest(coalesce((execution_binding->>'eventOffset')::bigint,0),$6::bigint))) END
@@ -102,7 +142,7 @@ export async function emitBatch(
     ), notified AS MATERIALIZED (
       SELECT pg_notify('${runEventChannel}',json_build_array($2::text,$3::text)::text) FROM next WHERE $4::bigint>0
     ) SELECT inserted.* FROM inserted CROSS JOIN notified ORDER BY sequence`,
-      [
+      values: [
         JSON.stringify(
           unique.map((event) => ({
             ...event,
@@ -116,14 +156,92 @@ export async function emitBatch(
         options.execution?.claim ?? null,
         options.execution?.offset ?? null,
       ],
-    );
-    inserted = result.rows;
+    });
+  const webhookInputs = options.currentRun ? runWebhookInputs(runId, unique, options.currentRun) : undefined;
+  if (webhookInputs?.length) statements.push(webhookEligibilityQuery(webhookInputs));
+  const plan: PreparedEventAppend = { [preparedEventAppend]: true };
+  eventAppends.set(plan, {
+    tx,
+    transaction: transactionIdentity(tx),
+    org,
+    runId,
+    events,
+    options,
+    unique,
+    stored,
+    statements,
+    webhookInputs,
+    consumed: false,
+  });
+  return plan;
+}
+export function eventAppendQueries(tx: Tx, plan: PreparedEventAppend): readonly QueryConfig[] {
+  const state = eventAppends.get(plan);
+  assert(
+    state && state.tx === tx && state.transaction === transactionIdentity(tx) && !state.consumed,
+    500,
+    'event_append_stale',
+    'Prepare event publication in the current transaction.',
+  );
+  state.consumed = true;
+  return state.statements;
+}
+export async function finishEventAppend(
+  tx: Tx,
+  plan: PreparedEventAppend,
+  results: readonly QueryResult<Record<string, unknown>>[],
+) {
+  const state = eventAppends.get(plan);
+  assert(
+    state &&
+      state.tx === tx &&
+      state.transaction === transactionIdentity(tx) &&
+      state.consumed &&
+      !state.finished,
+    500,
+    'event_append_stale',
+    'Prepare event publication in the current transaction.',
+  );
+  state.finished = true;
+  const { org, runId, events, options, unique, stored } = state;
+  let inserted: ProducedEventRow[] = [];
+  if (unique.length || options.execution) {
+    const result = results[0];
     assert(
-      result.rowCount === unique.length,
+      result?.rowCount === unique.length,
       409,
       'lease_lost',
       'Event publication no longer owns this Run.',
     );
+    inserted = result.rows.map((row) => {
+      assert(
+        typeof row.id === 'string' &&
+          typeof row.run_id === 'string' &&
+          typeof row.sequence === 'string' &&
+          typeof row.type === 'string' &&
+          row.occurred_at instanceof Date &&
+          row.ingested_at instanceof Date &&
+          row.data !== null &&
+          typeof row.data === 'object' &&
+          !Array.isArray(row.data) &&
+          (row.producer_id === null || typeof row.producer_id === 'string') &&
+          (row.producer_sequence === null || typeof row.producer_sequence === 'string'),
+        500,
+        'event_publication_missing',
+        'The event publication returned an invalid row.',
+      );
+      return {
+        id: row.id,
+        run_id: row.run_id,
+        sequence: row.sequence,
+        type: row.type,
+        occurred_at: row.occurred_at,
+        ingested_at: row.ingested_at,
+        data: row.data as Record<string, unknown>,
+        producer_id: row.producer_id,
+        producer_sequence: row.producer_sequence,
+      };
+    });
     // The zero-event cursor update needs an explicit fence result as well.
     if (!unique.length && options.execution) {
       const current = await tx.query(`SELECT 1 FROM runs WHERE id=$1 AND execution_binding->>'lock'=$2`, [
@@ -132,12 +250,23 @@ export async function emitBatch(
       ]);
       assert(current.rowCount, 409, 'lease_lost', 'Event publication no longer owns this Run.');
     }
-    for (const row of result.rows)
+    for (const row of inserted)
       if (row.producer_id !== null)
         stored.set(identity({ id: row.producer_id, sequence: Number(row.producer_sequence) }), row);
   }
   if (inserted.length) {
-    await eventEffects(tx, org, runId, inserted, options.currentRun);
+    const selection = state.webhookInputs?.length
+      ? results[1].rows.map((row) => {
+          assert(
+            typeof row.event_index === 'number' && typeof row.endpoint_id === 'string',
+            500,
+            'webhook_publication_failed',
+            'The selected webhook endpoint is unavailable.',
+          );
+          return { event_index: row.event_index, endpoint_id: row.endpoint_id };
+        })
+      : undefined;
+    await eventEffects(tx, org, runId, inserted, options.currentRun, selection);
     afterCommit(tx, () => runEventObserver.hint(org, runId));
   }
   let next = 0;
@@ -163,7 +292,14 @@ export async function emit(
 ) {
   return (await emitBatch(tx, org, runId, [{ type, data, producer }], { currentRun }))[0];
 }
-async function eventEffects(tx: Tx, org: string, runId: string, rows: RunEventRow[], currentRun?: RunRow) {
+async function eventEffects(
+  tx: Tx,
+  org: string,
+  runId: string,
+  rows: RunEventRow[],
+  currentRun?: RunRow,
+  selection?: readonly WebhookSelection[],
+) {
   if (
     rows.some((row) =>
       ['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out'].includes(row.type),
@@ -179,17 +315,7 @@ async function eventEffects(tx: Tx, org: string, runId: string, rows: RunEventRo
     const context = await runTraceContext(tx, run);
     if (context) for (const row of traced) await traceRunEvent(tx, run, row, context);
   }
-  const webhooks = rows.flatMap((row) => {
-    const type: WebhookEvent | undefined =
-      row.type === 'run.succeeded'
-        ? 'run.completed'
-        : row.type === 'run.failed' || row.type === 'run.timed_out'
-          ? 'run.failed'
-          : row.type === 'run.cancelled'
-            ? 'run.cancelled'
-            : undefined;
-    return type ? [{ row, type }] : [];
-  });
+  const webhooks = rows.filter((row) => !!runWebhookType(row.type));
   if (!webhooks.length) return;
   const run = currentRun
     ? {
@@ -209,20 +335,48 @@ async function eventEffects(tx: Tx, org: string, runId: string, rows: RunEventRo
           [runId],
         )
       ).rows[0];
-  for (const { row, type } of webhooks)
-    await enqueueWebhook(
-      tx,
-      org,
-      type,
-      {
-        run_id: runId,
-        workspace_id: run.workspace_id,
-        worktree_id: run.worktree_id,
-        status: run.status,
-        ...(typeof row.data.code === 'string' ? { failure_code: row.data.code } : {}),
-      },
-      { eventId: row.id, endpointIds: run.webhook_endpoint_ids, workspaceId: run.workspace_id ?? undefined },
-    );
+  await enqueueWebhookBatch(tx, org, runWebhookInputs(runId, webhooks, run), selection);
+}
+function runWebhookType(type: string): WebhookEvent | undefined {
+  return type === 'run.succeeded'
+    ? 'run.completed'
+    : type === 'run.failed' || type === 'run.timed_out'
+      ? 'run.failed'
+      : type === 'run.cancelled'
+        ? 'run.cancelled'
+        : undefined;
+}
+function runWebhookInputs(
+  runId: string,
+  rows: readonly Pick<RunEventRow, 'id' | 'type' | 'data'>[],
+  run: Pick<RunRow, 'workspace_id' | 'worktree_id'> & {
+    status: string;
+    config?: Pick<RunRow['config'], 'webhook_endpoint_ids'>;
+    webhook_endpoint_ids?: string[];
+  },
+): WebhookInput[] {
+  return rows.flatMap((row) => {
+    const event = runWebhookType(row.type);
+    return event
+      ? [
+          {
+            event,
+            data: {
+              run_id: runId,
+              workspace_id: run.workspace_id,
+              worktree_id: run.worktree_id,
+              status: run.status,
+              ...(typeof row.data.code === 'string' ? { failure_code: row.data.code } : {}),
+            },
+            options: {
+              eventId: row.id,
+              endpointIds: run.config?.webhook_endpoint_ids ?? run.webhook_endpoint_ids,
+              workspaceId: run.workspace_id ?? undefined,
+            },
+          },
+        ]
+      : [];
+  });
 }
 export type RunEventRow = {
   id: string;

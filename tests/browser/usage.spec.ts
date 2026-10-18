@@ -9,6 +9,10 @@ test('usage charts aggregate real daily totals, support keyboard controls and fi
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('link', { name: 'Usage', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Observed request activity', exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Retained API and dashboard observations may omit requests', { exact: false }),
+  ).toBeVisible();
   const chart = page.getByRole('region', { name: 'Daily usage' });
   await expect(chart.locator('.recharts-surface')).toBeVisible();
   await page.getByRole('button', { name: 'View daily values' }).click();

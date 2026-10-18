@@ -65,6 +65,9 @@ async function collect(directory: string) {
           SEED_OUTPUT: `browser-worker-${worker}.json`,
         });
       const buildSources = await currentSourceManifest(process.cwd());
+      // Next detects ESM from distDir's parent package.json. Nested isolated
+      // builds must carry the app's package type, just like the normal .next build.
+      await cp('apps/web/package.json', path.join(buildDirectory, 'package.json'));
       await command(['build'], env);
       if (!sameSources(buildSources, await currentSourceManifest(process.cwd())))
         throw new Error('Source changed during the acceptance build');

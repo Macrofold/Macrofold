@@ -17,6 +17,7 @@ import type { ExplicitContext } from '../../packages/core/src/decision';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { fixtureHttpApi } from '../fixtures/http-api';
 import { inferenceCaptureStats, scheduleInferenceCapture } from '../../packages/core/src/inference-capture';
+import * as capture from '../../packages/core/src/inference-capture';
 import { storage } from '../../packages/providers/src/storage';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
@@ -825,6 +826,8 @@ it('rejects missing canonical response content rather than returning a successfu
 
 it('does not count delayed background capture as provider generation time', async () => {
   enable();
+  vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+  vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(true);
   vi.stubEnv('TRACING_ENABLED', 'true');
   vi.stubEnv('LANGFUSE_PUBLIC_KEY', 'synthetic');
   vi.stubEnv('LANGFUSE_SECRET_KEY', 'synthetic');
@@ -865,4 +868,32 @@ it('does not count delayed background capture as provider generation time', asyn
         receipt.result.inference.timings_ms.provider,
     ),
   ).toBeLessThanOrEqual(1);
+});
+
+it('exports metadata generations without content jobs or retention SQL', async () => {
+  vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+  vi.spyOn(tracing, 'tracingContentEnabled').mockReturnValue(false);
+  const exported = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+  const scheduled = vi.spyOn(capture, 'scheduleInferenceCapture');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => providerResponse()),
+  );
+  const response = await post();
+  expect(response.status, await response.clone().text()).toBe(200);
+  const receipt = await response.json();
+  await Promise.allSettled(backgroundTasks);
+  expect(scheduled).not.toHaveBeenCalled();
+  expect(inferenceCaptureStats()).toMatchObject({ captures: 0, retainedBytes: 0 });
+  const generations = exported.mock.calls
+    .map(([value]) => value)
+    .filter((value) => value.type === 'generation');
+  expect(generations).toHaveLength(1);
+  expect(generations[0]).toMatchObject({
+    input: undefined,
+    output: undefined,
+    usage: { input: 100, output: 10, complete: true },
+    chargedMicroUsd: receipt.result.inference.billing.charged_micro_usd,
+    metadata: { content_capture: 'omitted' },
+  });
 });

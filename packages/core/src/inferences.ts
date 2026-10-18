@@ -1,5 +1,5 @@
 import type { Tx } from '../../db';
-import { transaction, lock } from '../../db';
+import { transaction, lock, lockQuery, queryGroup } from '../../db';
 import { requireInferenceCaller, requireDecisionWorkspace } from './decision-authority';
 import { getDefinition } from './decision-definitions';
 import { storedContextReader, authorizeContext } from './context-artifacts';
@@ -8,20 +8,29 @@ import { assert } from './errors';
 import { id } from './crypto';
 import { config } from './config';
 import { validateContext, digest } from './explicit-context';
+import { createJsonPreparation, type JsonPreparation } from './prepared-json';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
 import { decisionModel, decisionOnlyModel } from './decision-models';
 import {
   prepareOpenRouterModel,
   selectedModel,
-  currentSelectedModel,
+  currentSelectedModelQuery,
+  currentSelectedModelFromResult,
   type ModelSelection,
 } from './model-catalog';
 import type { Model } from './model-policy';
 import { providerModelCatalog } from '../../providers/src/model-catalog';
 import { validateModelParameters } from './model-parameters';
 import { modelCredential } from './model-credentials';
-import { reserve } from './ledger';
-import { executionCapacity } from './execution-admission';
+import {
+  reserve,
+  creditStateQueries,
+  creditStateFromResults,
+  prepareReservation,
+  reservationQuery,
+  checkReservationResult,
+} from './ledger';
+import { executionCapacityQuery, capacityDecision } from './execution-admission';
 import {
   prepareInvocation,
   insertInvocation,
@@ -31,7 +40,7 @@ import {
 import { immediateInferencePolicy, inferenceEnvelope, type InvocationPermit } from './direct-inference';
 import { runTraceContext } from './run-tracing';
 import { tracingEnabled } from './tracing';
-import { actorAuthorized } from './actor-authorization';
+import { actorAuthorizationQueries, actorAuthorizationFromResults } from './actor-authorization';
 import { executionPolicy } from './plans';
 import { emit } from './events';
 import {
@@ -53,6 +62,7 @@ async function admitInferenceState(
   kind: 'inference' | 'bounded_agent' = 'inference',
   prepared?: PreparedImmediateInference,
   source?: TaskRunSource,
+  organizationLocked = false,
 ) {
   const admissionStarted = performance.now();
   assert(
@@ -96,7 +106,7 @@ async function admitInferenceState(
     !decisionOnlyModel('openrouter', input.model_binding.model)
   )
     selected = prepared?.modelSelection
-      ? await currentSelectedModel(tx, prepared.modelSelection)
+      ? prepared.modelSelection.model
       : (await selectedModel(tx, input.model_binding.model, 'openrouter'))?.model;
   const model = decisionModel(input.model_binding, selected ? [selected] : []),
     protocol = decisionProtocol(input.model_binding.provider, input.model_binding.model);
@@ -132,7 +142,21 @@ async function admitInferenceState(
     'Request limits may only narrow the definition’s ceilings.',
   );
   const reservation = input.model_binding.billing_mode === 'byok' ? '0' : limits.max_cost_micro_usd;
-  const account = await reserve(tx, p.organizationId, BigInt(reservation));
+  // Stateless immediate admission can share organization and wallet acquisition.
+  // Reference paths retain their earlier organization guard before reference authorization.
+  const financial = prepared
+    ? await queryGroup(tx, [
+        ...(organizationLocked ? [] : [lockQuery(`organization:${p.organizationId}`)]),
+        ...creditStateQueries(p.organizationId),
+      ])
+    : undefined;
+  const reservationPlan = financial
+    ? prepareReservation(
+        creditStateFromResults(tx, p.organizationId, financial.slice(organizationLocked ? 0 : 1)),
+        BigInt(reservation),
+      )
+    : undefined;
+  const account = reservationPlan?.account ?? (await reserve(tx, p.organizationId, BigInt(reservation)));
   (await import('./storage-maintenance')).assertStorageCapacity(account.settings);
   const policy = executionPolicy(account);
   assert(
@@ -166,14 +190,28 @@ async function admitInferenceState(
       },
     });
   configuration.admission_ms = performance.now() - admissionStarted;
+  const actorCheckedAtMonotonicMs = performance.now();
   if (prepared) {
-    const breaker = await tx.query(
-      'SELECT 1 FROM provider_circuit_breakers WHERE key=$1 AND resolved_at IS NULL',
-      [`model:${model.provider}:${model.id}`],
+    const actor = {
+      organization_id: p.organizationId,
+      workspace_id: input.workspace_id ?? null,
+      config: configuration,
+    };
+    const actorQueries = actorAuthorizationQueries(
+      actor,
+      input.stream ? ['runs:write', 'runs:read'] : ['runs:write'],
     );
-    assert(!breaker.rowCount, 503, 'model_paused', 'This model is paused for metering review.');
-    await lock(tx, 'capacity:global');
-    const capacity = await executionCapacity(tx, p.organizationId, 'inference', policy);
+    const guards = await queryGroup(tx, [
+      lockQuery('capacity:global'),
+      executionCapacityQuery(p.organizationId, 'inference', policy),
+      {
+        text: 'SELECT 1 FROM provider_circuit_breakers WHERE key=$1 AND resolved_at IS NULL',
+        values: [`model:${model.provider}:${model.id}`],
+      },
+      ...actorQueries,
+      ...(prepared.modelSelection ? [currentSelectedModelQuery(prepared.modelSelection)] : []),
+    ]);
+    const capacity = capacityDecision(guards[1]);
     if (!capacity.allowed)
       assert(
         false,
@@ -182,6 +220,17 @@ async function admitInferenceState(
         'Inference capacity is busy. Retry with the same idempotency key.',
         { reason: capacity.reason },
       );
+    assert(!guards[2].rowCount, 503, 'model_paused', 'This model is paused for metering review.');
+    assert(
+      actorAuthorizationFromResults(actor, guards.slice(3, 3 + actorQueries.length)),
+      403,
+      'authorization_revoked',
+      'The initiating credential is no longer authorized.',
+    );
+    if (prepared.modelSelection)
+      decisionModel(input.model_binding, [
+        currentSelectedModelFromResult(prepared.modelSelection, guards[3 + actorQueries.length]),
+      ]);
     assert(
       Date.now() +
         limits.timeout_seconds * 1000 +
@@ -197,9 +246,8 @@ async function admitInferenceState(
   // Anchor before the SQL statement so wire latency can only shorten, never
   // extend, the provider window relative to PostgreSQL's accepted deadline.
   const providerDeadlineMonotonicMs = performance.now() + limits.timeout_seconds * 1000;
-  const saved = (
-    await tx.query<Omit<ExecutableInferenceRunRow, 'config'>>(
-      `WITH admitted AS (INSERT INTO runs(id,organization_id,workspace_id,kind,status,config,reservation_micro_usd,queue_expires_at,started_at,heartbeat_at,lease_generation,deadline)
+  const insertion = {
+    text: `WITH admitted AS (INSERT INTO runs(id,organization_id,workspace_id,kind,status,config,reservation_micro_usd,queue_expires_at,started_at,heartbeat_at,lease_generation,deadline)
      VALUES($1,$2,$3,$7,$8,$4,$5,now()+($6::integer*interval '1 second'),
        CASE WHEN $8='running' THEN clock_timestamp() ELSE NULL END,
        CASE WHEN $8='running' THEN clock_timestamp() ELSE NULL END,
@@ -212,27 +260,34 @@ async function admitInferenceState(
          CASE WHEN $8='running' THEN deadline+($11::integer*interval '1 millisecond') ELSE now() END,
          CASE WHEN $8='running' THEN 'running' ELSE 'pending' END FROM admitted RETURNING resource_id
      ) SELECT admitted.* FROM admitted JOIN scheduled ON scheduled.resource_id=admitted.id`,
-      [
-        runId,
-        p.organizationId,
-        input.workspace_id,
-        JSON.stringify(
-          prepared
-            ? compactConfiguration(configuration)
-            : source
-              ? taskQueuedConfiguration(configuration, source)
-              : configuration,
-        ),
-        reservation,
-        'queue_timeout_seconds' in input ? (input.queue_timeout_seconds ?? 60) : 60,
-        kind,
-        prepared ? 'running' : 'queued',
-        limits.timeout_seconds,
-        id(),
-        immediateInferencePolicy.completionMs,
-      ],
-    )
-  ).rows[0];
+    values: [
+      runId,
+      p.organizationId,
+      input.workspace_id,
+      JSON.stringify(
+        prepared
+          ? compactConfiguration(configuration)
+          : source
+            ? taskQueuedConfiguration(configuration, source)
+            : configuration,
+      ),
+      reservation,
+      'queue_timeout_seconds' in input ? (input.queue_timeout_seconds ?? 60) : 60,
+      kind,
+      prepared ? 'running' : 'queued',
+      limits.timeout_seconds,
+      id(),
+      immediateInferencePolicy.completionMs,
+    ],
+  };
+  const financialWrite = reservationPlan ? reservationQuery(tx, reservationPlan) : undefined;
+  const writes = await queryGroup<Omit<ExecutableInferenceRunRow, 'config'>>(tx, [
+    ...(financialWrite ? [financialWrite] : []),
+    insertion,
+  ]);
+  if (reservationPlan) checkReservationResult(reservationPlan, financialWrite ? writes[0] : undefined);
+  const saved = writes[writes.length - 1].rows[0];
+  assert(saved, 500, 'invalid_inference_state', 'Admission did not publish its Run identity.');
   const row: ExecutableInferenceRunRow = { ...saved, config: configuration };
   assert(
     row.status === 'running' || row.status === 'queued',
@@ -254,7 +309,7 @@ async function admitInferenceState(
     ...(prepared ? {} : { queue_expires_at: row.queue_expires_at.toISOString() }),
     urls: runUrls(runId),
   };
-  return { receipt, run: row, secret, providerDeadlineMonotonicMs };
+  return { receipt, run: row, secret, providerDeadlineMonotonicMs, actorCheckedAtMonotonicMs };
 }
 
 export async function admitInference(
@@ -397,54 +452,63 @@ export async function prepareInference(
   let prepared: PreparedImmediateInference | undefined;
   let permit: InvocationPermit | undefined;
   if (direct) {
-    validateContext(definition, input.input, context);
-    const model = decisionModel(input.model_binding, modelSelection ? [modelSelection.model] : []);
-    const configuration = inferenceConfiguration(p, resolved, model);
-    configuration.execution_owner = 'request';
-    assert(
-      configuration.limits.timeout_seconds <= 240,
-      400,
-      input.stream ? 'streaming_timeout_unsupported' : 'direct_timeout_exceeded',
-      'Immediate inference supports up to 240 seconds. Use the separately documented agent APIs for longer multi-step work.',
-    );
-    assert(
-      Date.now() +
-        immediateInferencePolicy.admissionMs +
-        configuration.limits.timeout_seconds * 1000 +
-        immediateInferencePolicy.completionMs +
-        immediateInferencePolicy.deliveryMs <=
+    // The encoding memo lives only in this synchronous segment, after reference
+    // reads and before admission; waiting requests retain no extra fragments.
+    const json = createJsonPreparation();
+    try {
+      validateContext(definition, input.input, context, json);
+      const model = decisionModel(input.model_binding, modelSelection ? [modelSelection.model] : []);
+      const configuration = inferenceConfiguration(p, resolved, model, json);
+      configuration.execution_owner = 'request';
+      assert(
+        configuration.limits.timeout_seconds <= 240,
+        400,
+        input.stream ? 'streaming_timeout_unsupported' : 'direct_timeout_exceeded',
+        'Immediate inference supports up to 240 seconds. Use the separately documented agent APIs for longer multi-step work.',
+      );
+      assert(
+        Date.now() +
+          immediateInferencePolicy.admissionMs +
+          configuration.limits.timeout_seconds * 1000 +
+          immediateInferencePolicy.completionMs +
+          immediateInferencePolicy.deliveryMs <=
+          hostDeadline,
+        503,
+        'inference_host_budget_exhausted',
+        'The requested execution window cannot fit this host lifetime.',
+      );
+      prepared = {
+        configuration,
+        invocation: prepareInvocation(configuration, 0, [], configuration.limits.max_output_tokens, json),
         hostDeadline,
-      503,
-      'inference_host_budget_exhausted',
-      'The requested execution window cannot fit this host lifetime.',
-    );
-    prepared = { configuration, invocation: prepareInvocation(configuration), hostDeadline, modelSelection };
+        modelSelection,
+      };
+    } finally {
+      json.dispose();
+    }
   }
   return {
     inferencePermit: () => permit,
     async commit(tx: Tx, principal: Principal) {
       // This is also the API-key revocation guard: a concurrent revocation cannot
       // miss a newly admitted Run in its dependent-cancellation scan.
-      if (direct) await lock(tx, `organization:${principal.organizationId}`);
+      const organizationLocked =
+        direct &&
+        (!!input.workspace_id || 'definition_id' in input.definition || 'artifact_id' in input.context);
+      if (organizationLocked) await lock(tx, `organization:${principal.organizationId}`);
       if ('definition_id' in input.definition) await resolveDefinition(tx, principal, input);
       if ('artifact_id' in input.context)
         await authorizeContext(tx, principal, input.workspace_id, input.context);
-      const admitted = await admitInferenceState(tx, principal, resolved, kind, prepared);
+      const admitted = await admitInferenceState(
+        tx,
+        principal,
+        resolved,
+        kind,
+        prepared,
+        undefined,
+        organizationLocked,
+      );
       if (prepared) {
-        const actorCheckedAtMonotonicMs = performance.now();
-        assert(
-          await actorAuthorized(tx, admitted.run),
-          403,
-          'authorization_revoked',
-          'The initiating credential is no longer authorized.',
-        );
-        if (input.stream)
-          assert(
-            await actorAuthorized(tx, admitted.run, 'runs:read'),
-            403,
-            'authorization_revoked',
-            'Stream read permission is no longer authorized.',
-          );
         const call = await insertInvocation(tx, admitted.run, prepared.invocation, {
           dispatchStarted: true,
           admission: { type: 'run.accepted', data: { kind, status: admitted.run.status } },
@@ -458,7 +522,7 @@ export async function prepareInference(
           secret: admitted.secret,
           hostDeadline,
           providerDeadlineMonotonicMs: admitted.providerDeadlineMonotonicMs,
-          actorCheckedAtMonotonicMs,
+          actorCheckedAtMonotonicMs: admitted.actorCheckedAtMonotonicMs,
           traceContext: tracingEnabled() ? await runTraceContext(tx, admitted.run) : undefined,
         };
         return inferenceEnvelope(admitted.run).body;
@@ -490,6 +554,7 @@ export function inferenceConfiguration(
   p: Principal,
   input: ResolvedInferenceCreate,
   model: import('./catalog').Model,
+  preparation?: JsonPreparation,
 ): InferenceConfig {
   const protocol = decisionProtocol(model.provider, model.id);
   const limits = input.limits || input.definition.limits;
@@ -500,6 +565,7 @@ export function inferenceConfiguration(
     application_namespace: input.workspace_id ?? p.organizationId,
     admitted_at: new Date().toISOString(),
   };
+  preparation?.remember(context);
   return {
     stream: input.stream ?? false,
     executor_version: '1',
@@ -518,10 +584,10 @@ export function inferenceConfiguration(
     context_resolution_ms: input.context_resolution_ms,
     limits,
     definition: input.definition,
-    definition_digest: digest(input.definition),
+    definition_digest: digest(input.definition, preparation?.stringify),
     input: input.input,
     context,
-    context_digest: digest(context),
+    context_digest: digest(context, preparation?.stringify),
     context_reference: input.context_reference,
     definition_reference: input.definition_reference,
     client_type: 'api',

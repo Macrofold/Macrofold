@@ -1,7 +1,8 @@
 import Ajv from 'ajv/dist/2020.js';
 import type { AnySchema, ValidateFunction } from 'ajv';
 import { assert } from './errors';
-import { canonical, sha256 } from './crypto';
+import { canonical, sha256, type CanonicalEncoder } from './crypto';
+import { encodeJson, type JsonPreparation } from './prepared-json';
 import type { ExplicitContext, InferenceDefinition } from './decision';
 
 function configuredLimit(name: string, ceiling: number) {
@@ -27,7 +28,7 @@ export const contextLimits = {
     return configuredLimit('DECISION_CONTEXT_MAX_ITEMS', 64);
   },
 };
-export const digest = (value: unknown) => sha256(canonical(value));
+export const digest = (value: unknown, encode: CanonicalEncoder = canonical) => sha256(encode(value));
 
 /** Deliberately finite JSON Schema subset. No references, regexes, dynamic
  * schemas or combinatorial alternatives supplied by an untrusted caller. */
@@ -107,14 +108,24 @@ export function schemaValidator(schema: Record<string, unknown>) {
   }
 }
 
-export function validateContext(definition: InferenceDefinition, input: unknown, context: ExplicitContext) {
+export function validateContext(
+  definition: InferenceDefinition,
+  input: unknown,
+  context: ExplicitContext,
+  preparation?: JsonPreparation,
+) {
+  const encodedInput =
+    input !== null && typeof input === 'object'
+      ? (preparation?.remember(input) ?? encodeJson(input))
+      : encodeJson(input);
   assert(
-    Buffer.byteLength(canonical(input)) <= contextLimits.inputBytes,
+    encodedInput.bytes <= contextLimits.inputBytes,
     413,
     'input_too_large',
     'Inline input exceeds the deployment byte limit.',
   );
-  validateEvidence(context);
+  preparation?.remember(context.items);
+  const encodedContext = validateEvidence(context, preparation);
   assert(
     schemaValidator(definition.input_schema)(input),
     400,
@@ -138,6 +149,7 @@ export function validateContext(definition: InferenceDefinition, input: unknown,
       `Required context value ${required} is not known.`,
     );
   validateConsistency(definition, context);
+  return { input: encodedInput, context: encodedContext };
 }
 
 export function validateConsistency(definition: InferenceDefinition, context: ExplicitContext) {
@@ -155,10 +167,10 @@ export function validateConsistency(definition: InferenceDefinition, context: Ex
   );
 }
 
-export function validateEvidence(context: ExplicitContext) {
+export function validateEvidence(context: ExplicitContext, preparation?: JsonPreparation) {
+  const encoded = preparation?.remember(context) ?? encodeJson(context);
   assert(
-    Buffer.byteLength(canonical(context)) <= contextLimits.totalBytes &&
-      context.items.length <= contextLimits.items,
+    encoded.bytes <= contextLimits.totalBytes && context.items.length <= contextLimits.items,
     413,
     'context_too_large',
     'Context exceeds the item or byte limit.',
@@ -189,4 +201,5 @@ export function validateEvidence(context: ExplicitContext) {
     'stale_input',
     'Context has expired. Submit a fresh snapshot.',
   );
+  return encoded;
 }

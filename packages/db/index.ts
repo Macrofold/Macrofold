@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { channel } from 'node:diagnostics_channel';
+import { beginDatabaseGroup, beginDatabaseTransaction } from './diagnostics';
 import { config } from '../core/src/config';
 import { capacitySetting } from '../core/src/capacity';
 import { queryTimeoutMs, statementTimeoutMs as defaultStatementTimeoutMs } from './timeouts';
@@ -16,6 +17,12 @@ export type Tx = pg.PoolClient;
 const commitObservers = new WeakMap<Tx, (() => void)[]>();
 const activeGroups = new WeakSet<Tx>();
 const groupedQueries = channel('macrofold.database.group');
+/** An active transaction generation, distinct even when a pooled client is reused. */
+export function transactionIdentity(tx: Tx): object {
+  const identity = commitObservers.get(tx);
+  if (!identity) throw new Error('An active managed transaction is required.');
+  return identity;
+}
 /** Submit a bounded, already ordered group on the transaction's assigned client.
  * This is for statements whose results need no intervening domain decision.
  * pg preserves submission order; every result drains before rollback or COMMIT.
@@ -45,6 +52,7 @@ async function submitQueryGroup<Row extends pg.QueryResultRow = pg.QueryResultRo
   activeGroups.add(tx);
   client.pipeline = true;
   const started = groupedQueries.hasSubscribers ? performance.now() : undefined;
+  const endMeasurement = beginDatabaseGroup(tx, statements.length);
   try {
     const results = await Promise.allSettled(statements.map(async (statement) => tx.query<Row>(statement)));
     const failure = results.find((result) => result.status === 'rejected');
@@ -56,6 +64,7 @@ async function submitQueryGroup<Row extends pg.QueryResultRow = pg.QueryResultRo
   } finally {
     client.pipeline = previous;
     activeGroups.delete(tx);
+    endMeasurement();
     if (started !== undefined)
       groupedQueries.publish({ statements: statements.length, started, ended: performance.now() });
   }
@@ -141,8 +150,10 @@ async function transact<T>(
   const tx = deadlineAtMs === undefined ? client : budgetedClient(client, deadlineAtMs);
   const observers: (() => void)[] = [];
   commitObservers.set(tx, observers);
+  const endMeasurement = beginDatabaseTransaction(client, tx);
   let committed = false;
   let committing = false;
+  let rolledBack = false;
   let releaseError: Error | undefined;
   // pg destroys a timed-out pipeline and emits a client error after rejecting
   // its queries. The checked-out client has no pool idle listener at that point.
@@ -202,6 +213,7 @@ async function transact<T>(
       // Cleanup gets its own short wire deadline; it cannot run customer work.
       const rollback = deadlineAtMs === undefined ? 'ROLLBACK' : { text: 'ROLLBACK', query_timeout: 100 };
       await client.query(rollback);
+      rolledBack = true;
       if (error instanceof DatabaseBudgetError) error.rollbackConfirmed = true;
     } catch {
       releaseError = new Error('Transaction rollback acknowledgment failed.');
@@ -209,6 +221,9 @@ async function transact<T>(
     throw error;
   } finally {
     commitObservers.delete(tx);
+    endMeasurement?.(
+      committed ? 'committed' : committing ? 'commit_unknown' : rolledBack ? 'rolled_back' : 'failed',
+    );
     client.release(releaseError);
     client.removeListener('error', onClientError);
     if (committed)
@@ -234,7 +249,10 @@ export async function boundedQuery<Row extends pg.QueryResultRow>(
   return transaction(null, (tx) => tx.query<Row>(text, values), options);
 }
 export async function lock(tx: Tx, value: string) {
-  await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [value]);
+  await tx.query(lockQuery(value));
+}
+export function lockQuery(value: string): pg.QueryConfig {
+  return { text: 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', values: [value] };
 }
 
 /** Background work can defer immediately instead of occupying a connection while

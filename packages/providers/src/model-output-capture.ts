@@ -1,3 +1,12 @@
+/** Shared first-output classification works without retaining response frames. */
+export function isModelOutputFrame(frame: Record<string, unknown>) {
+  return (
+    frame.type === 'response.output_text.delta' ||
+    frame.type === 'content_block_delta' ||
+    Array.isArray(frame.choices)
+  );
+}
+
 /** Bounded, observational capture of provider frames. Never drives metering or
  * delivery. Prefer a provider's complete response; keep partial frames on abort. */
 export class ModelOutputCapture {
@@ -8,13 +17,7 @@ export class ModelOutputCapture {
   firstOutputAt: Date | undefined;
   constructor(private readonly maxBytes = 1024 * 1024) {}
   add(frame: Record<string, unknown>) {
-    if (
-      !this.firstOutputAt &&
-      (frame.type === 'response.output_text.delta' ||
-        frame.type === 'content_block_delta' ||
-        Array.isArray(frame.choices))
-    )
-      this.firstOutputAt = new Date();
+    if (!this.firstOutputAt && isModelOutputFrame(frame)) this.firstOutputAt = new Date();
     const serialized = JSON.stringify(frame);
     if (frame.type === 'response.completed' && frame.response && typeof frame.response === 'object') {
       if (Buffer.byteLength(serialized) <= this.maxBytes) {

@@ -19,7 +19,7 @@ export function RequestsTable({ records }: { records: Schema['RequestRecord'][] 
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <span className="muted">{records.length} loaded requests</span>
+        <span className="muted">{records.length} loaded observations</span>
       </div>
       <div className="table-wrap" role="region" aria-label="Request history" tabIndex={0}>
         <table className="data-table requests-table">
@@ -37,7 +37,9 @@ export function RequestsTable({ records }: { records: Schema['RequestRecord'][] 
             {!filtered.length && (
               <tr>
                 <td colSpan={6} className="empty-inline">
-                  {search ? 'No loaded requests match this filter.' : 'No requests recorded in this period.'}
+                  {search
+                    ? 'No loaded observations match this filter.'
+                    : 'No request observations retained in this period.'}
                 </td>
               </tr>
             )}

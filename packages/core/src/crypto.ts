@@ -5,12 +5,16 @@ export const id = () => v7();
 export const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
 /** Stable input for idempotency and accepted-policy fingerprints. Shared domain
  * callers must not load the HTTP schema/validator merely to compare documents. */
-export function canonical(value: unknown): string {
+export type CanonicalEncoder = (value: unknown) => string;
+export type CanonicalLookup = (value: object) => string | undefined;
+export function canonical(value: unknown, lookup?: CanonicalLookup): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  const prepared = lookup?.(value);
+  if (prepared !== undefined) return prepared;
+  if (Array.isArray(value)) return `[${value.map((child) => canonical(child, lookup)).join(',')}]`;
   return `{${Object.entries(value)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
+    .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v, lookup)}`)
     .join(',')}}`;
 }
 export const token = (prefix = 'sk') => `${prefix}_${randomBytes(32).toString('base64url')}`;

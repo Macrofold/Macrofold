@@ -1,8 +1,21 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import pg from 'pg';
-import { pool, transaction } from '../../packages/db';
+import { pool, transaction, queryGroup } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
-import { credit, debit, expireCredits, reserve, settle } from '../../packages/core/src/ledger';
+import {
+  credit,
+  debit,
+  expireCredits,
+  reserve,
+  settle,
+  creditStateQueries,
+  creditStateFromResults,
+  prepareReservation,
+  applyReservation,
+  prepareSettlement,
+  settlementQueries,
+  finishSettlement,
+} from '../../packages/core/src/ledger';
 
 afterAll(async () => pool.end());
 async function account(amount = 100n) {
@@ -43,6 +56,32 @@ async function state(org: string) {
 }
 
 describe('integer ledger boundaries against PostgreSQL', () => {
+  it('allows a zero-funded reservation without creating financial facts or changing the wallet', async () => {
+    const org = await account(0n);
+    const accountPolicy = await transaction(org, (tx) => reserve(tx, org, 0n));
+    expect(accountPolicy).toMatchObject({ balance_micro_usd: '0', reserved_micro_usd: '0' });
+    expect(await state(org)).toEqual({ balance: 0n, reserved: 0n, debt: 0n });
+    const facts = await transaction(org, (tx) =>
+      tx.query(`SELECT (SELECT count(*)::integer FROM financial_events) AS events,
+        (SELECT count(*)::integer FROM ledger) AS entries,
+        (SELECT count(*)::integer FROM credit_lots) AS lots`),
+    );
+    expect(facts.rows[0]).toEqual({ events: 0, entries: 0, lots: 0 });
+  });
+  it('preserves explicit account execution limits while reserving the exact wallet amount', async () => {
+    const org = await account();
+    await transaction(org, (tx) =>
+      tx.query('UPDATE organizations SET run_concurrency_limit=2,run_timeout_seconds=300 WHERE id=$1', [org]),
+    );
+    const accountPolicy = await transaction(org, (tx) => reserve(tx, org, 40n));
+    expect(accountPolicy).toMatchObject({
+      run_concurrency_limit: 2,
+      run_timeout_seconds: 300,
+      balance_micro_usd: '100',
+      reserved_micro_usd: '40',
+    });
+    expect(await state(org)).toEqual({ balance: 100n, reserved: 40n, debt: 0n });
+  });
   it('allows an exact balance reservation and rejects one additional micro-dollar', async () => {
     const org = await account();
     await transaction(org, (tx) => reserve(tx, org, 100n));
@@ -215,6 +254,25 @@ it('settles a thousand open credit lots without one database round trip per lot'
 });
 
 describe('reservation serialization and protected expiring funds', () => {
+  it('protects reservations added between composed settlement phases when credit expires', async () => {
+    const org = await account(100n);
+    await transaction(org, async (tx) => {
+      await credit(tx, org, 100n, 'expiring', 'included_credits', new Date('2040-01-01T00:00:00Z'));
+      await reserve(tx, org, 80n);
+      const settlement = prepareSettlement(tx, org, 'first-release', 80n, 0n);
+      const observations = await queryGroup(tx, settlementQueries(tx, settlement));
+      await reserve(tx, org, 120n);
+      // Cross the expiry boundary deterministically after the account read and
+      // new reservation, without depending on wall-clock scheduling in CI.
+      await tx.query(
+        "UPDATE credit_lots SET expires_at=clock_timestamp()-interval '1 second' WHERE reference='expiring'",
+      );
+      await finishSettlement(tx, settlement, observations);
+    });
+    expect(await state(org)).toEqual({ balance: 200n, reserved: 120n, debt: 0n });
+    await transaction(org, (tx) => settle(tx, org, id(), 120n, 0n));
+    expect(await state(org)).toEqual({ balance: 100n, reserved: 0n, debt: 0n });
+  });
   it('serializes contenders at the actual organization lock and prevents overspending', async () => {
     const org = await account(100n);
     let release!: () => void;
@@ -378,4 +436,103 @@ it('consumes multiple lots and preserves the financial account and event referen
     { reference: 'refund-after-usage', account: 'available_credits', amount_micro_usd: '-10' },
     { reference: 'refund-after-usage', account: 'refunds', amount_micro_usd: '10' },
   ]);
+});
+
+describe('transaction-owned composed financial plans', () => {
+  it.each([
+    { fault: 'missing row', rows: [] },
+    { fault: 'malformed reservation', rows: [{ reserved_micro_usd: 0 }] },
+  ])('rolls back settlement when its wallet result has a $fault', async ({ rows }) => {
+    const org = await account(100n),
+      run = id(),
+      reference = `run:${run}`;
+    await transaction(org, (tx) => reserve(tx, org, 80n));
+    let injected = false;
+    await expect(
+      transaction(org, async (tx) => {
+        const plan = prepareSettlement(tx, org, reference, 80n, 30n);
+        const observations = await queryGroup(tx, settlementQueries(tx, plan));
+        // This fixture exercises only pg's Promise form; narrowing the local
+        // view avoids its callback overload determining the spy's types.
+        const promiseTx: {
+          query(statement: string | pg.QueryConfig, values?: unknown[]): Promise<pg.QueryResult>;
+        } = tx;
+        const original = promiseTx.query;
+        const query = vi.spyOn(promiseTx, 'query').mockImplementation((...args) => {
+          const pending = original.apply(tx, args);
+          const statement = args[0];
+          const text = typeof statement === 'string' ? statement : statement.text;
+          if (text.includes('RETURNING reserved_micro_usd'))
+            return pending.then((result: pg.QueryResult) => {
+              injected = true;
+              // Execute the real mutation first: rejecting its invalid result
+              // must roll back the wallet, lot debit, journal and event identity.
+              return { ...result, rows, rowCount: rows.length };
+            });
+          return pending;
+        });
+        try {
+          await finishSettlement(tx, plan, observations);
+        } finally {
+          query.mockRestore();
+        }
+      }),
+    ).rejects.toMatchObject({ code: 'billing_unavailable' });
+    expect(injected).toBe(true);
+    expect(await state(org)).toEqual({ balance: 100n, reserved: 80n, debt: 0n });
+    const facts = await transaction(org, (tx) =>
+      tx.query(
+        `SELECT (SELECT count(*)::integer FROM financial_events WHERE reference=$1) AS events,
+         (SELECT count(*)::integer FROM ledger WHERE reference=$1) AS entries`,
+        [reference],
+      ),
+    );
+    expect(facts.rows[0]).toEqual({ events: 0, entries: 0 });
+    await transaction(org, (tx) => settle(tx, org, run, 80n, 30n));
+    expect(await state(org)).toEqual({ balance: 70n, reserved: 0n, debt: 0n });
+  });
+  it('rejects reservation reuse and cross-transaction reuse without applying a second hold', async () => {
+    const org = await account(100n);
+    const prepared = await transaction(org, async (tx) => {
+      const plan = prepareReservation(
+        creditStateFromResults(tx, org, await queryGroup(tx, creditStateQueries(org))),
+        40n,
+      );
+      await applyReservation(tx, plan);
+      await expect(applyReservation(tx, plan)).rejects.toMatchObject({ code: 'billing_state_stale' });
+      return plan;
+    });
+    await expect(transaction(org, (tx) => applyReservation(tx, prepared))).rejects.toMatchObject({
+      code: 'billing_state_stale',
+    });
+    expect(await state(org)).toEqual({ balance: 100n, reserved: 40n, debt: 0n });
+  });
+  it('rejects a prepared balance changed inside the same transaction and rolls back the entire mutation', async () => {
+    const org = await account(100n);
+    await expect(
+      transaction(org, async (tx) => {
+        const plan = prepareReservation(
+          creditStateFromResults(tx, org, await queryGroup(tx, creditStateQueries(org))),
+          60n,
+        );
+        await reserve(tx, org, 60n);
+        await applyReservation(tx, plan);
+      }),
+    ).rejects.toMatchObject({ code: 'billing_state_stale' });
+    expect(await state(org)).toEqual({ balance: 100n, reserved: 0n, debt: 0n });
+  });
+  it('allows each composed settlement result to release its hold only once', async () => {
+    const org = await account(100n),
+      run = id();
+    await transaction(org, (tx) => reserve(tx, org, 80n));
+    await transaction(org, async (tx) => {
+      const plan = prepareSettlement(tx, org, `run:${run}`, 80n, 30n);
+      const results = await queryGroup(tx, settlementQueries(tx, plan));
+      await finishSettlement(tx, plan, results);
+      await expect(finishSettlement(tx, plan, results)).rejects.toMatchObject({
+        code: 'billing_state_stale',
+      });
+    });
+    expect(await state(org)).toEqual({ balance: 70n, reserved: 0n, debt: 0n });
+  });
 });

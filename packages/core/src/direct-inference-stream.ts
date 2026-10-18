@@ -4,6 +4,7 @@ import type { Principal } from './auth';
 import { assert } from './errors';
 import { getRun, terminal } from './runs';
 import { completeDirectInference, type InvocationPermit } from './direct-inference';
+import { runPerformanceChild } from './performance';
 
 /** One transient reader, one durably identified invocation. Register the producer
  * with the host lifetime before returning headers; reader detachment never aborts it. */
@@ -99,37 +100,41 @@ export async function directInferenceStream(
     { highWaterMark: 2 * 1024 * 1024, size: (chunk) => chunk.byteLength },
   );
   let resultAvailable = false;
-  const producer = Promise.resolve().then(async () => {
-    try {
-      const completed = await completeDirectInference(principal, accepted, permit, background, (event) =>
-        send(event.type, event.data),
-      );
-      if (completed.status === 200) {
-        resultAvailable = true;
-        send(`run.${completed.body.status}`, completed.body);
-      } else {
-        onRecovery?.();
+  const producer = runPerformanceChild('stream_owner', () =>
+    Promise.resolve().then(async () => {
+      try {
+        const completed = await completeDirectInference(principal, accepted, permit, background, (event) =>
+          send(event.type, event.data),
+        );
+        if (completed.status === 200) {
+          resultAvailable = true;
+          send(`run.${completed.body.status}`, completed.body);
+        } else {
+          onRecovery?.();
+          send('transport.error', {
+            code: 'inference_recovery_required',
+            idempotency_key: idempotencyKey,
+            urls: completed.body.urls,
+            ...('recovery_reason' in completed.body
+              ? { recovery_reason: completed.body.recovery_reason }
+              : {}),
+            message: 'Execution is recovering. Retrieve the result using the run ID.',
+          });
+        }
+      } catch {
         send('transport.error', {
-          code: 'inference_recovery_required',
+          code: 'stream_interrupted',
           idempotency_key: idempotencyKey,
-          urls: completed.body.urls,
-          ...('recovery_reason' in completed.body ? { recovery_reason: completed.body.recovery_reason } : {}),
-          message: 'Execution is recovering. Retrieve the result using the run ID.',
+          ...('urls' in accepted ? { urls: accepted.urls } : {}),
+          ...(resultAvailable ? { reason: 'result_available' } : { recovery_reason: 'outcome_unknown' }),
+          message: 'Retrieve the saved result using the run ID.',
         });
+      } finally {
+        detach();
+        release?.();
       }
-    } catch {
-      send('transport.error', {
-        code: 'stream_interrupted',
-        idempotency_key: idempotencyKey,
-        ...('urls' in accepted ? { urls: accepted.urls } : {}),
-        ...(resultAvailable ? { reason: 'result_available' } : { recovery_reason: 'outcome_unknown' }),
-        message: 'Retrieve the saved result using the run ID.',
-      });
-    } finally {
-      detach();
-      release?.();
-    }
-  });
+    }),
+  );
   background(async () => {
     await producer;
     await flushTraces();

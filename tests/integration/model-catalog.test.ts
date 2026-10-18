@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { authPool, credentialPool, pool, transaction } from '../../packages/db';
+import { authPool, credentialPool, pool, transaction, lock } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import {
   cachedModels,
@@ -23,7 +23,8 @@ import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
 import { FaultMachine } from '../fixtures/cloud-machine';
 import { runtimeToken } from '../../packages/core/src/runtime-auth';
 import { handleModelRequest, settleOrphanModelRequests } from '../../packages/core/src/model-gateway';
-import { id } from '../../packages/core/src/crypto';
+import { id, sha256 } from '../../packages/core/src/crypto';
+import { prepareInference } from '../../packages/core/src/inferences';
 
 const original = { ...config };
 const routed = (price = '0.00000075'): DiscoveredModel[] => [
@@ -504,3 +505,92 @@ it('prepares fresh OpenRouter selection with one catalog read and no discovery c
   expect(source).not.toHaveBeenCalled();
   expect(catalogReads).toHaveLength(1);
 });
+
+it.each(['revision', 'expiry'] as const)(
+  'rechecks catalog %s after the actual shared-capacity wait',
+  async (change) => {
+    const account = await fixtureAccount(`Catalog wait ${change}`);
+    const key = (
+      await transaction(account.p.organizationId, (tx) =>
+        tx.query<{ id: string }>('SELECT id FROM api_keys WHERE organization_id=$1 AND key_hash=$2', [
+          account.p.organizationId,
+          sha256(account.key),
+        ]),
+      )
+    ).rows[0];
+    const principal = { ...account.p, id: key.id, kind: 'api_key' as const };
+    await transaction(principal.organizationId, (tx) =>
+      credit(tx, principal.organizationId, 1000000n, `fixture:${id()}`),
+    );
+    config.execution = 'docker';
+    config.allowPaid = true;
+    vi.stubEnv('OPENROUTER_API_KEY', 'fixture-key-no-provider-account');
+    await refreshModelCatalog(async () => routed(), ['openrouter']);
+    const prepared = await prepareInference(
+      principal,
+      {
+        model_binding: { provider: 'openrouter', model: routed()[0].id, billing_mode: 'managed' },
+        input: { messages: [{ role: 'user', content: 'No provider execution' }] },
+        limits: { max_cost_micro_usd: '10000', timeout_seconds: 30, max_output_tokens: 100 },
+      },
+      'inference',
+      true,
+    );
+    const locked = barrier(),
+      release = barrier();
+    const holder = transaction(null, async (tx) => {
+      await lock(tx, 'capacity:global');
+      locked.release();
+      await release.promise;
+      if (change === 'revision')
+        await tx.query("UPDATE model_catalog_cache SET models='[]' WHERE provider='openrouter'");
+      else
+        await tx.query(
+          "UPDATE model_catalog_cache SET fetched_at=clock_timestamp()-interval '25 hours' WHERE provider='openrouter'",
+        );
+    });
+    await locked.promise;
+    let candidatePid = 0;
+    const candidate = transaction(principal.organizationId, async (tx) => {
+      candidatePid = (await tx.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')).rows[0].pid;
+      return prepared.commit(tx, principal);
+    });
+    const rejected = expect(candidate).rejects.toMatchObject({
+      code: change === 'revision' ? 'model_terms_changed' : 'decision_model_unavailable',
+    });
+    try {
+      await expect
+        .poll(async () =>
+          candidatePid
+            ? (
+                await pool.query<{ n: number }>('SELECT cardinality(pg_blocking_pids($1)) AS n', [
+                  candidatePid,
+                ])
+              ).rows[0].n
+            : 0,
+        )
+        .toBeGreaterThan(0);
+    } finally {
+      release.release();
+    }
+    try {
+      await holder;
+      await rejected;
+      await transaction(principal.organizationId, async (tx) => {
+        expect(
+          (await tx.query('SELECT id FROM runs WHERE organization_id=$1', [principal.organizationId])).rows,
+        ).toEqual([]);
+        expect(
+          (
+            await tx.query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [
+              principal.organizationId,
+            ])
+          ).rows[0].reserved_micro_usd,
+        ).toBe('0');
+      });
+    } finally {
+      await prepared.dispose();
+      await retireFixtureRuns(principal.organizationId);
+    }
+  },
+);

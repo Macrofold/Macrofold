@@ -72,9 +72,9 @@ Do not add Redis, a new queue platform, a generic repository/cache framework, cr
 
 The [ordered implementation stages](execution-efficiency-tech-design.md#implementation-stages) first preserve the measured baseline, then remove payload duplication and query round trips, implement compact completion, and apply the same discipline to agent/tool/storage/event paths. Correctness and performance evidence are both required; stages do not silently exclude the latter paths.
 
-## Remaining optimization proposal
+## Remaining optimization implementation
 
-A design-only follow-up specifies [shared SQL batching, request-local payload reuse, producer-aware trace capture and optional HTTP observations](execution-efficiency/remaining-optimizations.md). The distinct [profiling specification](performance-profiling-feature-spec.md) and [profiling technical design](performance-profiling-tech-design.md) define an easy default-off operator switch and accurate concurrent attribution. These proposals do not change the implemented durability contract or close the original SQL/CI/hosted gates.
+The implemented follow-up specifies [shared SQL batching, request-local payload reuse, producer-aware trace capture and optional HTTP observations](execution-efficiency/remaining-optimizations.md). The distinct [profiling specification](performance-profiling-feature-spec.md) and [profiling technical design](performance-profiling-tech-design.md) define an easy default-off operator switch and accurate concurrent attribution. These modules preserve the implemented durability contract; their verification does not close the original SQL/CI/hosted gates.
 
 Additional acceptance: behavior-preserving optimizations must improve measured work through shared owners; full tracing remains the default; metadata-only tracing must avoid producer-side content capture; explicitly disabled HTTP observations must be represented as incomplete diagnostics in reporting, never as authoritative zero traffic. Financial facts, current authorization, durable output/replay and required execution input remain mandatory. No optional diagnostic setting may change them.
 

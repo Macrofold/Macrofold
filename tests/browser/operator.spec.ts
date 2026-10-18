@@ -10,6 +10,9 @@ test('operator sees usage, honest cohorts, account drilldown and searchable pagi
   await expect(page.getByRole('heading', { name: 'The bigger picture.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Platform usage', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Account cohorts', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Observed platform request activity', exact: true }),
+  ).toBeVisible();
   await expect(page.getByText('Still observing').first()).toBeVisible();
   await page.getByLabel('Search accounts').fill('Alex');
   await expect(

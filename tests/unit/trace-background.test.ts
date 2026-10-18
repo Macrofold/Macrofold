@@ -59,8 +59,12 @@ it('does not register background work when tracing is disabled', () => {
   expect(after).not.toHaveBeenCalled();
 });
 
-it('schedules request exports after the full response, including streaming', () => {
+it('schedules request exports after the full response, including streaming', async () => {
   scheduleTraceFlush();
-  expect(after).toHaveBeenCalledWith(tracing.flushTraces);
+  expect(after).toHaveBeenCalledOnce();
   expect(tracing.flushTraces).not.toHaveBeenCalled();
+  const retained = vi.mocked(after).mock.calls[0][0];
+  if (typeof retained !== 'function') throw new Error('Expected a retained export callback');
+  await retained();
+  expect(tracing.flushTraces).toHaveBeenCalledOnce();
 });

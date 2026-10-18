@@ -295,9 +295,12 @@ export async function finishSettlement(
     'The billing account is unavailable.',
   );
   if (!seen.rowCount) return;
-  await consumeLots(tx, org, consumed);
   const journal = id();
   const completed = await queryGroup(tx, [
+    // Allocation and any uncovered debt are one owned statement. Following
+    // statements observe its changes before releasing the reservation/expiring
+    // credit, without another application round trip between those mutations.
+    ...(consumed ? [consumeLotsQuery(org, consumed)] : []),
     {
       text: 'INSERT INTO ledger(id,organization_id,journal_id,account,amount_micro_usd,reference) VALUES($1,$2,$3,$4,$5,$6),($7,$2,$3,$8,$9,$6)',
       values: [
@@ -318,7 +321,8 @@ export async function finishSettlement(
     },
     expiredLots(org),
   ]);
-  const released = completed[1].rows[0];
+  const offset = consumed ? 1 : 0;
+  const released = completed[offset + 1].rows[0];
   assert(
     released && typeof released.reserved_micro_usd === 'string',
     500,
@@ -327,7 +331,12 @@ export async function finishSettlement(
   );
   // Another wallet operation can run between composed settlement phases in
   // this transaction. Expiry must protect the actual post-release reservations.
-  await expireLockedCredits(tx, org, released.reserved_micro_usd, expiredLotsFromResult(completed[2]));
+  await expireLockedCredits(
+    tx,
+    org,
+    released.reserved_micro_usd,
+    expiredLotsFromResult(completed[offset + 2]),
+  );
 }
 
 /** Current projection protected by this transaction's organization row lock.
@@ -462,11 +471,13 @@ function expirationChanges(reserved: string, lots: readonly ExpiredCreditLot[]) 
 }
 async function consumeLots(tx: Tx, org: string, amount: bigint, preferredReference = '') {
   if (!amount) return;
+  await tx.query(consumeLotsQuery(org, amount, preferredReference));
+}
+function consumeLotsQuery(org: string, amount: bigint, preferredReference = ''): QueryConfig {
   // The organization lock serializes allocation. One ordered lot snapshot and
   // one set-based debit preserve earliest expiry without a round trip per lot.
-  const consumed = (
-    await tx.query<{ amount: string }>(
-      `WITH locked AS MATERIALIZED (
+  return {
+    text: `WITH locked AS MATERIALIZED (
       SELECT id,remaining_micro_usd,reference,expires_at,created_at FROM credit_lots
       WHERE organization_id=$1 AND remaining_micro_usd>0
       ORDER BY (reference=$3) DESC,expires_at NULLS LAST,created_at,id FOR UPDATE
@@ -477,16 +488,12 @@ async function consumeLots(tx: Tx, org: string, amount: bigint, preferredReferen
     ), debited AS (
       UPDATE credit_lots AS lot SET remaining_micro_usd=lot.remaining_micro_usd-allocation.amount
       FROM allocation WHERE lot.id=allocation.id AND allocation.amount>0 RETURNING allocation.amount
-    ) SELECT coalesce(sum(amount),0)::text AS amount FROM debited`,
-      [org, amount.toString(), preferredReference],
-    )
-  ).rows[0];
-  const left = amount - BigInt(consumed.amount);
-  if (left)
-    await tx.query(
-      'UPDATE organizations SET credit_debt_micro_usd=credit_debt_micro_usd+$2::bigint WHERE id=$1',
-      [org, left.toString()],
-    );
+    ), uncovered AS (
+      SELECT $2::numeric-coalesce(sum(amount),0) AS amount FROM debited
+    ) UPDATE organizations SET credit_debt_micro_usd=credit_debt_micro_usd+uncovered.amount::bigint
+      FROM uncovered WHERE id=$1 AND uncovered.amount>0`,
+    values: [org, amount.toString(), preferredReference],
+  };
 }
 /** Refunds and adjustments append compensating journals. Already consumed funds become debt;
  * neither a payment reversal nor an administrative correction rewrites historical usage. */

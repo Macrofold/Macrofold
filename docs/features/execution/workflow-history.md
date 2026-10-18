@@ -4,6 +4,8 @@ The PostgreSQL dispatch queue owns waiting. A queued job has no Vercel Workflow 
 
 ## Waiting and latency
 
+The web dispatcher loads the Workflow SDK and compiled workflow entry only after its existing deployment check selects Vercel Workflow, before leasing any jobs. Local and poller deployments keep this optional orchestration code off their API initialization path; execution ownership and dispatch behavior are unchanged.
+
 Failed claims persist `dispatch_jobs.available_at`. Retry ceilings rise from 5 to 10, 20, 40 and 60 seconds as submission age crosses 5, 15, 35 and 75 seconds. Stable per-run jitter uses 80–100% of that ceiling (48–60 seconds at steady state). The next timestamp never exceeds `queue_expires_at`. Deriving timing from the original submission prevents worker restarts from resetting backoff. Account/worktree-blocked jobs are filtered by SQL eligibility and need no individual timer or Workflow.
 
 These are earliest eligible retry times, not promised wakeup times. Completion notifies dispatch and bypasses pending-job backoff, while retaining dispatch leases and rechecking authorization, worktree ordering, fair organization turns and account/global capacity. Other successful API mutations also notify dispatch. The one-minute Vercel Cron is the fallback; without a notification, a failed-claim backoff plus Cron alignment can take about two minutes, plus service delay. Jobs filtered solely by account/worktree eligibility can become candidates on the next sweep. Capacity is never promised while occupied.

@@ -4,6 +4,7 @@ import type { Tx, TransactionOptions } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { id } from '../../packages/core/src/crypto';
 import { credit } from '../../packages/core/src/ledger';
+import * as ledger from '../../packages/core/src/ledger';
 import { handleApi } from '../../packages/core/src/http';
 import { advanceInference } from '../../packages/core/src/inference-engine';
 import { dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
@@ -182,11 +183,113 @@ async function recoverThroughCloudPoller(runId: string, expireOwner = false) {
   expect(machine).not.toHaveBeenCalled();
 }
 
+it('rejects over-quota admission without reserving money or invoking a provider', async () => {
+  const identity = id();
+  const fetch = vi.fn(async () => providerResponse());
+  vi.stubGlobal('fetch', fetch);
+  const read = () =>
+    database.transaction(
+      account.p.organizationId,
+      async (tx) =>
+        (
+          await tx.query(
+            `SELECT settings,balance_micro_usd,reserved_micro_usd,
+            (SELECT count(*) FROM runs) AS runs FROM organizations WHERE id=$1`,
+            [account.p.organizationId],
+          )
+        ).rows[0],
+    );
+  const before = await read();
+  await database.transaction(account.p.organizationId, (tx) =>
+    tx.query(`UPDATE organizations SET settings=settings||'{"storage_over_quota":true}'::jsonb WHERE id=$1`, [
+      account.p.organizationId,
+    ]),
+  );
+  try {
+    const response = await post(identity);
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe('storage_quota_exceeded');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await read()).toEqual({
+      ...before,
+      settings: { ...before.settings, storage_over_quota: true },
+    });
+  } finally {
+    await database.transaction(account.p.organizationId, (tx) =>
+      tx.query('UPDATE organizations SET settings=$2 WHERE id=$1', [
+        account.p.organizationId,
+        before.settings,
+      ]),
+    );
+  }
+  const retry = await post(identity);
+  expect(retry.status, await retry.clone().text()).toBe(200);
+  expect(fetch).toHaveBeenCalledOnce();
+});
+
+it('rolls back reservation, Run, invocation and events when grouped admission fails', async () => {
+  const identity = id();
+  const read = () =>
+    database.transaction(account.p.organizationId, async (tx) => ({
+      wallet: (
+        await tx.query('SELECT balance_micro_usd,reserved_micro_usd FROM organizations WHERE id=$1', [
+          account.p.organizationId,
+        ])
+      ).rows[0],
+      counts: (
+        await tx.query(
+          `SELECT
+          (SELECT count(*) FROM runs) AS runs,
+          (SELECT count(*) FROM gateway_requests) AS requests,
+          (SELECT count(*) FROM decision_invocations) AS invocations,
+          (SELECT count(*) FROM run_events) AS events,
+          (SELECT count(*) FROM dispatch_jobs) AS jobs,
+          (SELECT count(*) FROM idempotency WHERE key=$1) AS receipts`,
+          [identity],
+        )
+      ).rows[0],
+    }));
+  const before = await read();
+  const fetch = vi.fn(async () => providerResponse());
+  vi.stubGlobal('fetch', fetch);
+  const original = database.queryGroup;
+  let injected = false;
+  const fault = vi.spyOn(database, 'queryGroup').mockImplementation((tx, statements) => {
+    if (!injected && statements.some(({ text }) => text.startsWith('INSERT INTO gateway_requests'))) {
+      injected = true;
+      // Real PostgreSQL failure after the writes: the pipeline must drain and
+      // rollback the whole admission, not leave a debit or dispatchable intent.
+      return original(tx, [...statements, { text: 'SELECT 1/0' }]);
+    }
+    return original(tx, statements);
+  });
+  const response = await post(identity);
+  fault.mockRestore();
+  expect(injected).toBe(true);
+  expect(response.status).toBe(500);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(await read()).toEqual(before);
+  const retry = await post(identity);
+  expect(retry.status, await retry.clone().text()).toBe(200);
+  const accepted = await retry.json();
+  expect(fetch).toHaveBeenCalledOnce();
+  const events = await database.transaction(account.p.organizationId, (tx) =>
+    tx.query<{ type: string; sequence: string }>(
+      'SELECT type,sequence FROM run_events WHERE run_id=$1 ORDER BY sequence',
+      [accepted.run_id],
+    ),
+  );
+  expect(events.rows.slice(0, 2)).toEqual([
+    { type: 'run.accepted', sequence: '1' },
+    { type: 'inference.prepared', sequence: '2' },
+  ]);
+});
+
 it('preserves response evidence through settlement failure and recovers without another provider request', async () => {
   const fetch = vi.fn(async () => providerResponse());
   vi.stubGlobal('fetch', fetch);
   const fault = vi
-    .spyOn(gateway, 'settleModelRequestInTransaction')
+    .spyOn(gateway, 'settleModelRequestForCompletion')
     .mockRejectedValueOnce(
       new AppError(503, 'fixture_settlement_unavailable', 'Synthetic settlement outage'),
     );
@@ -214,12 +317,56 @@ it('preserves response evidence through settlement failure and recovers without 
   expect((await facts(receipt.run_id)).usage).toHaveLength(1);
 });
 
+it('rolls back the terminal event with failed wallet settlement and recovers both exactly once', async () => {
+  const fetch = vi.fn(async () => providerResponse());
+  vi.stubGlobal('fetch', fetch);
+  const original = ledger.finishSettlement;
+  const fault = vi.spyOn(ledger, 'finishSettlement').mockImplementation(async (...args) => {
+    await original(...args);
+    throw new AppError(503, 'fixture_settlement_failure', 'Fixture settlement interrupted.');
+  });
+  const response = await post();
+  expect(response.status).toBe(202);
+  const receipt = await response.json();
+  expect(receipt.recovery_reason).toBe('finalization_pending');
+  const failed = await facts(receipt.run_id);
+  expect(failed.run.status).toBe('running');
+  expect(failed.usage).toEqual([]);
+  const publication = () =>
+    database.transaction(account.p.organizationId, async (tx) => ({
+      events: (
+        await tx.query(
+          "SELECT type FROM run_events WHERE run_id=$1 AND type IN ('run.succeeded','run.failed')",
+          [receipt.run_id],
+        )
+      ).rows,
+      financial: (
+        await tx.query('SELECT reference FROM financial_events WHERE reference=$1', [`run:${receipt.run_id}`])
+      ).rows,
+      usage: (
+        await tx.query("SELECT amount_micro_usd FROM ledger WHERE reference=$1 AND account='consumption'", [
+          `run:${receipt.run_id}`,
+        ])
+      ).rows,
+    }));
+  expect(await publication()).toEqual({ events: [], financial: [], usage: [] });
+  fault.mockRestore();
+  await recoverThroughCloudPoller(receipt.run_id);
+  expect((await facts(receipt.run_id)).run.status).toBe('succeeded');
+  expect(await publication()).toEqual({
+    events: [{ type: 'run.succeeded' }],
+    financial: [{ reference: `run:${receipt.run_id}` }],
+    usage: [{ amount_micro_usd: '150' }],
+  });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 it('publishes a timely complete response when settlement crosses the execution deadline', async () => {
   const fetch = vi.fn(async () => providerResponse());
   vi.stubGlobal('fetch', fetch);
-  const settle = gateway.settleModelRequestInTransaction;
+  const settle = gateway.settleModelRequestForCompletion;
   const delayed = vi
-    .spyOn(gateway, 'settleModelRequestInTransaction')
+    .spyOn(gateway, 'settleModelRequestForCompletion')
     .mockImplementation(async (tx, ...args) => {
       // F has recorded the transport completion inside this same transaction.
       // Cross E in PostgreSQL rather than faking the JS clock.
@@ -642,7 +789,7 @@ it('recovers an exceptional checkpoint with no original input or provider creden
     vi.fn(async () => providerResponse()),
   );
   const fault = vi
-    .spyOn(gateway, 'settleModelRequestInTransaction')
+    .spyOn(gateway, 'settleModelRequestForCompletion')
     .mockRejectedValueOnce(new AppError(503, 'fixture_settlement_unavailable', 'Synthetic outage'));
   const response = await post();
   fault.mockRestore();
@@ -753,7 +900,7 @@ it('routes recovery through compact trace capture when no retained host owns con
     vi.fn(async () => providerResponse()),
   );
   const fault = vi
-    .spyOn(gateway, 'settleModelRequestInTransaction')
+    .spyOn(gateway, 'settleModelRequestForCompletion')
     .mockRejectedValueOnce(new AppError(503, 'fixture_settlement_unavailable', 'Synthetic outage'));
   const receipt = await (await post()).json();
   fault.mockRestore();

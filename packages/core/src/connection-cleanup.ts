@@ -33,7 +33,8 @@ export async function cleanConnection(
   transport: typeof fetch = mcpFetch,
   deleteApp = async (account: string) => {
     try {
-      await composio().connectedAccounts.delete(account);
+      const sdk = await composio();
+      await sdk.connectedAccounts.delete(account);
     } catch (error) {
       if (
         (error as { status?: number; statusCode?: number }).status !== 404 &&

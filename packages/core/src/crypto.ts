@@ -7,13 +7,16 @@ export const sha256 = (data: string | Buffer) => createHash('sha256').update(dat
  * callers must not load the HTTP schema/validator merely to compare documents. */
 export type CanonicalEncoder = (value: unknown) => string;
 export type CanonicalLookup = (value: object) => string | undefined;
+// Preserve localeCompare's ordering while initializing/reusing its collation
+// state before the first request's idempotency/context fingerprint.
+const compareCanonicalKeys = new Intl.Collator().compare;
 export function canonical(value: unknown, lookup?: CanonicalLookup): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   const prepared = lookup?.(value);
   if (prepared !== undefined) return prepared;
   if (Array.isArray(value)) return `[${value.map((child) => canonical(child, lookup)).join(',')}]`;
   return `{${Object.entries(value)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => compareCanonicalKeys(a, b))
     .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v, lookup)}`)
     .join(',')}}`;
 }

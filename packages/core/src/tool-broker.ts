@@ -302,7 +302,8 @@ async function executePreparedTool(
     } else if (connection.kind === 'composio') {
       assert(setup, 503, 'integration_not_configured', 'This app needs operator setup.');
       stopProviderTiming = startPerformanceStage('provider.tool');
-      const response = await composio().tools.execute(
+      const sdk = await composio();
+      const response = await sdk.tools.execute(
         tool.name,
         {
           userId: connection.provider_subject_id || `${cap.organization}:${connection.owner_subject_id}`,

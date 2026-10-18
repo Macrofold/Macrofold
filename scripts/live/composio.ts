@@ -14,7 +14,7 @@ globalThis.fetch = async (input, init) => {
   return nativeFetch(input, { ...init, redirect: 'error', signal: AbortSignal.timeout(30_000) });
 };
 // Stainless clients capture fetch at construction, including the no-retry tool client.
-const sdk = composio();
+const sdk = await composio();
 sdk.getClient().maxRetries = 0;
 try {
   await check('composio', 'public-tool', async () => {

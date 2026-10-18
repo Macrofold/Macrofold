@@ -22,7 +22,7 @@ beforeAll(async () => {
   b = await fixtureAccount('Other connector user');
   process.env.COMPOSIO_API_KEY = 'fixture-no-real-account';
   process.env.COMPOSIO_CALLBACK_VERIFICATION_ENABLED = 'true';
-  vi.spyOn(composioProvider, 'composio').mockReturnValue({
+  vi.spyOn(composioProvider, 'composio').mockResolvedValue({
     connectedAccounts: {
       link: async (user: string, _config: string, options: { alias: string; allowMultiple: boolean }) => {
         expect(user).toBe(`${a.p.organizationId}:${a.p.userId}`);
@@ -39,15 +39,12 @@ beforeAll(async () => {
       }),
       get: async (id: string) => ({ id, toolkit: { slug: 'gmail' }, status: 'ACTIVE', isDisabled: false }),
     },
-  } as unknown as ReturnType<typeof connections.composio>);
+  } as unknown as Awaited<ReturnType<typeof connections.composio>>);
 });
 afterAll(async () => {
   await fixtureOperator((db) => db.query("DELETE FROM connector_enablement WHERE toolkit='gmail'"));
   vi.restoreAllMocks();
-  for (const key of [
-    'COMPOSIO_API_KEY',
-    'COMPOSIO_CALLBACK_VERIFICATION_ENABLED',
-  ]) {
+  for (const key of ['COMPOSIO_API_KEY', 'COMPOSIO_CALLBACK_VERIFICATION_ENABLED']) {
     if (oldEnv[key] === undefined) delete process.env[key];
     else process.env[key] = oldEnv[key];
   }
@@ -249,7 +246,7 @@ it.each([
       { headers: { cookie: a.cookie } },
     ),
   );
-  const accounts = connections.composio().connectedAccounts;
+  const accounts = (await connections.composio()).connectedAccounts;
   const active = await accounts.get('fixture-connected');
   vi.spyOn(accounts, 'get').mockResolvedValueOnce({ ...active, ...change } as typeof active);
   await expect(

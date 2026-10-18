@@ -181,6 +181,25 @@ describe('integer ledger boundaries against PostgreSQL', () => {
     await transaction(org, (tx) => settle(tx, org, run, 100n, 25n));
     expect(await state(org)).toEqual({ balance: 75n, reserved: 0n, debt: 0n });
   });
+  it('records uncovered settlement as exact debt once when funding was reversed during the hold', async () => {
+    const org = await account(),
+      run = id();
+    await transaction(org, (tx) => reserve(tx, org, 100n));
+    await transaction(org, (tx) => debit(tx, org, 60n, 'reversed-funding'));
+    expect(await state(org)).toEqual({ balance: 40n, reserved: 100n, debt: 0n });
+    await expect(
+      transaction(org, async (tx) => {
+        await settle(tx, org, run, 100n, 80n);
+        throw new Error('fixture interruption after debt allocation');
+      }),
+    ).rejects.toThrow('fixture interruption after debt allocation');
+    expect(await state(org)).toEqual({ balance: 40n, reserved: 100n, debt: 0n });
+    await transaction(org, (tx) => settle(tx, org, run, 100n, 80n));
+    await transaction(org, (tx) => settle(tx, org, run, 100n, 80n));
+    expect(await state(org)).toEqual({ balance: -40n, reserved: 0n, debt: 40n });
+    await transaction(org, (tx) => credit(tx, org, 45n, 'replacement-funding'));
+    expect(await state(org)).toEqual({ balance: 5n, reserved: 0n, debt: 0n });
+  });
   it('retains a zero-wallet settlement identity without empty journals or wallet mutations', async () => {
     const org = await account(0n),
       run = id();

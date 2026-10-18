@@ -2,7 +2,7 @@ import { modelInputBound } from './model-content';
 import { modelTransport } from '../../contracts/model-transport';
 import { prepareModelUpload, readModelBody } from './model-request-upload';
 import { queryGroup, transaction, transactionIdentity, type Tx } from '../../db';
-import type { QueryResult } from 'pg';
+import type { QueryConfig, QueryResult } from 'pg';
 import type { components } from '../../contracts/api';
 import { runTraceContext } from './run-tracing';
 import { recordTrace, tracingContentEnabled } from './tracing';
@@ -20,10 +20,16 @@ import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
 import { id } from './crypto';
 import { modelCredential } from './model-credentials';
-import { type NativeRunRow, type RunConfig } from './runs';
+import { currentRunControlQuery, type RunControl, type NativeRunRow, type RunConfig } from './runs';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
 import { computeMaximum, type Model } from './catalog';
-import { emit, prepareEventAppend, eventAppendQueries, finishEventAppend } from './events';
+import {
+  emit,
+  prepareEventAppend,
+  eventAppendQueries,
+  finishEventAppend,
+  type PreparedEventAppend,
+} from './events';
 import { actorAuthorized } from './actor-authorization';
 import { boundedBody } from './body';
 import { emptyUsage, type ModelUsage as Usage } from './model-protocol';
@@ -386,7 +392,7 @@ export async function settleModelRequestInTransaction(
 ): Promise<ModelBillingReceipt | undefined> {
   const state = locked ?? (await loadModelSettlement(tx, cap, requestId));
   if (!state) return undefined;
-  return settleLockedModelRequest(
+  const prepared = await prepareModelSettlement(
     tx,
     state,
     cap,
@@ -396,7 +402,83 @@ export async function settleModelRequestInTransaction(
     upstreamRejected,
     providerCostModel,
   );
+  if (prepared.writes) await finishModelSettlement(tx, prepared, await queryGroup(tx, prepared.writes));
+  return prepared.billing;
 }
+
+const settlementRunControl = Symbol('settlementRunControl');
+export type SettlementRunControl = LockedModelSettlement & { readonly [settlementRunControl]: true };
+
+/** Consume only inside the settlement transaction, immediately before Run
+ * completion. This is a fresh SQL observation, never an admitted/cached Run. */
+export function consumeSettlementRunControl(
+  tx: Tx,
+  org: string,
+  runId: string,
+  snapshot: SettlementRunControl,
+) {
+  const state = settlements.get(snapshot);
+  assert(
+    state &&
+      state.tx === tx &&
+      state.transaction === transactionIdentity(tx) &&
+      state.organization === org &&
+      state.runId === runId &&
+      currentSettlements.get(state.transaction)?.get(snapshot.requestId) === snapshot &&
+      state.control,
+    500,
+    'billing_state_stale',
+    'Reload current Run control before completion.',
+  );
+  const control = state.control;
+  delete state.control;
+  return control;
+}
+
+/** Immediate completion needs current costs/cancellation and the database clock
+ * after metering. Pipeline that read last; native settlement keeps its receipt API. */
+export async function settleModelRequestForCompletion(
+  tx: Tx,
+  cap: RuntimeCapability,
+  requestId: string,
+  model: Model,
+  usage: Usage,
+  upstreamRejected = false,
+  providerCostModel?: Model,
+  locked?: LockedModelSettlement,
+): Promise<{ billing?: ModelBillingReceipt; control?: SettlementRunControl }> {
+  const state = locked ?? (await loadModelSettlement(tx, cap, requestId));
+  if (!state) return {};
+  const prepared = await prepareModelSettlement(
+    tx,
+    state,
+    cap,
+    requestId,
+    model,
+    usage,
+    upstreamRejected,
+    providerCostModel,
+  );
+  // Replayed accounting has no mutation group to extend. Keep the finalizer's
+  // ordinary fresh read rather than treating earlier lock data as current.
+  if (!prepared.writes) return { billing: prepared.billing };
+  // Breach cancellation and its event effects completed during preparation.
+  // Only usage.updated remains; it has no transactional effects after append.
+  // Keep this read after any new effects if that event's policy changes.
+  const results = await queryGroup(tx, [...prepared.writes, currentRunControlQuery(cap.run)]);
+  await finishModelSettlement(tx, prepared, results);
+  const row = results[prepared.writes.length].rows[0] as RunControl | undefined;
+  assert(
+    row?.id === cap.run && row.organization_id === cap.organization,
+    500,
+    'billing_state_stale',
+    'Current Run control is unavailable after settlement.',
+  );
+  settlements.get(state)!.control = row;
+  const control = Object.assign(state, { [settlementRunControl]: true as const });
+  return { billing: prepared.billing, control };
+}
+
 export type LockedModelSettlement = Readonly<{ requestId: string }>;
 const currentSettlements = new WeakMap<object, Map<string, LockedModelSettlement>>();
 const settlements = new WeakMap<
@@ -408,6 +490,7 @@ const settlements = new WeakMap<
     runId: string;
     request: GatewaySettlementRequest;
     consumed: boolean;
+    control?: RunControl;
   }
 >();
 export function modelSettlementQuery(runId: string, requestId: string) {
@@ -470,16 +553,36 @@ export async function loadModelSettlement(
   ]);
   return modelSettlementFromResult(tx, cap, requestId, locks[1]);
 }
-export async function settleLockedModelRequest(
+type PreparedModelSettlement = {
+  billing: ModelBillingReceipt;
+} & (
+  { writes: readonly QueryConfig[]; event: PreparedEventAppend } | { writes?: undefined; event?: undefined }
+);
+
+async function finishModelSettlement(
+  tx: Tx,
+  prepared: PreparedModelSettlement & { writes: readonly QueryConfig[] },
+  results: QueryResult<Record<string, unknown>>[],
+) {
+  assert(
+    results.slice(0, 3).every((result) => result.rowCount === 1),
+    500,
+    'billing_state_stale',
+    'Model accounting changed during settlement.',
+  );
+  await finishEventAppend(tx, prepared.event, results.slice(3, prepared.writes.length));
+}
+
+async function prepareModelSettlement(
   tx: Tx,
   locked: LockedModelSettlement,
   cap: RuntimeCapability,
   requestId: string,
   model: Model,
   usage: Usage,
-  upstreamRejected = false,
+  upstreamRejected: boolean,
   providerCostModel?: Model,
-): Promise<ModelBillingReceipt> {
+): Promise<PreparedModelSettlement> {
   const state = settlements.get(locked);
   assert(
     state &&
@@ -512,27 +615,29 @@ export async function settleLockedModelRequest(
     ).rows[0];
     const details = prior?.usage_details;
     return {
-      charged_micro_usd: request.billing_mode === 'managed' ? request.actual_micro_usd : '0',
-      budget_cost_micro_usd: request.actual_micro_usd,
-      reserved_micro_usd: request.reserved_micro_usd,
-      billing_mode: request.billing_mode,
-      reported_micro_usd: details?.reported_micro_usd ?? null,
-      provisional: details?.provisional ?? request.status === 'unknown',
-      bound_breached: details?.bound_breached ?? false,
-      provider_cost_micro_usd: details?.provider_cost_micro_usd ?? null,
-      provider_cost_status: details?.provider_cost_status ?? 'unavailable',
-      provider_reported_cost_usd: details?.provider_reported_cost_usd ?? null,
-      provider_reported_cost_status: details?.provider_reported_cost_status ?? 'unavailable',
-      upstream_inference_cost_usd: details?.upstream_inference_cost_usd ?? null,
-      upstream_rejected: details?.upstream_rejected ?? false,
-      input_tokens: prior?.input_tokens === null || !prior ? null : Number(prior.input_tokens),
-      output_tokens: prior?.output_tokens === null || !prior ? null : Number(prior.output_tokens),
-      cached_tokens: details?.cached_tokens ?? 0,
-      cache_write_tokens: details?.cache_write_tokens ?? 0,
-      retail_rate_card: model,
-      provider_cost_rate_card: providerCostModel,
-      input_micro_usd_per_million: model.input_micro_usd_per_million,
-      output_micro_usd_per_million: model.output_micro_usd_per_million,
+      billing: {
+        charged_micro_usd: request.billing_mode === 'managed' ? request.actual_micro_usd : '0',
+        budget_cost_micro_usd: request.actual_micro_usd,
+        reserved_micro_usd: request.reserved_micro_usd,
+        billing_mode: request.billing_mode,
+        reported_micro_usd: details?.reported_micro_usd ?? null,
+        provisional: details?.provisional ?? request.status === 'unknown',
+        bound_breached: details?.bound_breached ?? false,
+        provider_cost_micro_usd: details?.provider_cost_micro_usd ?? null,
+        provider_cost_status: details?.provider_cost_status ?? 'unavailable',
+        provider_reported_cost_usd: details?.provider_reported_cost_usd ?? null,
+        provider_reported_cost_status: details?.provider_reported_cost_status ?? 'unavailable',
+        upstream_inference_cost_usd: details?.upstream_inference_cost_usd ?? null,
+        upstream_rejected: details?.upstream_rejected ?? false,
+        input_tokens: prior?.input_tokens === null || !prior ? null : Number(prior.input_tokens),
+        output_tokens: prior?.output_tokens === null || !prior ? null : Number(prior.output_tokens),
+        cached_tokens: details?.cached_tokens ?? 0,
+        cache_write_tokens: details?.cache_write_tokens ?? 0,
+        retail_rate_card: model,
+        provider_cost_rate_card: providerCostModel,
+        input_micro_usd_per_million: model.input_micro_usd_per_million,
+        output_micro_usd_per_million: model.output_micro_usd_per_million,
+      },
     };
   }
   // Provider-reported cost is observability, independent of token completeness,
@@ -581,7 +686,7 @@ export async function settleLockedModelRequest(
     },
   ]);
   const eventQueries = eventAppendQueries(tx, event);
-  const writes = await queryGroup(tx, [
+  const writes: readonly QueryConfig[] = [
     {
       text: "UPDATE gateway_requests SET status=$2,actual_micro_usd=$3,completed_at=now() WHERE id=$1 AND status='in_flight'",
       values: [requestId, usage.complete || upstreamRejected ? 'complete' : 'unknown', actual.toString()],
@@ -632,14 +737,7 @@ export async function settleLockedModelRequest(
       ],
     },
     ...eventQueries,
-  ]);
-  assert(
-    writes.slice(0, 3).every((result) => result.rowCount === 1),
-    500,
-    'billing_state_stale',
-    'Model accounting changed during settlement.',
-  );
-  await finishEventAppend(tx, event, writes.slice(3));
+  ];
   const billing: ModelBillingReceipt = {
     ...reportedCost,
     charged_micro_usd: request.billing_mode === 'managed' ? actual.toString() : '0',
@@ -667,7 +765,7 @@ export async function settleLockedModelRequest(
     input_micro_usd_per_million: model.input_micro_usd_per_million,
     output_micro_usd_per_million: model.output_micro_usd_per_million,
   };
-  return billing;
+  return { billing, writes, event };
 }
 export async function settleOrphanModelRequests(org: string, runId: string) {
   const requests = await transaction(

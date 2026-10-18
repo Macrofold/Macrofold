@@ -29,13 +29,51 @@ const usage = z.object({
 const response = z
   .object({ id: z.string().optional(), model: z.string().optional(), usage: usage.optional() })
   .passthrough();
+// These validators are immutable; reuse them instead of rebuilding schemas on
+// each response. Usage remains independently validated even when an answer fails.
+const identitySchema = z.object({ id: z.string().optional(), model: z.string().optional() });
+const objectSchema = z.record(z.string(), z.unknown());
+const suppliedUsageSchema = z.object({ usage: z.unknown().optional() });
+const independentUsageSchema = z.object({ usage: objectSchema.nullish() });
+const cachedTokensSchema = z.object({ cached_tokens: count.optional() }).nullish();
+const chatResponseSchema = z.object({
+  id: z.string().optional(),
+  model: z.string().optional(),
+  choices: z
+    .array(
+      z.object({
+        finish_reason: z.string().nullish(),
+        message: z.object({ content: z.string().nullish(), refusal: z.string().nullish() }),
+      }),
+    )
+    .length(1),
+  usage: z
+    .object({
+      prompt_tokens: count,
+      completion_tokens: count,
+      prompt_tokens_details: cachedTokensSchema,
+    })
+    .nullish(),
+});
+const anthropicContentSchema = z.array(z.object({ type: z.string(), text: z.string().optional() }));
+const decisionAnswersSchema = z.object({
+  decision: z
+    .object({
+      type: z.enum(['choice', 'score']),
+      choice: z.string().optional(),
+      score: z.number().finite().optional(),
+      confidence: z.number().min(0).max(1).optional(),
+      probabilities: z.record(z.string(), z.number().min(0).max(1)).optional(),
+    })
+    .passthrough(),
+});
 const endpoints: Record<DecisionBinding['provider'], string> = {
   anthropic: 'https://api.anthropic.com/v1/messages',
   typesafe: 'https://api.typesafe.ai/v1/systemone',
   openrouter: 'https://openrouter.ai/api/alpha/decisions',
 };
 function responseIdentity(raw: unknown, headerRequestId: string | null) {
-  const identity = z.object({ id: z.string().optional(), model: z.string().optional() }).safeParse(raw);
+  const identity = identitySchema.safeParse(raw);
   return {
     requestId: identity.success ? identity.data.id || headerRequestId : headerRequestId,
     modelRevision: identity.success ? (identity.data.model ?? null) : null,
@@ -212,7 +250,7 @@ function normalizeResponse(
       incomplete: streamed.incomplete,
     };
   }
-  const suppliedUsage = z.object({ usage: z.unknown().optional() }).safeParse(raw);
+  const suppliedUsage = suppliedUsageSchema.safeParse(raw);
   assert(
     !suppliedUsage.success || suppliedUsage.data.usage == null || normalizedUsage.complete,
     502,
@@ -220,9 +258,7 @@ function normalizeResponse(
     'The provider returned malformed usage.',
   );
   if (nativeResponse) {
-    const parsed = response.parse(
-      chat ? { ...z.record(z.string(), z.unknown()).parse(raw), usage: undefined } : raw,
-    );
+    const parsed = response.parse(chat ? { ...objectSchema.parse(raw), usage: undefined } : raw);
     return {
       value: raw,
       // A provider refusal is part of the native response, not a lost payload.
@@ -237,27 +273,7 @@ function normalizeResponse(
     };
   }
   if (chat) {
-    const parsed = z
-      .object({
-        id: z.string().optional(),
-        model: z.string().optional(),
-        choices: z
-          .array(
-            z.object({
-              finish_reason: z.string().nullish(),
-              message: z.object({ content: z.string().nullish(), refusal: z.string().nullish() }),
-            }),
-          )
-          .length(1),
-        usage: z
-          .object({
-            prompt_tokens: count,
-            completion_tokens: count,
-            prompt_tokens_details: z.object({ cached_tokens: count.optional() }).nullish(),
-          })
-          .nullish(),
-      })
-      .parse(raw);
+    const parsed = chatResponseSchema.parse(raw);
     assert(
       !parsed.model || parsed.model === body.model,
       502,
@@ -286,9 +302,7 @@ function normalizeResponse(
   let evidence: DecisionResponse['evidence'];
   const refused = parsed.stop_reason === 'refusal';
   if (provider === 'anthropic') {
-    const content = z
-      .array(z.object({ type: z.string(), text: z.string().optional() }))
-      .parse(parsed.content);
+    const content = anthropicContentSchema.parse(parsed.content);
     try {
       value = JSON.parse(
         content
@@ -300,19 +314,7 @@ function normalizeResponse(
       value = undefined;
     }
   } else {
-    const answers = z
-      .object({
-        decision: z
-          .object({
-            type: z.enum(['choice', 'score']),
-            choice: z.string().optional(),
-            score: z.number().finite().optional(),
-            confidence: z.number().min(0).max(1).optional(),
-            probabilities: z.record(z.string(), z.number().min(0).max(1)).optional(),
-          })
-          .passthrough(),
-      })
-      .parse(parsed.answers);
+    const answers = decisionAnswersSchema.parse(parsed.answers);
     assert(
       !answers.decision.probabilities || Object.keys(answers.decision.probabilities).length <= 255,
       502,
@@ -478,7 +480,7 @@ export function decisionProtocol(provider: string, model?: string): DecisionProt
 /** Usage has its own trust boundary: a malformed answer must not discard valid
  * billing facts, and one invalid count must not manufacture a complete record. */
 function independentUsage(raw: unknown, chat: boolean, provider: DecisionBinding['provider']) {
-  const parsed = z.object({ usage: z.record(z.string(), z.unknown()).nullish() }).safeParse(raw);
+  const parsed = independentUsageSchema.safeParse(raw);
   const u = parsed.success ? parsed.data.usage : undefined;
   const costs = provider === 'openrouter' ? reportedCost(u) : {};
   if (!u) return { ...emptyUsage(), ...costs };
@@ -490,10 +492,7 @@ function independentUsage(raw: unknown, chat: boolean, provider: DecisionBinding
   let cached: number | undefined;
   let cacheWrite: number | undefined;
   if (chat) {
-    const details = z
-      .object({ cached_tokens: count.optional() })
-      .nullish()
-      .safeParse(u.prompt_tokens_details);
+    const details = cachedTokensSchema.safeParse(u.prompt_tokens_details);
     cached = details.success ? (details.data?.cached_tokens ?? 0) : undefined;
     cacheWrite = 0;
   } else {

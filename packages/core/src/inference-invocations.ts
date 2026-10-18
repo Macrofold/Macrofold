@@ -1,4 +1,4 @@
-import { transaction, queryGroup, type Tx } from '../../db';
+import { transaction, transactionIdentity, queryGroup, type Tx } from '../../db';
 import type { QueryResult } from 'pg';
 import { id, sealJSON, sha256 } from './crypto';
 import { createJsonPreparation, type JsonPreparation } from './prepared-json';
@@ -7,8 +7,14 @@ import { decisionProtocol } from '../../providers/src/decision-protocols';
 import { boundedRequest } from './bounded-decisions';
 import { inferenceInputBound } from './decision';
 import { emptyUsage } from './model-protocol';
-import { costForUsage, modelSettlementQuery, modelSettlementFromResult } from './model-gateway';
-import { emit, emitBatch, type EventInput } from './events';
+import {
+  costForUsage,
+  modelSettlementQuery,
+  modelSettlementFromResult,
+  consumeSettlementRunControl,
+  type SettlementRunControl,
+} from './model-gateway';
+import { prepareEventAppend, eventAppendQueries, finishEventAppend, type EventInput } from './events';
 import {
   getRun,
   currentRunControl,
@@ -172,11 +178,14 @@ function prepareInvocationBody(
 /** Shared gateway/decision intent. The caller supplies a newly inserted Run or
  * currentRunControl under this transaction's Run lock, including current budget.
  * Only a confirmed immediate A commit dispatches that request-owned intent. */
-export async function insertInvocation(
+export async function prepareInvocationInsert(
   tx: Tx,
-  run: ExecutableInferenceRunRow,
+  run: Pick<
+    ExecutableInferenceRunRow,
+    'id' | 'organization_id' | 'lease_generation' | 'budget_used_micro_usd' | 'config'
+  >,
   prepared: PreparedInvocation,
-  options: { dispatchStarted?: boolean; admission?: EventInput } = {},
+  options: { dispatchStarted?: boolean; admission?: EventInput; currentRun?: ExecutableInferenceRunRow } = {},
 ) {
   const dispatchStarted = options.dispatchStarted ?? false;
   assert(
@@ -192,7 +201,19 @@ export async function insertInvocation(
     'stale_input',
     'Context expired before dispatch.',
   );
-  const writes = await queryGroup<InvocationEvidence>(tx, [
+  const identity = transactionIdentity(tx);
+  const ciphertext = prepared.ciphertext;
+  const events = await prepareEventAppend(
+    tx,
+    run.organization_id,
+    run.id,
+    [
+      ...(options.admission ? [options.admission] : []),
+      { type: 'inference.prepared', data: { invocation_id: prepared.id } },
+    ],
+    { currentRun: options.currentRun },
+  );
+  const statements = [
     {
       text: "INSERT INTO gateway_requests(id,organization_id,run_id,lease_generation,model,provider,billing_mode,status,reserved_micro_usd) VALUES($1,$2,$3,$4,$5,$6,$7,'in_flight',$8)",
       values: [
@@ -227,26 +248,64 @@ export async function insertInvocation(
         prepared.expiresAt,
       ],
     },
-  ]);
-  const saved = writes[2].rows[0];
-  assert(
-    writes[0].rowCount === 1 && writes[1].rowCount === 1 && saved,
-    409,
-    'inference_owner_changed',
-    'The invocation could not be admitted.',
-  );
-  const call = { ...saved, body_ciphertext: prepared.ciphertext };
-  await emitBatch(
-    tx,
-    run.organization_id,
-    run.id,
-    [
-      ...(options.admission ? [options.admission] : []),
-      { type: 'inference.prepared', data: { invocation_id: call.id } },
-    ],
-    { currentRun: run },
-  );
-  return call;
+    ...eventAppendQueries(tx, events),
+  ];
+  let submitted = false;
+  let finished = false;
+  return {
+    queries() {
+      assert(
+        !submitted && identity === transactionIdentity(tx),
+        500,
+        'inference_intent_stale',
+        'Prepare invocation insertion in its current transaction.',
+      );
+      submitted = true;
+      return statements;
+    },
+    async finish(writes: readonly QueryResult<Record<string, unknown>>[]) {
+      assert(
+        submitted && !finished && identity === transactionIdentity(tx),
+        500,
+        'inference_intent_stale',
+        'Apply invocation insertion once in its current transaction.',
+      );
+      finished = true;
+      const saved = writes[2]?.rows[0];
+      assert(
+        writes[0]?.rowCount === 1 &&
+          writes[1]?.rowCount === 1 &&
+          saved?.id === prepared.id &&
+          saved.run_id === run.id &&
+          saved.state === (dispatchStarted ? 'dispatch_started' : 'prepared'),
+        409,
+        'inference_owner_changed',
+        'The invocation could not be admitted.',
+      );
+      assert(
+        !prepared.expiresAt || prepared.expiresAt.getTime() > Date.now(),
+        409,
+        'stale_input',
+        'Context expired before dispatch.',
+      );
+      await finishEventAppend(tx, events, writes.slice(3));
+      // The rows come from the owned RETURNING projection above; no request body
+      // is reloaded, and any failed insertion/event rolls the entire group back.
+      return { ...(saved as InvocationEvidence), body_ciphertext: ciphertext };
+    },
+  };
+}
+
+/** Ordinary queued callers share the same insertion/event owner. Immediate A
+ * composes it after its new Run insert, avoiding a wait for already-known IDs. */
+export async function insertInvocation(
+  tx: Tx,
+  run: ExecutableInferenceRunRow,
+  prepared: PreparedInvocation,
+  options: { dispatchStarted?: boolean; admission?: EventInput } = {},
+) {
+  const plan = await prepareInvocationInsert(tx, run, prepared, { ...options, currentRun: run });
+  return plan.finish(await queryGroup(tx, plan.queries()));
 }
 
 export type Invocation = {
@@ -400,8 +459,13 @@ export async function finishInferenceInTransaction(
   failureCode?: string,
   providerCompletedAt?: Date | null,
   admitted?: InferenceRunRow,
+  settledControl?: SettlementRunControl,
 ) {
-  const current = admitted ? await currentInferenceRun(tx, admitted) : undefined;
+  const current = admitted
+    ? settledControl
+      ? mergeCurrentRunControl(admitted, consumeSettlementRunControl(tx, org, runId, settledControl))
+      : await currentInferenceRun(tx, admitted)
+    : undefined;
   const clock =
     current ??
     (
@@ -446,31 +510,40 @@ export async function finishInferenceInTransaction(
     BigInt(run.reservation_micro_usd),
     BigInt(run.cost_micro_usd),
   );
+  const result: InferenceRunRow['result'] = {
+    ...(run.result.content_expired ? run.result : { inference: receiptMetadata }),
+    ...(!run.result.content_expired && receipt.outcome === 'value'
+      ? {
+          inference_output_id: receipt.invocation_id,
+          ...(run.kind === 'bounded_agent' ? { inference_output_path: 'bounded_finish' as const } : {}),
+        }
+      : {}),
+    execution_outcome: status === 'succeeded' ? 'success' : status === 'failed' ? 'failure' : status,
+    persistence_status: 'not_required',
+    ...(failureCode ? { failure_code: failureCode } : {}),
+  };
+  // Append with the decided transition, but run publication effects only after
+  // its row checks and settlement succeed. Both timestamp defaults use this
+  // transaction's now(), preserving the completion trace without another read.
+  const event = await prepareEventAppend(
+    tx,
+    org,
+    runId,
+    [{ type: `run.${status}`, data: { status, outcome: receipt.outcome } }],
+    { currentRun: { ...run, status, result } },
+  );
+  const financialQueries = settlementQueries(tx, settlement);
   const writes = await queryGroup<Omit<InferenceRunRow, 'config'>>(tx, [
     {
       text: `UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1 RETURNING ${inferenceRunStateColumns}`,
-      values: [
-        runId,
-        status,
-        JSON.stringify({
-          ...(run.result.content_expired ? run.result : { inference: receiptMetadata }),
-          ...(!run.result.content_expired && receipt.outcome === 'value'
-            ? {
-                inference_output_id: receipt.invocation_id,
-                ...(run.kind === 'bounded_agent' ? { inference_output_path: 'bounded_finish' } : {}),
-              }
-            : {}),
-          execution_outcome: status === 'succeeded' ? 'success' : status === 'failed' ? 'failure' : status,
-          persistence_status: 'not_required',
-          ...(failureCode ? { failure_code: failureCode } : {}),
-        }),
-      ],
+      values: [runId, status, JSON.stringify(result)],
     },
     {
       text: "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
       values: [runId],
     },
-    ...settlementQueries(tx, settlement),
+    ...financialQueries,
+    ...eventAppendQueries(tx, event),
   ]);
   const updatedRow = writes[0].rows[0];
   assert(
@@ -485,8 +558,8 @@ export async function finishInferenceInTransaction(
     ...currentFields,
     result: run.result.content_expired ? updatedRow.result : { ...updatedRow.result, inference: receipt },
   };
-  await finishSettlement(tx, settlement, writes.slice(2));
-  await emit(tx, org, runId, `run.${status}`, { status, outcome: receipt.outcome }, undefined, updated);
+  await finishSettlement(tx, settlement, writes.slice(2, 2 + financialQueries.length));
+  await finishEventAppend(tx, event, writes.slice(2 + financialQueries.length));
   return updated;
 }
 export function capability(run: InferenceRunRow) {

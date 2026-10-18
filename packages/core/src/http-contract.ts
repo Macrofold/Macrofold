@@ -54,13 +54,21 @@ const ajv = new Ajv({ strict: false, allErrors: true, coerceTypes: false });
 addFormats(ajv);
 ajv.addSchema({ $id: 'platform', components: root.components });
 const validators = new Map<string, ReturnType<typeof ajv.compile>>();
-function validate(schema: JSONSchema, data: unknown, label: string) {
+function validatorFor(schema: JSONSchema) {
   const key = JSON.stringify(schema);
   let check = validators.get(key);
   if (!check) {
-    check = ajv.compile({ ...schema, components: root.components });
+    // Reuse the registered component graph instead of compiling a new copy for
+    // each reference-only body. Sibling constraints still need their own validator.
+    const ref = Object.keys(schema).length === 1 && Object.hasOwn(schema, '$ref') ? schema.$ref : undefined;
+    check = ref?.startsWith('#/') ? ajv.getSchema(`platform${ref}`) : undefined;
+    check ??= ajv.compile({ ...schema, components: root.components });
     validators.set(key, check);
   }
+  return check;
+}
+function validate(schema: JSONSchema, data: unknown, label: string) {
+  const check = validatorFor(schema);
   assert(check(data), 400, 'invalid_request', `${label} is invalid.`, {
     issues: check.errors?.slice(0, 10).map((e) => ({
       path: e.instancePath.slice(0, 1000),
@@ -79,6 +87,17 @@ export const routes = Object.entries(root.paths).flatMap(([path, methods]) =>
       pattern: new RegExp(`^${path.replace(/\{[^}]+\}/g, '([^/]+)')}/?$`),
     })),
 );
+let initialized = false;
+/** Prepare only the shipped contract, without requests, customer data or authority. */
+export function initializeHttpValidation() {
+  if (initialized) return;
+  for (const { operation } of routes) {
+    for (const parameter of operationParameters(operation)) validatorFor(parameter.schema);
+    const body = operation.requestBody?.content['application/json']?.schema;
+    if (body) validatorFor(body);
+  }
+  initialized = true;
+}
 export function matchRoute(request: Request) {
   const path = new URL(request.url).pathname;
   const route = routes.find((r) => r.method === request.method && r.pattern.test(path));

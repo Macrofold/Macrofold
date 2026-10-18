@@ -27,6 +27,16 @@ function freeze<T>(value: T): T {
   return value;
 }
 
+it('preserves existing canonical key ordering, including collation ties and Unicode', () => {
+  const keys = ['z', 'A', 'a', 'é', 'e\u0301', 'E', '_key', '10', '2', '文', '😀'];
+  const value = Object.fromEntries(keys.map((key, index) => [key, { value: index }]));
+  const expected = `{${Object.entries(value)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, child]) => `${JSON.stringify(key)}:${JSON.stringify(child)}`)
+    .join(',')}}`;
+  expect(canonical(value)).toBe(expected);
+});
+
 it.each([
   { z: ['text', null, -0, 0.00001], a: { 文: 'é 😀', b: true } },
   { omitted: undefined, list: [undefined, NaN, Infinity, -Infinity] },

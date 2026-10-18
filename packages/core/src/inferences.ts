@@ -22,6 +22,7 @@ import type { Model } from './model-policy';
 import { providerModelCatalog } from '../../providers/src/model-catalog';
 import { validateModelParameters } from './model-parameters';
 import { modelCredential } from './model-credentials';
+import { assertStorageCapacity } from './storage-maintenance';
 import {
   reserve,
   creditStateQueries,
@@ -33,7 +34,7 @@ import {
 import { executionCapacityQuery, capacityDecision } from './execution-admission';
 import {
   prepareInvocation,
-  insertInvocation,
+  prepareInvocationInsert,
   inferenceRunStateColumns,
   type PreparedInvocation,
 } from './inference-invocations';
@@ -157,7 +158,9 @@ async function admitInferenceState(
       )
     : undefined;
   const account = reservationPlan?.account ?? (await reserve(tx, p.organizationId, BigInt(reservation)));
-  (await import('./storage-maintenance')).assertStorageCapacity(account.settings);
+  // Reuse the API's loaded policy module: a dynamic import pulls another
+  // maintenance dependency chunk onto first admission's locked path.
+  assertStorageCapacity(account.settings);
   const policy = executionPolicy(account);
   assert(
     limits.timeout_seconds <= policy.max_timeout_seconds,
@@ -280,13 +283,35 @@ async function admitInferenceState(
       immediateInferencePolicy.completionMs,
     ],
   };
+  // These are new identities, not a cached current Run. The preceding ordered
+  // insert establishes them in this transaction before invocation/event writes.
+  const invocationPlan = prepared
+    ? await prepareInvocationInsert(
+        tx,
+        {
+          id: runId,
+          organization_id: p.organizationId,
+          lease_generation: '1',
+          budget_used_micro_usd: '0',
+          config: configuration,
+        },
+        prepared.invocation,
+        {
+          dispatchStarted: true,
+          admission: { type: 'run.accepted', data: { kind, status: 'running' } },
+        },
+      )
+    : undefined;
   const financialWrite = reservationPlan ? reservationQuery(tx, reservationPlan) : undefined;
   const writes = await queryGroup<Omit<ExecutableInferenceRunRow, 'config'>>(tx, [
     ...(financialWrite ? [financialWrite] : []),
     insertion,
+    ...(invocationPlan ? invocationPlan.queries() : []),
   ]);
   if (reservationPlan) checkReservationResult(reservationPlan, financialWrite ? writes[0] : undefined);
-  const saved = writes[writes.length - 1].rows[0];
+  const runIndex = financialWrite ? 1 : 0;
+  const saved = writes[runIndex].rows[0];
+  const call = invocationPlan ? await invocationPlan.finish(writes.slice(runIndex + 1)) : undefined;
   assert(saved, 500, 'invalid_inference_state', 'Admission did not publish its Run identity.');
   const row: ExecutableInferenceRunRow = { ...saved, config: configuration };
   assert(
@@ -295,8 +320,7 @@ async function admitInferenceState(
     'invalid_inference_state',
     'Admission returned an invalid execution state.',
   );
-  // Immediate accepted/prepared events publish together after invocation
-  // identity insertion, in the same admission commit and original order.
+  // Immediate events were appended after invocation insertion in the same group.
   if (!prepared)
     await emit(tx, p.organizationId, runId, 'run.queued', { kind, status: row.status }, undefined, row);
   const receipt = {
@@ -309,7 +333,7 @@ async function admitInferenceState(
     ...(prepared ? {} : { queue_expires_at: row.queue_expires_at.toISOString() }),
     urls: runUrls(runId),
   };
-  return { receipt, run: row, secret, providerDeadlineMonotonicMs, actorCheckedAtMonotonicMs };
+  return { receipt, run: row, call, secret, providerDeadlineMonotonicMs, actorCheckedAtMonotonicMs };
 }
 
 export async function admitInference(
@@ -509,10 +533,8 @@ export async function prepareInference(
         organizationLocked,
       );
       if (prepared) {
-        const call = await insertInvocation(tx, admitted.run, prepared.invocation, {
-          dispatchStarted: true,
-          admission: { type: 'run.accepted', data: { kind, status: admitted.run.status } },
-        });
+        const call = admitted.call;
+        assert(call, 500, 'inference_intent_missing', 'Admission did not publish its invocation identity.');
         permit = {
           run: admitted.run,
           call,

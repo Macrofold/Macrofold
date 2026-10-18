@@ -9,6 +9,8 @@ import {
   loadModelSettlement,
   settleModelRequest,
   settleModelRequestInTransaction,
+  settleModelRequestForCompletion,
+  consumeSettlementRunControl,
 } from '../../packages/core/src/model-gateway';
 import type { RuntimeCapability } from '../../packages/core/src/runtime-auth';
 
@@ -162,6 +164,71 @@ it('rejects old transaction state and invalidates earlier same-transaction snaps
     cost_micro_usd: '20',
     model_reserved_micro_usd: '0',
   });
+});
+
+it('observes the fresh clock, metering cancellation and usage event after composed settlement', async () => {
+  const fixture = await requestFixture();
+  await transaction(account.p.organizationId, async (tx) => {
+    const initial = await tx.query<{ deadline_passed: boolean }>(
+      `UPDATE runs SET deadline=clock_timestamp()+interval '1 millisecond' WHERE id=$1
+       RETURNING deadline<=clock_timestamp() AS deadline_passed`,
+      [fixture.run],
+    );
+    expect(initial.rows[0].deadline_passed).toBe(false);
+    await tx.query('SELECT pg_sleep(0.01)');
+    const result = await settleModelRequestForCompletion(tx, fixture.capability, fixture.request, model, {
+      ...usage,
+      input: 101,
+    });
+    expect(result.billing).toMatchObject({ charged_micro_usd: '100', bound_breached: true });
+    if (!result.control) throw new Error('Missing composed control snapshot');
+    expect(
+      consumeSettlementRunControl(tx, account.p.organizationId, fixture.run, result.control),
+    ).toMatchObject({
+      deadline_passed: true,
+      cancel_requested: true,
+      budget_used_micro_usd: '100',
+      cost_micro_usd: '100',
+      model_reserved_micro_usd: '0',
+      event_sequence: '2',
+    });
+    expect(() =>
+      consumeSettlementRunControl(tx, account.p.organizationId, fixture.run, result.control!),
+    ).toThrow(expect.objectContaining({ code: 'billing_state_stale' }));
+  });
+});
+
+it('binds composed control to its transaction and Run and leaves settled replay on the fresh-read path', async () => {
+  const fixture = await requestFixture();
+  const result = await transaction(account.p.organizationId, async (tx) => {
+    const result = await settleModelRequestForCompletion(
+      tx,
+      fixture.capability,
+      fixture.request,
+      model,
+      usage,
+    );
+    if (!result.control) throw new Error('Missing composed control snapshot');
+    expect(() => consumeSettlementRunControl(tx, account.p.organizationId, id(), result.control!)).toThrow(
+      expect.objectContaining({ code: 'billing_state_stale' }),
+    );
+    return result;
+  });
+  await transaction(account.p.organizationId, async (tx) => {
+    expect(() =>
+      consumeSettlementRunControl(tx, account.p.organizationId, fixture.run, result.control!),
+    ).toThrow(expect.objectContaining({ code: 'billing_state_stale' }));
+    const replay = await settleModelRequestForCompletion(
+      tx,
+      fixture.capability,
+      fixture.request,
+      model,
+      usage,
+    );
+    expect(replay.control).toBeUndefined();
+    expect(replay.billing).toMatchObject({ charged_micro_usd: '20' });
+  });
+  expect((await facts(fixture.run)).rows).toHaveLength(1);
 });
 
 it('protects credits expiring during the later capacity wait using the account-locked decision', async () => {

@@ -70,7 +70,8 @@ try {
   });
   await check('composio', 'catalog', async () => {
     charge('composio', 'catalog', 0);
-    const page = await composio()
+    const sdk = await composio();
+    const page = await sdk
       .getClient()
       .toolkits.list({ limit: 2, sort_by: 'usage' }, { maxRetries: 0, timeout: 30_000 });
     assert(Array.isArray(page.items) && page.items.length > 0);

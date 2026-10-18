@@ -6,19 +6,17 @@ import { boundedJSON } from '../../core/src/body';
 import type { CustomerConnectorProvider } from '../../core/src/customer-connector-provider';
 
 export async function composioTools(toolkit: string, version: string) {
-  const sdk = composio();
+  const sdk = await composio();
   return collectToolPages(async (cursor, signal) => {
-    const page = await sdk
-      .getClient()
-      .tools.list(
-        {
-          toolkit_slug: toolkit,
-          toolkit_versions: { [toolkit]: version },
-          limit: 100,
-          ...(cursor ? { cursor } : {}),
-        },
-        { signal },
-      );
+    const page = await sdk.getClient().tools.list(
+      {
+        toolkit_slug: toolkit,
+        toolkit_versions: { [toolkit]: version },
+        limit: 100,
+        ...(cursor ? { cursor } : {}),
+      },
+      { signal },
+    );
     return {
       items: page.items.map((t) => ({
         name: t.slug,
@@ -50,7 +48,8 @@ export async function completeComposioConsent(uri: string, subject: string, tran
   const result = z
     .object({ connected_account_id: z.string(), toolkit_slug: z.string() })
     .parse(await boundedJSON(response, 65536));
-  const account = await composio().connectedAccounts.get(result.connected_account_id, {
+  const sdk = await composio();
+  const account = await sdk.connectedAccounts.get(result.connected_account_id, {
     signal: AbortSignal.timeout(15000),
   });
   assert(
@@ -69,7 +68,7 @@ export const composioCustomerConsent: CustomerConnectorProvider = {
   tools: composioTools,
   complete: completeComposioConsent,
   async start(input) {
-    const sdk = composio(),
+    const sdk = await composio(),
       options = { signal: AbortSignal.timeout(15000), maxRetries: 0 };
     if (input.externalAccountId) {
       const result = await sdk.connectedAccounts.refresh(

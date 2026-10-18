@@ -60,13 +60,13 @@ describe('finite input and pagination', () => {
     vi.useFakeTimers();
     const cancel = vi.fn(() => new Promise<void>(() => {}));
     const body = new ReadableStream<Uint8Array>({ cancel });
-    const outcome = boundedBody(body, 100, 20).catch(error => error);
+    const outcome = boundedBody(body, 100, 20).catch((error) => error);
     await vi.advanceTimersByTimeAsync(20);
     expect(await outcome).toMatchObject({ code: 'body_read_timeout' });
     expect(body.locked).toBe(false);
     const events = new ReadableStream<Uint8Array>({ cancel });
     const frames = sseFrames(new Response(events), undefined, 20);
-    const pending = frames.next().catch(error => error);
+    const pending = frames.next().catch((error) => error);
     await vi.advanceTimersByTimeAsync(20);
     expect((await pending).message).toContain('deadline exceeded');
     expect(events.locked).toBe(false);
@@ -83,12 +83,16 @@ describe('finite input and pagination', () => {
     expect(await boundedBody(new Response('').body, 0)).toEqual(Buffer.alloc(0));
   });
   it('interrupts stalled object bodies after headers without treating partial bytes as success', async () => {
-    const timeout = AbortSignal.timeout.bind(AbortSignal);
-    vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => timeout(20));
+    const deadline = new AbortController();
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal);
     const body = new Readable({ read() {} });
     const send = vi.fn().mockResolvedValue({ Body: body, ContentLength: 10 });
     const store = new R2Store({ send } as unknown as S3Client, 'fixture');
-    await expect(store.readUpload('staging/fixture', 10)).rejects.toThrow('timed out');
+    const pending = expect(store.readUpload('staging/fixture', 10)).rejects.toThrow('timed out');
+    // Expire after headers, independently of first-use SDK loading speed.
+    await vi.waitFor(() => expect(body.listenerCount('readable')).toBeGreaterThan(0));
+    deadline.abort();
+    await pending;
     expect(body.destroyed).toBe(true);
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0][1].abortSignal.aborted).toBe(true);

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { TraceObservation } from '../../packages/core/src/trace';
+import type { PerformanceRecord } from '../../packages/contracts/performance';
 
 const backend = vi.hoisted(() => ({
   construct: vi.fn(),
@@ -55,6 +56,7 @@ afterEach(() => {
 it('requires complete credentials and honors explicit disable without creating an exporter', async () => {
   vi.stubEnv('TRACING_ENABLED', 'false');
   const tracing = await import('../../packages/core/src/tracing');
+  tracing.initializeTracing();
   tracing.recordTrace(observation);
   expect(tracing.tracingEnabled()).toBe(false);
   // Configuration is fixed for the serving process; enabling requires restart.
@@ -63,6 +65,7 @@ it('requires complete credentials and honors explicit disable without creating a
   vi.resetModules();
   vi.stubEnv('LANGFUSE_SECRET_KEY', '');
   const missing = await import('../../packages/core/src/tracing');
+  missing.initializeTracing();
   missing.recordTrace(observation);
   await missing.flushTraces();
   expect(missing.tracingEnabled()).toBe(false);
@@ -114,6 +117,12 @@ it('supports a metadata-only injected sink and lets explicit disable override it
 });
 it('shares one exporter and writes content-free structured application logs', async () => {
   const tracing = await import('../../packages/core/src/tracing');
+  tracing.initializeTracing();
+  tracing.initializeTracing();
+  expect(backend.construct).toHaveBeenCalledOnce();
+  expect(backend.record).not.toHaveBeenCalled();
+  expect(backend.flush).not.toHaveBeenCalled();
+  expect(backend.shutdown).not.toHaveBeenCalled();
   tracing.recordTrace(observation);
   tracing.recordTrace(observation);
   await tracing.flushTraces();
@@ -127,6 +136,49 @@ it('shares one exporter and writes content-free structured application logs', as
   expect(logs).not.toContain('Private');
   expect(logs).not.toContain('secret-fixture');
 });
+it.each([false, true])(
+  'profiles synchronous tracing setup and records without content (record fails: %s)',
+  async (fails) => {
+    let time = 0;
+    const records: PerformanceRecord[] = [];
+    const profiling = await import('../../packages/core/src/performance');
+    const collector = profiling.configurePerformance({
+      sampleRate: 1,
+      durationSeconds: 300,
+      clock: () => time,
+      sink: {
+        enqueue: (record) => records.push(record),
+        flush: async () => {},
+        close: async () => {},
+      },
+    });
+    const tracing = await import('../../packages/core/src/tracing');
+    backend.construct.mockImplementation(() => {
+      time += 7;
+    });
+    backend.record.mockImplementation(() => {
+      time += 3;
+      if (fails) throw new Error('Private exporter failure');
+    });
+    try {
+      expect(() =>
+        profiling.runPerformanceRoot('rest', {}, () => {
+          tracing.recordTrace(observation);
+          tracing.recordTrace(observation);
+        }),
+      ).not.toThrow();
+      const measured = records.find((record) => record.type === 'operation');
+      expect(measured?.stages['trace.initialize']).toMatchObject({ count: 1, total_ms: 7 });
+      expect(measured?.stages['trace.record']).toMatchObject({ count: 2, total_ms: 6 });
+      expect(backend.construct).toHaveBeenCalledOnce();
+      expect(backend.record).toHaveBeenCalledTimes(2);
+      expect(JSON.stringify(records)).not.toContain('Private');
+      expect(JSON.stringify(records)).not.toContain('secret-fixture');
+    } finally {
+      await collector.close();
+    }
+  },
+);
 it('isolates exporter and configuration failures from execution without logging payloads', async () => {
   const tracing = await import('../../packages/core/src/tracing');
   backend.record.mockImplementation(() => {
@@ -147,6 +199,7 @@ it('isolates exporter and configuration failures from execution without logging 
     throw new Error('private config');
   });
   const failed = await import('../../packages/core/src/tracing');
+  expect(() => failed.initializeTracing()).not.toThrow();
   expect(() => failed.recordTrace(observation)).not.toThrow();
   expect(vi.mocked(console.warn).mock.calls.flat().join(' ')).toContain('tracing_configuration_failed');
   expect(vi.mocked(console.warn).mock.calls.flat().join(' ')).not.toContain('private config');

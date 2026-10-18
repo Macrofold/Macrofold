@@ -93,6 +93,10 @@ it('automatically restores owned pool methods when the startup capture window ex
   initializePerformance();
   expect(performanceEnabled()).toBe(true);
   for (const [index, entry] of pools.entries()) expect(entry.connect).not.toBe(originals[index]);
+  const installed = pools.map((entry) => entry.connect);
+  // Readiness and transport entry points reuse the same composition instance.
+  initializePerformance();
+  expect(pools.map((entry) => entry.connect)).toEqual(installed);
   await vi.advanceTimersByTimeAsync(1000);
   await shutdownPerformance();
   expect(performanceEnabled()).toBe(false);

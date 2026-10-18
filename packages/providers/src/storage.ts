@@ -1,13 +1,6 @@
 import { mkdir, readFile, writeFile, rename, unlink, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  ListObjectsV2Command,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import type { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { config, isLocal } from '../../core/src/config';
 import { createHash } from 'node:crypto';
 import { sha256, seal, unseal } from '../../core/src/crypto';
@@ -98,23 +91,31 @@ export class LocalStore implements ObjectStore {
   }
 }
 export class R2Store implements ObjectStore {
+  private readonly clientConfig: S3ClientConfig = {
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    },
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    maxAttempts: 3,
+  };
   constructor(
-    private client = new S3Client({
-      region: 'auto',
-      endpoint: process.env.R2_ENDPOINT,
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-      },
-      requestChecksumCalculation: 'WHEN_REQUIRED',
-      maxAttempts: 3,
-    }),
+    private client?: S3Client,
     private bucket = process.env.R2_BUCKET,
   ) {}
+  private async connection() {
+    // Inference with inline context needs no object SDK. Load it on first use,
+    // then share one client/socket pool, including concurrent initial requests.
+    const sdk = await import('@aws-sdk/client-s3');
+    return { sdk, client: (this.client ??= new sdk.S3Client(this.clientConfig)) };
+  }
   async list(prefix: string, cursor?: string, limit = 1000) {
     if (prefix) safeKey(prefix);
-    const result = await this.client.send(
-      new ListObjectsV2Command({
+    const { sdk, client } = await this.connection();
+    const result = await client.send(
+      new sdk.ListObjectsV2Command({
         Bucket: this.bucket,
         Prefix: prefix,
         ContinuationToken: cursor,
@@ -134,8 +135,9 @@ export class R2Store implements ObjectStore {
   async put(key: string, bytes: Buffer) {
     const stopTiming = startPerformanceStage('storage.write');
     try {
-      await this.client.send(
-        new PutObjectCommand({
+      const { sdk, client } = await this.connection();
+      await client.send(
+        new sdk.PutObjectCommand({
           Bucket: this.bucket,
           Key: safeKey(key),
           Body: bytes,
@@ -151,16 +153,21 @@ export class R2Store implements ObjectStore {
     return this.readObject(key, undefined, options?.signal);
   }
   async delete(key: string) {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }), {
+    const { sdk, client } = await this.connection();
+    await client.send(new sdk.DeleteObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }), {
       abortSignal: AbortSignal.timeout(60_000),
     });
   }
   async uploadURL(key: string, size: number, expires: number) {
     if (!key.startsWith('staging/') || !Number.isSafeInteger(size) || size < 0 || size > 25 * 1024 * 1024)
       throw new Error('Invalid upload plan');
+    const [{ sdk, client }, { getSignedUrl }] = await Promise.all([
+      this.connection(),
+      import('@aws-sdk/s3-request-presigner'),
+    ]);
     const url = await getSignedUrl(
-      this.client,
-      new PutObjectCommand({
+      client,
+      new sdk.PutObjectCommand({
         Bucket: this.bucket,
         Key: safeKey(key),
         ContentLength: size,
@@ -189,8 +196,10 @@ export class R2Store implements ObjectStore {
         signal = requestedSignal ? AbortSignal.any([timeout, requestedSignal]) : timeout,
         deadline = Date.now() + 60_000;
       signal.throwIfAborted();
-      const response = await this.client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }),
+      const { sdk, client } = await this.connection();
+      signal.throwIfAborted();
+      const response = await client.send(
+        new sdk.GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }),
         { abortSignal: signal },
       );
       const body = response.Body as AsyncIterable<Uint8Array> & { destroy(error?: Error): void };

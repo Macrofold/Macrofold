@@ -1,8 +1,6 @@
 import { dispatchFailed } from '@platform/core/dispatch-failures';
-import { start } from 'workflow/api';
 import { pool } from '@platform/db';
 import { config, isLocal } from '@platform/core/config';
-import { agentRun } from '../workflows/run';
 import { orderDispatchJobs, pendingRunCandidates } from '@platform/core/scheduling';
 import { claimRun } from '@platform/core/engine';
 import { renewWorkflow } from '@platform/core/workflow-ownership';
@@ -22,6 +20,8 @@ export async function dispatchRuns(capacityFreed = false) {
 async function dispatchPendingRuns(capacityFreed: boolean) {
   if (isLocal() || config.execution !== 'vercel' || config.orchestration !== 'workflow')
     return { dispatched: 0 };
+  // Load the Workflow runtime only where it is used, before claiming any jobs.
+  const [{ start }, { agentRun }] = await Promise.all([import('workflow/api'), import('../workflows/run')]);
   const batch = capacitySetting('WORKFLOW_DISPATCH_BATCH', 100, 1000);
   const pending = await pendingRunCandidates(batch);
   const jobs = await pool.query(

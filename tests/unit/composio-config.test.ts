@@ -8,15 +8,15 @@ afterEach(() => {
 
 it.each([undefined, '', '   ', 'ak_******', 'ak_...1234', 'ak_…1234'])(
   'rejects an absent or masked Composio credential before requesting an upstream operation (%s)',
-  (key) => {
+  async (key) => {
     vi.stubEnv('COMPOSIO_API_KEY', key);
-    expect(composio).toThrow(expect.objectContaining({ code: 'integration_not_configured', status: 503 }));
+    await expect(composio()).rejects.toMatchObject({ code: 'integration_not_configured', status: 503 });
   },
 );
 
-it('accepts an unmasked configured value without assuming that construction verifies authentication', () => {
+it('accepts an unmasked configured value without assuming that construction verifies authentication', async () => {
   vi.stubEnv('COMPOSIO_API_KEY', 'fixture-not-a-real-workspace-key');
-  expect(composio).not.toThrow();
+  await expect(composio()).resolves.toBeDefined();
 });
 
 it('maps pinned execution, caller identity and the observed log_id response through the real SDK', async () => {
@@ -55,7 +55,7 @@ it('maps pinned execution, caller identity and the observed log_id response thro
       log_id: 'fixture-log',
     });
   });
-  const sdk = composio();
+  const sdk = await composio();
   sdk.getClient().maxRetries = 0;
   const result = await sdk.tools.execute('HACKERNEWS_GET_ITEM', {
     userId: 'fixture-org:fixture-user',
@@ -97,7 +97,7 @@ it('uses the installed SDK to create distinct aliases despite an existing active
       redirect_url: 'https://connect.composio.dev/fixture',
     });
   });
-  const sdk = composio();
+  const sdk = await composio();
   sdk.getClient().maxRetries = 0;
   const first = await sdk.connectedAccounts.link('org:user', 'fixture-auth', {
     alias: 'research',

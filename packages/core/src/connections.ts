@@ -312,7 +312,8 @@ export async function testConnection(tx: Tx, p: Principal, c: resources.Document
         'authorization_required',
         'Connect and verify your account first.',
       );
-      const account = await composio().connectedAccounts.get(String(c.external_account_id), {
+      const sdk = await composio();
+      const account = await sdk.connectedAccounts.get(String(c.external_account_id), {
         signal: AbortSignal.timeout(15000),
       });
       assert(

@@ -1,6 +1,7 @@
 /** Content-free, optional process diagnostics. These identifiers never grant authority. */
 export const performanceStages = [
   'http.total',
+  'http.parameter_validation',
   'http.authentication',
   'http.rate_limit',
   'http.body_read',
@@ -9,9 +10,12 @@ export const performanceStages = [
   'http.replay_lookup',
   'http.preparation',
   'http.admission',
+  'http.response',
   'inference.finalization',
   'provider.model',
   'provider.tool',
+  'trace.initialize',
+  'trace.record',
   'storage.read',
   'storage.write',
   'storage.restore',

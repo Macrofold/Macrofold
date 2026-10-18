@@ -45,7 +45,7 @@ export async function startComposio(request: Request) {
     );
     assert(c.kind === 'composio' && !c.deleted, 400, 'invalid_connection', 'Choose a connected app.');
     const setup = await enabledConnector(String(c.provider), tx);
-    const sdk = composio();
+    const sdk = await composio();
     const callbackUrl = config.origin + '/integrations/composio/callback';
     const requestOptions = { signal: AbortSignal.timeout(15000) };
     const refreshed = c.external_account_id

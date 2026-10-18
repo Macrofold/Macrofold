@@ -40,6 +40,22 @@ pnpm worker:docker
 
 These aliases validate the Docker settings and start the existing application or dispatcher. They read `.env`, preserve it, and let exported environment variables take precedence. Open **http://localhost:3210**; the dashboard identifies **Local Docker**, and the existing local demo login works.
 
+### Measure API latency with a compiled server
+
+`pnpm dev:docker` runs Next's development server, which compiles routes on demand. A cold request can spend seconds in compilation and module loading before Macrofold's request timer starts. For integration timing, stop that API process before building, keep the same local `.env`, and run:
+
+```sh
+pnpm doctor:docker
+pnpm build
+pnpm start
+```
+
+This serves the compiled application on the same localhost port with the same database, Docker profile and spending controls. Keep `pnpm worker:docker` in its separate terminal for native/queued work. Immediate inference runs in the API process and needs no worker. This is a production build of a **local** deployment; it does not switch to cloud execution or enable paid calls.
+
+In another terminal, wait for `curl --fail --silent --show-error http://localhost:3210/health` to succeed before sending application traffic. Next can print “Ready” before router initialization finishes. On self-hosted servers, this check loads the same compiled REST route and its shared dependencies. It verifies a database round trip and configuration, then compiles trusted contract validators and initializes configured tracing before reporting ready. It emits no trace and makes no model request and does not prove provider connectivity. Record process startup through this check separately from request latency.
+
+Rebuild after code changes; the compiled server has no hot reload. Compiled pages load on demand instead of all dashboard routes competing with the first API request. Record the first request separately from warm requests: route initialization, upstream connections and first-use caller-schema validation can still cost time. To return to editing, stop `pnpm start` and restart `pnpm dev:docker`. Use a separate checkout, port and disposable database for isolated benchmarks rather than interrupting another developer's preview. See [performance profiling](../../features/observability/performance.md) for correlation and measurement boundaries.
+
 ## Update an existing local installation
 
 Keep the application, database schema, and runtime image on the same revision. Drain active work, stop the API and dispatcher, and preserve the existing `.env`, database, and encrypted content store. Take a [paired recovery backup](../../operations/recovery.md) before a schema-changing upgrade, then run:

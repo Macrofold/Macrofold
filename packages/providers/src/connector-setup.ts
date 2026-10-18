@@ -3,23 +3,31 @@ import { assert } from '../../core/src/errors';
 import { composio } from './composio';
 
 export function connectorSetupProvider(): ConnectorSetupProvider {
-  const sdk = composio();
-  // Auth-config creation has no idempotency contract. Never repeat an uncertain POST.
-  sdk.getClient().maxRetries = 0;
+  let pending: ReturnType<typeof composio> | undefined;
+  const client = () =>
+    (pending ??= composio()
+      .then((sdk) => {
+        // Auth-config creation has no idempotency contract. Never repeat an uncertain POST.
+        sdk.getClient().maxRetries = 0;
+        return sdk;
+      })
+      .catch((error) => {
+        pending = undefined;
+        throw error;
+      }));
   return {
     async inspect(toolkit, version) {
+      const sdk = await client();
       const options = { signal: AbortSignal.timeout(15000) };
       const metadata = await sdk.toolkits.get(toolkit, options);
-      const tools = await sdk
-        .getClient()
-        .tools.list(
-          {
-            toolkit_slug: toolkit,
-            limit: 1,
-            ...(version ? { toolkit_versions: { [toolkit]: version } } : {}),
-          },
-          options,
-        );
+      const tools = await sdk.getClient().tools.list(
+        {
+          toolkit_slug: toolkit,
+          limit: 1,
+          ...(version ? { toolkit_versions: { [toolkit]: version } } : {}),
+        },
+        options,
+      );
       const pin = tools.items[0]?.version;
       assert(
         pin && pin !== 'latest' && (!version || version === pin),
@@ -49,6 +57,7 @@ export function connectorSetupProvider(): ConnectorSetupProvider {
       return { version: pin, managed: !!metadata.composioManagedAuthSchemes?.length, authConfigs };
     },
     async createManaged(toolkit) {
+      const sdk = await client();
       const result = await sdk.authConfigs.create(
         toolkit,
         {

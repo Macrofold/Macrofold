@@ -70,8 +70,8 @@ it.each([undefined, 'customer_opaque-app-subject'])(
       });
     });
     const execute = vi.fn(async () => ({ data: { account: 'research' }, successful: true }));
-    vi.spyOn(connections, 'composio').mockReturnValue({ tools: { execute } } as unknown as ReturnType<
-      typeof connections.composio
+    vi.spyOn(connections, 'composio').mockResolvedValue({ tools: { execute } } as unknown as Awaited<
+      ReturnType<typeof connections.composio>
     >);
     await executeGrantedTool(
       fixture.cap,

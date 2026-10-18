@@ -28,7 +28,7 @@ import {
   type Invocation,
   type StoredDecisionResponse,
 } from './inference-invocations';
-import { settleModelRequestInTransaction, inferenceUsage, inferenceBilling } from './model-gateway';
+import { settleModelRequestForCompletion, inferenceUsage, inferenceBilling } from './model-gateway';
 import { observeInference } from './inference-control';
 import type { TraceContext } from './trace';
 import { recordTrace, tracingEnabled, tracingContentEnabled } from './tracing';
@@ -294,7 +294,7 @@ export async function recoverImmediateInference(
         [call.id],
       );
       const usage = emptyUsage();
-      const billing = await settleModelRequestInTransaction(
+      const { billing, control } = await settleModelRequestForCompletion(
         tx,
         capability(next),
         call.id,
@@ -314,7 +314,16 @@ export async function recoverImmediateInference(
         billing: inferenceBilling(billing, next.config.billing_mode),
       };
       return {
-        run: await finishInferenceInTransaction(tx, run.organization_id, run.id, receipt),
+        run: await finishInferenceInTransaction(
+          tx,
+          run.organization_id,
+          run.id,
+          receipt,
+          undefined,
+          undefined,
+          next,
+          control,
+        ),
         call,
       };
     },
@@ -455,7 +464,7 @@ export async function finalizeImmediateInference(
               : actorAuthorizationFromResults(current, observations.slice(responseWrite ? 1 : 0)),
           );
         }
-        const billing = await settleModelRequestInTransaction(
+        const { billing, control } = await settleModelRequestForCompletion(
           tx,
           capability(current),
           call.id,
@@ -481,6 +490,7 @@ export async function finalizeImmediateInference(
               response.failure_code,
               saved.provider_completed_at ?? completedAt,
               current,
+              control,
             );
         return { run: finished, receipt: finalReceipt };
       },

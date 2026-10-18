@@ -144,6 +144,10 @@ New terminal `result.inference` receipts include `usage` and `billing`, even for
 - `provisional` and `bound_breached` are explicit accounting facts; unknown numeric values remain null. Langfuse's native cost remains the Macrofold customer charge, with provider-cost diagnostics separate.
 - `timings_ms` contains measured stages when available, including provider execution, first output, validation and response persistence. Missing timings are omitted. HTTP delivery and background export measurements cannot appear in a receipt saved before they occurred.
 
+For a terminal response, use these embedded fields directly, including BYOK. A follow-up Run or billing lookup adds another network/database round trip without making this receipt more complete. Keep any journal your application requires; time that work separately. Retrieve the same Run only when resolving HTTP 202 or another uncertain submission.
+
+Measure POST start through full response decoding for HTTP latency. `result.inference.timings_ms.provider` measures Macrofold's upstream adapter interval, not necessarily time spent computing inside the model. Run `completed_at - started_at` includes platform execution/finalization and must not be labeled provider latency. For local timing, use a [compiled server](../../getting-started/local-development/docker.md#measure-api-latency-with-a-compiled-server); development route compilation can dominate the first call before API profiling begins.
+
 ### Build this with your coding agent
 
 Copy this brief alongside the example above. Supply the deployment origin and any workspace ID needed for saved references; enter credentials through your secret manager or local environment, never in the conversation.

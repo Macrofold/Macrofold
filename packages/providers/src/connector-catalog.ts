@@ -1,4 +1,5 @@
-import { Composio } from '@composio/core';
+import type { Composio } from '@composio/core';
+import { composio } from './composio';
 import snapshot from '../data/connector-catalog.json';
 import {
   parseConnectorCatalog,
@@ -68,17 +69,11 @@ let source: ConnectorCatalogSource | undefined;
 export function connectorCatalogSource(): ConnectorCatalogSource {
   if (!source) {
     const apiKey = process.env.COMPOSIO_API_KEY;
-    const client = apiKey
-      ? new Composio({
-          apiKey,
-          allowTracking: false,
-          disableVersionCheck: true,
-          fileUploadDirs: false,
-        }).getClient()
-      : undefined;
+    let client: ReturnType<Composio['getClient']> | undefined;
     source = createConnectorCatalogSource(
-      client
+      apiKey
         ? async (cursor, signal) => {
+            client ??= (await composio()).getClient();
             // The high-level SDK helper loses pagination. Use the pinned public SDK
             // client and consume every page of native (Composio-managed) toolkits.
             const page = await client.toolkits.list(

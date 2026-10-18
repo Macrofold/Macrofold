@@ -55,6 +55,10 @@ const keywords = new Set([
 // See docs/features/decisions/implementation.md#validation-and-admission-capacity.
 const schemaCompiler = new Ajv({ strict: true, allErrors: false, ownProperties: true, addUsedSchema: false });
 const schemaValidators = new Map<string, ValidateFunction>();
+/** Compile AJV's built-in meta validator, never an application/customer schema. */
+export function initializeContextValidation() {
+  schemaCompiler.getSchema('https://json-schema.org/draft/2020-12/schema');
+}
 export function schemaValidator(schema: Record<string, unknown>) {
   let nodes = 0;
   function visit(value: unknown, depth: number): void {

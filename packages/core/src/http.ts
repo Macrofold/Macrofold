@@ -18,7 +18,15 @@ import { config } from './config';
 import { identify, requireScopes, type Principal } from './auth';
 import { id, sha256, seal, unseal, canonical } from './crypto';
 import { AppError, assert, errorBody } from './errors';
-import { matchRoute, validateParameters, validateBody, responseFor, operationScopes } from './http-contract';
+import {
+  matchRoute,
+  validateParameters,
+  validateBody,
+  responseFor,
+  operationScopes,
+  initializeHttpValidation,
+} from './http-contract';
+import { initializeContextValidation } from './explicit-context';
 import { handlers, preparations } from './api-handlers';
 import { getRunSummary } from './runs';
 import { streamEvents } from './events';
@@ -40,6 +48,12 @@ import {
   acquireInferenceAdmission,
   acquireInferenceRequestPermit,
 } from './inference-control';
+
+/** Self-hosted readiness initializes reusable validators without dispatching work. */
+export function initializeApi() {
+  initializeHttpValidation();
+  initializeContextValidation();
+}
 
 export function handleApi(
   request: Request,
@@ -105,7 +119,17 @@ async function handleApiRequest(
         'Immediate inference does not support Prefer: respond-async. Omit the preference.',
       );
     }
-    validateParameters(matched.operation, request, matched.params);
+    // First-use schema compilation is request work too, including header/path
+    // validation that happens before authentication and body validation.
+    const stopParameters = startInferenceTiming(
+      'http.parameter_validation',
+      operationId === 'createInference',
+    );
+    try {
+      validateParameters(matched.operation, request, matched.params);
+    } finally {
+      stopParameters();
+    }
     if (operationId === 'createInference') {
       preflightDeadlineAtMs = Math.min(
         hostDeadlineAtMs - immediateInferencePolicy.deliveryMs,
@@ -554,7 +578,12 @@ async function handleApiRequest(
         'recovery_reason' in completed.body &&
         completed.body.recovery_reason !== 'in_progress';
       if (completed.status === 202) headers.set('Retry-After', '1');
-      outcome = responseFor(matched.operation, completed.body, completed.status);
+      const stopProjection = startInferenceTiming('http.response');
+      try {
+        outcome = responseFor(matched.operation, completed.body, completed.status);
+      } finally {
+        stopProjection();
+      }
     }
     status = outcome.status;
     if (
@@ -565,9 +594,14 @@ async function handleApiRequest(
       'version' in outcome.body
     )
       headers.set('ETag', `"${outcome.body.version}"`);
-    return status === 204
-      ? new Response(null, { status, headers })
-      : Response.json(outcome.body, { status, headers });
+    const stopResponse = startInferenceTiming('http.response', operationId === 'createInference');
+    try {
+      return status === 204
+        ? new Response(null, { status, headers })
+        : Response.json(outcome.body, { status, headers });
+    } finally {
+      stopResponse();
+    }
   } catch (error) {
     if (
       operationId === 'createInference' &&

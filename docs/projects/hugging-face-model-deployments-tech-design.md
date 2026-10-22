@@ -2,7 +2,7 @@
 
 | Status | Current progress | Last updated |
 | --- | --- | --- |
-| In progress | Production serving, recovery and application integration are specified; implementation and live acceptance have not started. | 2026-10-22 |
+| In progress | Production implementation is authorized and in progress; acceptance remains open. | 2026-10-22 |
 
 ## Scope and authoritative references
 
@@ -195,6 +195,19 @@ CLI and dashboard call the same public/domain operations. The normal flow is pas
 
 Content-free metrics cover available capacity, startup/recovery time, queue/rejection rate, warm request/first-token latency, model throughput, provider cost and outstanding cleanup. Existing protected traces own optional prompt/output retention; hosting administration does not grant another application's private inference content.
 
+### Authorized implementation plan
+
+Implement MD02–MD07 on `feat/production-model-deployments`, incorporating the approved production design at `e79a2c066584037e369d80e626810de86aefe611` above main `07ba0ee1bb5c76aeb4d0d3553339dc274854335a`. The implementation instruction supersedes the historical design-only restriction. The GitHub connector owns branch publication and progress commits; preserve the detached managed checkout and existing preview.
+
+1. Author the deployment schemas, tenant migration, current grant/connection delegation and safe projections; regenerate all five clients.
+2. Extend existing immediate inference admission, native chat transport, control checks and terminal receipts. Preserve early same-key recovery before resolving the mutable serving revision, exact accepted identity, zero separate request fee and unknown per-call infrastructure cost.
+3. Add HF inspection and immutable runtime preparation, RunPod REST v2 control, durable attempt reconciliation, bounded recovery, rate guards, drain/update/rollback and verified cleanup through existing maintenance.
+4. Build the pinned vLLM image and protected HTTP surface; verify loading preparation, authentication, routing, streaming and process cleanup with deterministic CPU fixtures, then actual authorized GPU acceptance where access/budget permits.
+5. Complete dashboard and CLI setup, grants, status, costs, updates and stopping against the public contract. Publish concise setup/call guidance for the subsequent OpenLegend consumer.
+6. Run targeted isolation/recovery/concurrency/protocol tests during development, then generated-client, API, UI/CLI, image, build and documentation gates. Review the full affected diff and fix in-scope findings. Record exact tested source/runtime identities, actual costs and precise live or joint-consumer gaps without marking fixture evidence as live acceptance.
+
+Contracts/storage and inference integration are owned in their existing domain/API modules; serving runtime and user surfaces can proceed independently against the canonical contract. No application request performs hosting administration or grants new spending. Missing live credentials/budget block only the affected live checks. The OpenLegend real-game joint acceptance awaits its subsequent consumer implementation.
+
 ## 12. Verification, rollout and rollback
 
 | Boundary | Required evidence |
@@ -217,3 +230,4 @@ Measure preparation, cold startup, warm platform overhead, model prefill/decode,
 Ship the current API/storage/generated clients together, then qualify the actual serving backend and OpenLegend integration. Keep unverified offers disabled. Record actual server/client/runtime versions in release evidence. Disabling new deployments must not stop cleanup of existing owned resources. Rollback stops new admission, drains safely and preserves unresolved provider resources and historical receipts; it must not strand paid capacity or erase money facts.
 
 The architecture is selected. Remaining deployment inputs are model, account, immutable image, compatible hardware, operating limits and workload tuning. Provider authentication, real loading/recovery, cancellation and billing behavior require live evidence. Those are concrete release gates, not reasons to build an experiment-centric runtime.
+

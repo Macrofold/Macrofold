@@ -2,192 +2,152 @@
 
 | Status | Current progress | Last updated |
 | --- | --- | --- |
-| In progress | The cross-repository design is specified; API, runtime, clients and live qualification are not implemented. | 2026-10-22 |
+| In progress | The production serving contract is designed; API, hosting, clients and live acceptance remain unimplemented. | 2026-10-22 |
 
-This is the canonical **proposed** wire contract for [model deployments](hugging-face-model-deployments-feature-spec.md). The [technical design](hugging-face-model-deployments-tech-design.md) owns persistence, reconciliation and hosting. The [research](hugging-face-model-deployments-research.md) records provider evidence. [OpenLegend's consumer design](https://github.com/Macrofold/OpenLegend/blob/design/huggingface-model-deployments-2026-10-22/docs/projects/model-experiments-tech-design.md) maps its NPC experiments to this contract; it does not maintain a second server schema.
+This is the canonical **proposed** API contract for [model deployments](hugging-face-model-deployments-feature-spec.md). The [technical design](hugging-face-model-deployments-tech-design.md) owns implementation and hosting; the [research](hugging-face-model-deployments-research.md) owns vendor evidence. [OpenLegend's consumer design](https://github.com/Macrofold/OpenLegend/blob/design/huggingface-model-deployments-2026-10-22/docs/projects/custom-models-tech-design.md) uses this production capability and may also use it for optional comparisons.
 
-Baseline: Macrofold `07ba0ee1bb5c76aeb4d0d3553339dc274854335a`, OpenLegend `27c6fb8152ec58c34334e74ba91a9d5bec6a30ff`. Neither deployed endpoint support nor a model's quality follows from this design. Implementation changes [OpenAPI](../api/openapi.json) and generated clients together; do not hand-edit generated artifacts or add a legacy API.
+Reviewed implementation bases: Macrofold `07ba0ee1bb5c76aeb4d0d3553339dc274854335a`, OpenLegend `27c6fb8152ec58c34334e74ba91a9d5bec6a30ff`. Implement [OpenAPI](../api/openapi.json), server validation and generated clients together. These proposals have no deployed compatibility requirement.
 
 ## 1. Ownership and identity
 
-Three identities prevent silent changes:
+A deployment is a persistent organization-owned model service. The owner selects its model and serving configuration, grants application access, and starts it under a standing hosting policy. It remains available until stopped, its optional stop time arrives, or an operational limit prevents service. Healthy replacement workers continue the same service automatically.
 
 | Identity | Meaning | Changes when |
 | --- | --- | --- |
-| `deployment_id` | Organization-owned configured model service | A separate service is created |
-| `deployment_revision_id` | Immutable source, serving recipe, connection delegation and financial policy | Any behavior-relevant source, template, quantization, runtime, credential binding, endpoint or charging policy changes |
-| `activation_id` | One explicitly funded, finite period of permitted use | A new period is authorized; restarting does not silently replace an old period |
+| `deployment_id` | Stable configured service used by applications | A separate service is created |
+| `deployment_revision_id` | Immutable model source and behavior-relevant serving recipe | Weights, tokenizer, template, quantization, runtime image/settings or external model target change |
 
-All three are UUIDs. Identifiers are references, never authority. The owning organization comes from authenticated context, never a client-controlled organization field. Revision identity is distinct from the source's full HF commit, runtime image digest and manifest SHA-256. Their values are recorded independently.
+Both are UUIDs. Revisions record the full Hugging Face commit and pinned runtime image independently. Credential rotation within the same authorized connection, worker/process restarts, equivalent allowed hardware replacement, capacity changes and operational spending policy do not create a model revision. Changing a provider account or connection still requires its owner's authorization; changing an external endpoint/model reference creates a revision.
 
-Initial managed deployment supports customer-funded RunPod Serverless load balancing with a pinned vLLM recipe. Imported endpoints use `openai_chat` after qualification, with externally managed lifecycle. Macrofold does not make OpenLegend's fictional rules, refusal preferences, NPC purposes or audience policy platform-wide. Model servers are not native-agent Workers, Worktrees or HostRuns.
+Ordinary callers select `deployment_id`. They may supply `deployment_revision_id` when they intentionally require that exact version. Macrofold resolves and saves the actual revision once during Run admission. An accepted request retains that revision even if the service is subsequently updated. Boot IDs and hardware observations are diagnostics, never caller approval tokens or reasons to discard an otherwise valid answer.
 
-The initial deployment has at most one nonterminal activation. Each activation has one bounded qualification suite and one immutable certificate; verified endpoints also pin the authenticated serving-process boot. Observed boot/source/runtime drift or a connection credential-generation change closes admission and starts the same stop/cleanup path. Continued use requires a fresh quote and activation, even when the model revision is unchanged. This trades automatic recovery for reproducible, explicitly funded experiments. An unverified external endpoint cannot prove or fence unseen process changes. A stopped activation cannot be restarted or renewed. Preserve previous immutable revisions/receipts for their actual retention requirements, not a pre-launch compatibility layer.
+Initial managed hosting is customer-funded RunPod Serverless Load Balancer with a pinned vLLM recipe. Imported OpenAI-compatible endpoints are also production targets under their owner's declared capabilities and hosting responsibility. Model servers remain separate from native-agent Workers, Worktrees and HostRuns. OpenLegend owns character context, fictional rules, output validation and application effects.
 
 ## 2. Authorization
 
-Add resource scopes `model-deployments:read`, `model-deployments:use` and `model-deployments:write` to existing principal/scope handling. Write includes configuring, quoting, explicitly funding, stopping and retiring a deployment; use does not imply write. Creation/activation requires a principal permitted to authorize the selected compute and source connections. Ordinary inference also retains current `runs:write` admission and `runs:read` retrieval controls.
+Add `model-deployments:read`, `model-deployments:use` and `model-deployments:write` through existing scope handling. Use permits inference, not provider administration or starting capacity. Inference retains existing `runs:write` admission and `runs:read` retrieval controls. Management MCP remains read-only.
 
-Use grants are stored on the deployment, scoped to explicit organization principals/API keys and allowed workspace IDs. A game backend receives read/use plus its existing Run authority, never compute/HF secrets or deployment write permission. A wildcard workspace grant is an explicit owner choice; it is not the default. `workspace_id` must be supplied for a workspace-restricted grant.
+The first release uses one owner for the deployment and every selected private HF, compute and endpoint connection, checked against existing `owner_subject_id`. Public HF sources need no connection. An owner-authorized configuration operation creates the narrow connection-to-deployment delegation server-side; an organization admin cannot implicitly spend another member's credentials. Cross-owner composition is outside this delivery.
 
-For passive deployment/revision/activation reads and lists, transport that context as a single `workspace_id` UUID query parameter. For inference, use the existing top-level body field. The server verifies the workspace belongs to the authenticated organization, is within the key/session's existing restrictions, and matches a current deployment grant; the query/body value is a selector, not proof of membership. Omission is allowed only for the deployment owner with unrestricted workspace authority or an explicit all-workspaces grant. Read projections for a use recipient omit other recipients and connection-owner metadata. OpenLegend obtains the value from trusted server configuration, never player input. Deployment-use authority does not grant access to another caller's Runs.
+A game backend receives deployment read/use and its normal Run rights. It receives no upstream credentials. Source registration, credential entry/rotation and secret storage use existing encrypted connections. Neither runtime images nor responses, logs, URLs or prompts contain provider-account secrets.
 
-### Initial owner and grant model
+### Application grants
 
-Keep the first release small: the authenticated deployment owner must also be the existing `owner_subject_id` of every selected private HF, compute and external-endpoint connection. Public HF sources need no connection. Creating a deployment/revision records a server-created delegation from that exact owner to that deployment and credential binding; it does not require a nonexistent preexisting delegation API. Cross-owner connection composition and transfer are unsupported initially. Organization administration alone cannot satisfy this check. Broadening access or creating/funding resources also requires existing connection-write, deployment-write and owner/admin membership; an owner retaining the relevant write authority may narrow access or stop outstanding capacity after demotion.
+Reuse existing resource-grant machinery where it represents these facts. `access` is `{grants: GrantInput[]}`, including an explicit empty array for no application access. Each input has:
 
-`access` is exactly `{grants: GrantInput[]}`. It defaults to no third-party access only when the UI explicitly submits `grants:[]`; the field itself is required. Each `GrantInput` contains `subject` and `workspace_scope`:
+- `subject`: `{kind:"subject",subject_id:UUID}` or `{kind:"api_key",api_key_id:UUID}`, referring to a current organization member/key.
+- `workspace_scope`: `{kind:"selected",workspace_ids:UUID[]}` with 1–100 distinct authorized IDs, or explicitly selected `{kind:"all"}` with unrestricted owner authority.
 
-- `subject` is exactly `{kind:"subject",subject_id:UUID}` or `{kind:"api_key",api_key_id:UUID}`. Resolve existing current organization membership/key identity; never accept an email, display name or arbitrary external ID.
-- `workspace_scope` is exactly `{kind:"selected",workspace_ids:UUID[]}` with 1–100 distinct authorized workspaces, or `{kind:"all"}`. The latter requires unrestricted owner authority and explicit UI selection. No wildcard string or implicit union across another grant's subject is accepted.
-- Every grant permits read/use only, never write, credential administration or spending. Maximum 100 active grants per deployment; duplicate subject/scope combinations return 409. The owner has management/read authority; its inference use still needs an explicit grant.
+Each grant permits read/use only. The initial maximum is 100 active grants per deployment, using existing pagination/bounds conventions. The server returns `grant_id`, normalized input, actor/time and revocation state. Create and revoke by grant ID; duplicate active subject/scope grants conflict. The owner has management access and must also grant any application identity used for inference.
 
-The server returns immutable `grant_id`, normalized input, `created_at`, `created_by_subject_id` and nullable `revoked_at`. `GET /{id}/grants` returns the owner's cursor-paginated full list; recipients see only their effective access through ordinary safe projections. `POST /{id}/grants` creates one exact grant, and `DELETE /{id}/grants/{grant_id}` revokes that grant idempotently. Only the deployment/connection owner with deployment-write may mutate. Grant identity rather than a mutable collection replacement prevents lost updates; there is no grant PATCH. Changed recipient/workspace scope means revoke then create. Revocation is immediate for future dispatch/publication. Additions apply to the next activation: a quote freezes grant IDs/digests, and an activation's maximum use scope never expands beyond that snapshot. A stale quote after an access change must be replaced; it cannot fund recipients the owner has not reviewed.
+Current grants apply to current service immediately. Grant addition does not restart hosting; revocation fences future dispatch/publication under existing authorization rules. Changing access does not require a new hosting session, model revision or financial quote.
 
-Revoking a use grant blocks later dispatch/publication under existing authorization rules, but does not revoke the narrowly retained system cleanup capability needed to stop outstanding capacity. Revoked/invalid provider credentials make cleanup uncertain, not successful.
+Workspace-scoped GETs carry one `workspace_id` UUID query parameter; inference uses its existing top-level field. Validate organization, key/session workspace restrictions and current resource grant together. Omission is allowed only with unrestricted owner authority or an explicit all-workspaces grant. OpenLegend supplies trusted backend configuration, never a player's asserted workspace.
 
-All operations use the existing API-key/session/customer-OAuth boundaries as applicable; management MCP remains read-only. Source/compute registration and credential entry use existing encrypted connection mechanisms. Request bodies, projections, traces and receipts contain connection IDs, never secret values.
+Use-recipient projections omit other recipients and connection-owner details. Run access remains independent. Revoking application access must not erase the narrow cleanup authority for already-owned paid resources. If the upstream credential itself is revoked, report unresolved cleanup honestly.
 
 ## 3. Control operations
 
-Prefix all paths below with `/v1/model-deployments`. Every state-changing operation requires `Idempotency-Key`, persisted before external effects. Identical key/body returns the same logical object; changed body conflicts. Provider uncertainty never authorizes a second create. GETs are passive reads of persisted/projected state and must not wake an endpoint. Exact resource identities, transactional lifecycle preconditions and idempotency own concurrency; no additional mutable `expected_revision` field is needed for this API.
+Prefix paths with `/v1/model-deployments`. Mutations use existing `Idempotency-Key` persistence before external effects: identical input returns the same operation, changed input conflicts. Read-only inspection is the exception. GETs read persisted/projected state; they never create capacity or generate tokens.
 
-| Method/path | Body and result | Authority and side effect |
+| Method/path | Input and result | Effect |
 | --- | --- | --- |
-| `POST /inspect` | Source-only `{source,task:"text_generation",runtime_preferences?}`; 200 advisory support/profile/hardware options | Write; bounded HF metadata only, no GPU or model call, no resource mutation/idempotency requirement |
-| `POST /` | Create body below; 201 returns deployment and first revision; unsupported selection returns 422 | Write; HF metadata resolution allowed, no GPU provisioning |
-| `GET /` | Existing cursor pagination conventions; summaries only | Read; no provider probe |
-| `GET /{id}` | Deployment, current revision ID and optional active activation ID | Read; no credentials, prompts or implicit warmup |
-| `POST /{id}/revisions` | Same source/runtime/hosting specification as create; 201 immutable revision | Write; no active configuration replacement |
-| `GET /{id}/revisions/{revision_id}` | Immutable resolved source/recipe and declared limits | Read |
-| `GET /{id}/grants` | Cursor-paginated immutable grants and revocation state | Owner read; no secret access |
-| `POST /{id}/grants` | One `GrantInput`; 201 grant | Owner write; additions apply to future activations |
-| `DELETE /{id}/grants/{grant_id}` | 200 revoked grant | Owner write; current-use revocation is immediate |
-| `POST /{id}/quotes` | Exact quote input below; 201 quote | Owner write; metadata/catalog only, never GPU startup |
-| `POST /{id}/activations` | `{quote_id, quote_digest, authorization_expires_at, qualification_suite_id}`; 202 activation | Write plus exact funding authority; explicit paid provisioning/startup/probes |
-| `GET /{id}/activations/{activation_id}` | Activation projection below | Read/use; no provider inference or cold start |
-| `POST /{id}/activations/{activation_id}/stop` | `{reason:"operator_requested"}`; 202 same activation | Write; closes admission immediately, reconciles drain/teardown asynchronously |
-| `POST /{id}/activations/{activation_id}/cost-reconciliations` | Owner-verified provider evidence and complete amount below; 201 immutable reconciliation | Owner write; accounting evidence only, no model or provider mutation |
-| `GET /{id}/activations/{activation_id}/cost-reconciliations` | Owner-only cursor-paginated evidence/supersession history | Owner read; recipients use safe activation cost fields instead |
-| `DELETE /{id}` | 202 retirement intent, 200 once retired | Write; stops active capacity first; never erases unresolved financial evidence |
+| `POST /inspect` | `{source,task:"text_generation",runtime_preferences?}`; 200 support findings and options | Bounded HF/catalog metadata; no GPU or generation |
+| `POST /` | `{name,source,runtime,hosting,access}`; 201 deployment and first revision | Metadata only; initially stopped |
+| `GET /` | Existing cursor pagination | Safe summaries |
+| `GET /{id}` | Deployment/service projection below | Cached status and selected revision capabilities |
+| `POST /{id}/revisions` | `{source,runtime,hosting}`; 201 immutable revision | Does not switch the running model |
+| `GET /{id}/revisions/{revision_id}` | Immutable resolved configuration | Safe source/runtime details |
+| `GET /{id}/grants` | Owner-only cursor-paginated grants | No secret access |
+| `POST /{id}/grants` | One `GrantInput`; 201 grant | Current read/use access |
+| `DELETE /{id}/grants/{grant_id}` | 200 revoked grant | Immediate narrowing |
+| `PUT /{id}/service` | `{deployment_revision_id,desired_state,policy}`; 202 service projection | Owner-authorized start, update, recovery configuration or stop |
+| `DELETE /{id}` | 202 retirement, 200 once retired | Stops owned capacity; retains required history/liabilities |
 
-Activation HTTP 202 is a control-plane accepted operation. Inference HTTP 202 retains its different, existing meaning: an already admitted Run executing/recovering. API docs and clients must distinguish these response types.
+`desired_state` is `running|stopped`. Both selected revision and policy are explicit on service updates; stopping preserves the stored configuration for a later deliberate start. Serializing each deployment's control mutations through the existing domain owner prevents competing controllers. A later explicit operation may supersede earlier desired state; internal generations fence stale provider completions. The 202 response means reconciliation is accepted, not that a server is already ready or stopped. Inference 202 continues to mean an admitted Run is executing/recovering.
 
-Control errors use the existing error envelope: 400 `invalid_model_deployment` for invalid strict input; 403 `permission_denied`; 404 `not_found` without leaking another tenant's resources; 409 `deployment_conflict` for a conflicting live lifecycle or duplicate grant; 409 `deployment_quote_stale` for expired/changed quote or grant snapshot; 422 `unsupported_model_source` for a definitive unsupported source/runtime; 422 `invalid_hosting_budget` for insufficient/unpriceable managed authorization; 503 `deployment_provider_unavailable` for transient metadata/provider unavailability. The existing idempotency-key/body conflict remains its current code. Inspection returns 200 with compatibility reasons for definitive unsupported candidates; a timeout is a transient error, never proof a repository is absent or unsupported.
+Control errors use the existing envelope: 400 `invalid_model_deployment`; 403 `permission_denied`; 404 `not_found` without tenant disclosure; 409 `deployment_conflict` for incompatible control work; 422 `unsupported_model_source` or `invalid_hosting_policy`; 503 `deployment_provider_unavailable` for transient dependency failure. Inspection returns 200 with definitive unsupported reasons; a timeout is not proof that a model is unsupported or absent.
 
-### Create and revision inputs
+### Source, runtime and hosting
 
-Create requires `name` (existing resource-name validation), `source`, `runtime`, `hosting`, and `access` as defined above. Revision creation requires `source`, `runtime` and `hosting`; it keeps the deployment's current grants and name rather than redefining them. Server-authenticated owner actions establish delegation; request fields cannot assert someone else's approval. `name` is descriptive, not a unique reconciliation key.
+Managed `source` has `kind:"hugging_face"`, `repository`, optional input `revision`, optional `source_connection_id`, and optional exact `weight_files`, separate `tokenizer` repository/revision and reviewed `chat_template` selection. Resolve a tag, branch or omitted revision to a full commit once; save only canonical repository/full commit. Use that pin for all model/tokenizer/template downloads.
 
-`source` for managed hosting:
+Accept `owner/repository` or `https://huggingface.co/{owner}/{repository}`, optionally `/tree/{revision}`. Reject credentials, query strings, fragments and arbitrary hosts. An explicit revision and URL revision must agree. Revisions containing slashes use the explicit field. Reject dataset/Space pages, path traversal and ambiguous weight variants with actionable findings. Follow only the source adapter's approved HF metadata/download hosts.
 
-- `kind:"hugging_face"`.
-- `repository`: canonical `owner/repository`, or a supported HTTPS HF model URL at the initial UI/API boundary; the saved revision contains only canonical ID.
-- `revision`: optional full commit/tag/branch at inspection; omitted means resolve the current default branch **once**. Persist the resulting full commit; never run an unpinned default.
-- `source_connection_id`: optional authorized HF connection for private/gated access.
-- `weight_files`: optional exact repository-relative filenames to resolve quantization ambiguity. Reject traversal, symlink escape and ambiguous variants; never guess the largest/latest snapshot.
-- `tokenizer`: optional separate repository/revision using the same rules; otherwise bind model repository/full commit.
-- `chat_template`: repository-relative file at a pinned commit, or registered reviewed template ID; absent means use the pinned tokenizer template. A missing required template is an unsupported reason, not invented prompt syntax.
-- `license_acknowledgment`: when inspection requires terms review, `{repository,revision,license_evidence_sha256,assertion:"owner_reviewed_and_accepted"}` matching the exact resolved source and inspection evidence. The authenticated owner submits this explicit declaration; the server stores its own acknowledgment ID, actor/time and evidence digest. It is not a reference to an assumed preexisting API or permission to accept terms for another account. A model card's label is evidence, not a grant.
+Inspection reports task/architecture/format compatibility, required template/access, supported profiles and memory estimates including context/concurrency KV cache and loading overhead. Owner confirmation covers the pinned model's license/terms when required, using `license_acknowledged:true` and server-recorded actor/time/source evidence. A declaration neither invents a missing license nor accepts HF gate terms for another account; upstream gated access must work with that owner's credential. Model-card prose is data, never executable startup instructions.
 
-Accept canonical `https://huggingface.co/{owner}/{repo}` and `/tree/{revision}` model pages, without credentials, query strings, fragments or arbitrary hosts. A literal source `revision` and URL revision must agree. Dataset, Space and API-only pages report unsupported source/task. Git revision strings with slashes use the explicit field rather than ambiguous URL parsing. Follow HF's trusted metadata/download hosts under the source adapter's network policy; do not turn model URLs into arbitrary HTTP fetching.
+Managed `runtime` is an immutable registered `profile_id` and typed, reviewed `parameters`: context/output capacities, dtype/quantization, tensor-parallel layout, batching/concurrency and supported parser/template options. The profile owns its OCI digest, supported architectures/formats and parameter schema. Initial profiles load compatible safetensors with remote code disabled. Arbitrary shell commands, images and repository Python execution are outside this first managed path; imported endpoints provide the extension for other engines.
 
-`runtime` is a registered immutable `profile_id` plus reviewed typed `parameters`: context/output capacities, dtype/quantization, GPU tensor-parallel count, batch/concurrency limit, selected tokenizer/template and optional supported reasoning/tool parser. No arbitrary container image, shell, Python module, executable command or `trust_remote_code:true` in the first managed path. Profile manifests name the OCI image digest, runtime version, allowed architectures/weight formats and parameter schema. Repository content never determines executable startup instructions.
+`hosting` is one of:
 
-`hosting` is a strict union:
+- `{kind:"runpod_serverless",compute_connection_id,placement:{region_ids,gpu_pool_ids,gpu_count}}`. Provider DTOs stay private. Region IDs are preferences, not a residency guarantee. Hardware alternatives must fit the selected model/runtime and authorized rate; actual hardware is observable operational data.
+- `{kind:"external_openai",endpoint_connection_id,model_alias,lifecycle:"external"}`. Origin/auth live in the protected connection. An immutable external source records `kind:"external"`, nullable declared repository/revision and declared capabilities. Its runtime records `kind:"external"` and nullable operator-declared engine/version. No Macrofold wrapper or artifact certificate is required for production use.
 
-- Managed: `{kind:"runpod_serverless",compute_connection_id,placement:{region_ids,gpu_pool_ids,gpu_count},max_replicas:1}`. Actual RunPod payloads are private adapter types, not public contract fields. Quote resolves catalog availability/pool rates and checks memory fit; it does not guarantee capacity. Region IDs are placement preferences, not a residency guarantee. Freeze eligible hardware types separately from the pool's hourly price and reject/clean up unaccepted observed hardware before application readiness; startup may already be billable.
-- Imported: `{kind:"external_openai",endpoint_connection_id,model_alias,lifecycle:"external"}`. Source information is operator-declared evidence unless independently verified by the compatible wrapper. URL/auth live in the restricted endpoint connection. Activation may qualify/use it but cannot claim to start, stop or pay for its owner-managed server.
+External sources have honest operator-declared provenance; unknown HF commit, runtime digest and hardware stay unknown. The initial route is for separately owned/paid hosting with no additional per-request provider tariff, declared by the endpoint owner. Commercial metered API pricing continues through an accounted provider adapter. Macrofold's zero separate request charge never claims that an external host is free.
 
-Imported `source` uses `kind:"external"`, `declared_repository`, `declared_revision` and optional manifest reference. Unknown fields remain null with an explicit evidence level. No fabricated source SHA, runtime digest or local-compute cost. Initial imported route requires a zero-per-request-fee declaration tied to its owner; a separately metered third-party API uses the existing provider path until its tariffs have a real adapter.
+### Standing service policy
 
-### Inspection and quote
+For managed hosting, `policy` contains:
 
-Source-only inspection makes the paste-link journey possible before a runtime or GPU is chosen. It yields `support_status:"supported"|"unsupported"|"needs_operator_input"`, `reason_codes`, resolved source, estimated disk/VRAM requirements and possible registered profiles. The UI may preselect the least expensive adequate supported profile, but shows assumptions and the quote before paid activation. Create accepts the selected complete specification and revalidates its pinned resolution; an inspection is not spend authority or a deployable promise. Unsupported inspection is not a provisioned deployment. Reasons distinguish unsupported task/architecture/format, absent weights, missing template, gated access, unresolved license, remote-code dependency and inadequate memory. Memory sizing includes weights, runtime overhead, KV cache for declared context/concurrency, temporary loading requirements and GPU topology; parameter count alone is insufficient.
-
-Inspection exposes `license_evidence_sha256` over canonical license metadata and the available pinned license-file digests/terms URLs. Missing or ambiguous terms stay `needs_operator_input`; an acknowledgment does not invent a license. For gated artifacts, the owner completes any required acceptance on Hugging Face itself. The adapter verifies actual download access with the exact owner connection; Macrofold neither auto-accepts upstream terms nor treats a checkbox as HF authorization. Separate tokenizer/template licenses follow the same rule and are included in the acknowledged evidence manifest.
-
-Quote input is `{deployment_revision_id,duration_seconds,max_infrastructure_cost_micro_usd,qualification_suite_id,external_cost_acknowledgment?}`. Managed budget must be a positive micro-USD string; imported budget may be null. The optional field is allowed only for imported hosting and is required there: `{assertion:"owner_manages_host_and_confirms_zero_request_fee",cost_status:"known"|"estimated"|"unknown",declared_host_cost_micro_usd:string|null}`. Known/estimated amounts describe this requested authorization period, not a request tariff; unknown requires null. The authenticated endpoint owner explicitly acknowledges separate lifecycle, host cost and absence of a Macrofold cap. The server records its own acknowledgment ID/actor/time/evidence digest and includes it in the immutable quote. No extra acknowledgment-creation service is required.
-
-A quote contains `quote_id`, `quote_digest`, `deployment_revision_id`, `created_at`, `expires_at`, `authorization_expires_at`, `duration_seconds`, `max_infrastructure_cost_micro_usd`, `rate_snapshot`, `startup_timeout_seconds`, `drain_timeout_seconds`, `cleanup_reserve_micro_usd`, `qualification_suite_id`, `qualification_max_requests`, `qualification_max_output_tokens`, `request_charge_micro_usd:"0"`, `funding_mode:"byok"`, and `external_cap_guaranteed:false`.
-
-USD amounts use nonnegative integer micro-USD decimal strings, never floating point. Duration and managed-hosting budget are explicit positive operator inputs, not a default perpetual server. Set `authorization_expires_at = created_at + duration_seconds`; this finite wall-clock period includes startup, qualification, use and teardown. Set the quote acceptance deadline `expires_at` to the earlier of `created_at + 300 seconds` and `authorization_expires_at - startup_timeout_seconds - drain_timeout_seconds`; reject a nonpositive useful window. An activation echoes the exact `authorization_expires_at` and quote digest and must be accepted before `expires_at`; waiting never extends the funded period. Set `admit_until = authorization_expires_at - drain_timeout_seconds`, reducing it further if cost exposure requires earlier shutdown. An admitted request's execution deadline must precede `admit_until`.
-
-Managed quotes fix all allowed placements and use the highest eligible rate/GPU count, maximum replicas, startup, idle, execution, storage and cleanup assumptions. Ambiguous managed pricing/storage or insufficient authorized budget rejects activation. No automatic larger GPU, region, replica count, alternate account or spend increase.
-
-The cleanup reserve is **inside**, not in addition to, `max_infrastructure_cost_micro_usd`. For budget `B`, reserve `R` and cumulative conservative cost `C(t)` through time `t` excluding the same future reserved cleanup interval, derive the latest budget admission time satisfying `C(t) + R <= B`. `admit_until` is no later than that time or the finite wall-clock boundary above. Requests share this host commitment; concurrent calls do not each reserve another whole GPU interval. A maintenance deadline starts shutdown at the boundary even with zero incoming calls. Unknown new exposure closes admission and retains the liability; it does not erase the original commitment or claim a guaranteed external cap.
-
-Imported endpoints use the same finite use authorization but purchase no capacity. Their `rate_snapshot` and `max_infrastructure_cost_micro_usd` may be null, `cleanup_reserve_micro_usd` is `"0"`, and the server-created `external_cost_acknowledgment_id` identifies the inline owner declaration above. This is not a zero-cost claim or a Macrofold spending cap. Stop revokes use and cancels Macrofold's requests, without terminating the external server.
-
-The activation request must match the quote's bounded probe suite. Readiness probes that generate tokens consume that activation's authorization; discovery does not run them. Quote calculation and approval do not guarantee a hard external dollar ceiling: shutdown failures and delayed charges remain possible and must be shown before activation.
-
-### Activation projection
-
-Required fields:
-
-| Field | Type/meaning |
+| Field | Meaning |
 | --- | --- |
-| `deployment_id`, `deployment_revision_id`, `activation_id` | Exact UUID triple |
-| `state` | `provisioning`, `warming`, `qualifying`, `ready`, `draining`, `stopped`, `failed` or `cleanup_pending` |
-| `admission_open` | Boolean; only true for ready, current, authorized, unexpired capacity |
-| `authorization_expires_at`, `admit_until` | UTC RFC3339 timestamps; admission stops early enough for authorized cleanup |
-| `artifact_manifest_sha256` | Hex SHA-256 or null when unattested; never hash of alias alone |
-| `runtime_image_digest` | Pinned OCI digest or null for unverified external runtime |
-| `identity_evidence` | `verified_manifest` or `operator_declared` |
-| `qualification_id` | This activation's immutable certificate UUID; null before qualification |
-| `capabilities` | Certificate below, null until established |
-| `serving_observation` | Immutable qualified `{observed_at,worker_boot_id,served_model_alias,hardware:{accelerator_kind,model,count,memory_bytes,data_center_id}}`; null before qualification |
-| `cost_policy` | `{basis:"deployment_activation",funding_mode:"byok",request_charge_micro_usd:"0",infrastructure_cost_included:false}` |
-| `accepted_terms` | Immutable nonsecret accepted commitment described below; never reconstructed from today's price or a current grant |
-| `infrastructure_cost` | `{status,estimated_micro_usd,provider_reported_micro_usd,reconciled_micro_usd,reconciliation_id,reconciliation_basis,unresolved_liability,as_of}`; unknown numeric values and absent reconciliation fields null |
-| `failure_code` | Stable code or null; human-readable redacted detail optional |
+| `min_replicas` | Positive integer; default 1 warm worker for interactive use |
+| `max_replicas` | Explicit positive maximum, at least the minimum; provider-supported bound |
+| `max_concurrent_requests` | Explicit positive application admission cap within configured runtime/provider capacity |
+| `max_hourly_cost_micro_usd` | Positive integer micro-USD decimal string authorizing a maximum planned infrastructure rate |
+| `stop_at` | Optional UTC RFC3339 timestamp or null; null means ongoing operation |
 
-Infrastructure status is `estimated`, `provider_reported`, `reconciled`, `external_unknown` or `uncertain`. A stopped resource can still have uncertain accounting. `reconciled` requires accepted account/invoice evidence for the entire activation and residual resources; elapsed time or a quiet hourly billing bucket is not finality. Estimates and provider reports overlap; never add them together.
+Managed running capacity is warm in this initial path; stopping sets provider worker bounds to zero and reconciles teardown. There is no single-replica product ceiling. Provider-native scaling and vLLM batching operate within these bounds; Macrofold does not schedule individual GPUs.
 
-`reconciliation_id` is the current accepted immutable record UUID; `reconciliation_basis` is `owner_attested_provider_evidence` or null; `reconciled_micro_usd` is its exact accepted total, not an additional charge. On reopened uncertainty retain the last record as history, but clear these current-final fields until a superseding reconciliation is accepted. An authorized owner may inspect the append-only history; the safe use projection exposes only the current-final values, `status`, uncertainty and observation time. Consumers retaining prior snapshots can preserve their supersession trail without invoice or owner-only access.
+For external hosting, policy contains `max_concurrent_requests` and optional `stop_at`; replica and rate-control fields are absent because Macrofold cannot enforce that host's lifecycle or bill. The owner confirms external hosting responsibility during configuration.
 
-`accepted_terms` contains the quote's exact `quote_id`, `quote_digest`, `duration_seconds`, `authorization_expires_at`, `max_infrastructure_cost_micro_usd`, `cleanup_reserve_micro_usd`, `startup_timeout_seconds`, `drain_timeout_seconds`, `rate_snapshot`, `qualification_suite_id`, `qualification_max_requests`, `qualification_max_output_tokens`, `request_charge_micro_usd`, `funding_mode`, `external_cap_guaranteed`, plus nullable `external_cost_acknowledgment_id` and `external_cost_acknowledgment` (the safe normalized declaration). It exposes neither provider secrets nor other recipients. OpenLegend reads this projection once with the immutable revision and reserves the accepted maximum commitment; it never infers an allocation budget from a request receipt or recomputes it from current catalog prices. `external_cap_guaranteed:false` means a strict cannot-exceed-total-liability study must reject this mode. A planning-bound study may reserve the quoted commitment while explicitly retaining residual shutdown liability and later overruns.
+Service enablement and policy increases require the exact owner's deployment/connection authority. Before managed start/update, calculate maximum planned rate from all eligible GPU offers, GPU count, maximum replicas and required storage meters using fresh provider data. Reject an unpriceable configuration or one over the submitted ceiling. Persist the accepted rates/units with the service operation. A changed quote is not another public resource: the submitted policy is the authorization, and any higher required ceiling requires a deliberate owner update.
 
-`rate_snapshot` is null for unpriced external hosting; managed snapshots contain `observed_at`, `source_url`, `currency:"USD"`, `gpu_pool_offers:[{pool_id,eligible_gpu_type_ids,rate_micro_usd_per_gpu_hour}]`, selected `gpu_count`, `max_replicas`, and `meters:[{kind,unit,rate_micro_usd,billing_quantum_seconds,rounding:"ceil_per_worker_epoch"|"ceil_per_resource_epoch"}]`. Include every required storage/compute meter, its exact unit and provider period conversion; do not encode a monthly storage price as an hourly rate without recording that conversion. Public amounts are decimal strings. The technical design owns conservative calculation and uncertainty for unobserved replacement workers.
+Standing authorization permits health recovery, credential refresh and replacement capacity within the same selected source, account and limits. It never permits silently upgrading to a larger unapproved GPU or raising replicas/rates. Backoff and a startup-failure circuit breaker prevent repeated paid failing starts; remaining healthy replicas can serve. Failed/ambiguous creates are reconciled before any new create. A stopped service cannot be awakened by an inference request.
 
-### Operator cost reconciliation
+The hourly ceiling is a rate/capacity guard, **not a lifetime or provider-guaranteed dollar cap**. Ongoing warm capacity continues billing while idle. Show estimated hourly/daily/monthly cost and provider-account spending controls before start; optional `stop_at` supports finite use without making all production sessions expire. Provider outages, delayed billing and shutdown tails remain explicit uncertainty. No monthly ledger, invoice-attestation workflow or experiment reservation is required to operate the service.
 
-RunPod billing observations have no automatic finality flag. The minimal completion workflow is the owner-authenticated `cost-reconciliations` operation above. Its strict body is `{total_infrastructure_cost_micro_usd,coverage_start,coverage_end,provider_resource_ids,evidence:{kind:"provider_invoice"|"provider_statement",provider_reference,evidence_sha256},assertion:"owner_verified_complete_activation_cost",supersedes_reconciliation_id?}`. Amounts are nonnegative micro-USD strings; timestamps and resource IDs must cover this activation's known paid epochs and residual owned resources. For managed hosting the server verifies ownership, confirmed compute shutdown, complete resource coverage and absence of unresolved provisioning/cleanup before accepting the attestation. For external hosting it verifies that Macrofold use and known requests have ended and that the evidence covers the declared attribution period; it does not require or claim shutdown of a shared external host. External resource IDs may be empty only when the evidence instead identifies the exact endpoint-connection revision and activation. An ambiguous shared-account invoice or overlapping unallocated host bill cannot be asserted as an exact activation total; preserve an estimate/unknown amount until attributable evidence exists.
+### Deployment projection
 
-The owner reviews the actual provider statement/invoice and records its opaque reference and SHA-256; these are audit evidence references, not URLs the API fetches or public invoice contents. Store actor/time and exact body digest server-side. Append an immutable `reconciliation_id`; return 201 and expose `reconciliation_basis:"owner_attested_provider_evidence"` with the safe cost projection. This records who accepted final cost, not an independent Macrofold audit of the provider. It does not charge the account again or fabricate a per-request invoice. Unknown external host cost remains `external_unknown` until equally attributable evidence exists; operator preference alone cannot turn unknown cost into zero.
+`GET /{id}` returns safe metadata plus:
 
-Corrections append a new record with `supersedes_reconciliation_id`; they never rewrite old observations, receipts or journals. A newly received conflicting charge/resource observation reopens uncertainty and blocks a final-cost claim until corrected. OpenLegend can finish qualitative evaluation earlier, but any final-dollar qualification remains explicitly pending until this evidence workflow completes. Owner acknowledgment is an authorized accounting operation, not an implicit step in inference or shutdown.
+| Field | Meaning |
+| --- | --- |
+| `deployment_id` | Stable UUID |
+| `desired_state`, `desired_revision_id` | Owner's current target |
+| `serving_revision_id` | Actually selected ready revision, or null while none can serve |
+| `state` | `stopped|starting|ready|degraded|stopping|failed|cleanup_pending` |
+| `admission_open` | Whether new calls can be accepted; authoritative admission still rechecks |
+| `capabilities` | Capabilities of the serving revision, or null until one is ready |
+| `policy` | Nonsecret standing limits |
+| `ready_replicas`, `observed_at` | Observed availability and timestamp; nullable for external hosting |
+| `cost_policy` | `{basis:"deployment",request_charge_micro_usd:"0",infrastructure_cost_included:false}` |
+| `infrastructure_cost` | `{period_start,period_end,estimated_micro_usd,provider_reported_micro_usd,status,as_of,unresolved_liability}` |
+| `failure_code` | Redacted operational reason or null |
 
-Readiness can become false without changing a revision, for example after capacity loss or revocation. A ready projection is advisory for OpenLegend startup; Macrofold rechecks current authority, activation generation, deadline, cost exposure and capacity in its own dispatch admission. Do not poll management APIs on every NPC turn.
+Cost period boundaries and observations use UTC timestamps; unavailable values are null. Cost status is `estimated|provider_reported|external_unknown|uncertain`. Estimated and reported amounts can overlap and are never added together. Background observations are not an invoice-finality guarantee. Unknown costs and incomplete shutdown do not invalidate completed model answers.
 
-The immutable revision describes requested source/runtime/placement; `serving_observation` records actual qualified process/hardware evidence. `accelerator_kind` is `gpu`, `cpu` or `unknown`; other hardware values may be null when external evidence cannot establish them, and `memory_bytes` uses a nonnegative decimal string. Managed readiness requires observed GPU/count/location to satisfy the accepted offer. Neither a replacement worker nor a later status read can rewrite this activation's qualified observation or historical receipts. Unverified external boot identity remains null and explicitly operator-declared; it cannot satisfy a verified-serving requirement. Never report requested pool/region as measured hardware.
+A revision change first closes new admission and drains accepted calls under their original deadlines. The initial rollout may briefly interrupt service: stop/reconcile old capacity, then start the new revision, keeping its ready pointer separate from desired state. Do not update a live endpoint's image/weights in place and mix revisions. No automatic model substitution or new rollout framework is required. Rollback selects a prior immutable revision through the same service operation.
 
-## 4. Capability certificate
+## 4. Capabilities and readiness
 
-One immutable certificate binds source/runtime/parameters, qualification suite and results for the activation's finite lifetime. Verified endpoints additionally bind the authenticated boot before the suite's first generation request; both qualification and application requests require the wrapper to reject another boot before invoking the engine. Drift closes admission rather than scheduling another paid suite. Operator-declared external endpoints without that evidence retain their offline limitation. The activation exposes:
+Capability metadata belongs to the deployed recipe, not a process-specific certificate. Managed profiles derive it from supported runtime/configuration; external owners declare it. Startup checks actual loading and authenticated endpoint health, with bounded background health refresh. Synthetic live acceptance verifies the implementation and advertised features before release; an experiment suite does not run before every start, restart or NPC call.
 
-- `protocol:"openai_chat"`; supported `input_modalities:["text"]` initially.
-- `chat_completions:boolean`, `json_object:boolean`, `json_schema:boolean`, `tools:boolean`, `streaming:boolean`, `stream_usage:boolean`.
-- `schema_keywords:string[]` and `schema_dialect:string|null`: actual qualified grammar support, not a claim that every JSON Schema is valid.
-- `context_window_tokens`, `max_output_tokens`, `max_concurrent_requests`: positive integers reflecting deployed settings and qualification.
-- `accepted_parameters:string[]`, `reasoning_mode:string|null`, `tool_parser:string|null`, `tokenizer_manifest_sha256:string|null`.
-- `qualified_at`, `suite_id`, `suite_digest`, `certificate_digest`.
+Expose `protocol:"openai_chat"`, supported `input_modalities`, booleans `chat_completions`, `json_object`, `json_schema`, `tools`, `streaming`, `stream_usage`, `schema_keywords`, `schema_dialect`, `accepted_parameters`, `context_window_tokens`, `max_output_tokens` and `max_concurrent_requests`. Context/output limits are positive integers; unsupported flags are false, unknown optional details null. Declarations do not prove model quality. API schema validation checks only supported input features; arbitrary provider-native fields are not silently discarded.
 
-Generation quality, fictional refusal rate, lawfulness of actions, calibrated probability and game readiness are **not** platform capability flags. Generic chat does not implement Jev/raw scoring, embeddings or an autonomous tool-executing harness. The native-agent catalog's 128k minimum does not apply to this single-call path.
+Known unsupported formats/parameters reject before dispatch. Actual provider context enforcement and normal response validation remain authoritative; do not duplicate tokenizer/grammar implementations or add a tokenization/manifest request to every call. Managed profiles disable silent truncation. Imported servers must honor declared bounds, expose context errors and avoid silently trimming the application's input, verified during integration acceptance under operator trust.
 
-OpenLegend in-game use requires the exact structured-output dialect and schema features it actually sends. A model that supports only plain chat may enter an explicitly labeled offline screen, not silently receive a weaker in-game contract. Synthetic capabilities and runtime health do not qualify character quality.
+Plain-text-only models are valid production targets for consumers that can use them. OpenLegend can explicitly choose prompted JSON and retain its identical local schema/world validation; Macrofold does not inject that game policy or silently downgrade a caller's strict schema request. Generic chat does not implement Jev/raw scoring, embeddings or a tool-executing native harness. The separate native-agent catalog's 128k minimum does not apply.
 
 ## 5. Shared inference request
 
-Extend inference binding, not the decision-binding registry. `InferenceBinding` is an exclusive union of the current catalog provider object and the following deployment object. `DecisionBinding` remains restricted to its actual decision protocols.
+Extend `InferenceBinding` as an exclusive union with the existing catalog-provider binding. Do not widen `DecisionBinding` beyond its implemented decision protocols.
 
 ```json
 {
   "workspace_id": "11111111-1111-4111-8111-111111111111",
   "model_binding": {
-    "deployment_id": "22222222-2222-4222-8222-222222222222",
-    "deployment_revision_id": "33333333-3333-4333-8333-333333333333",
-    "activation_id": "44444444-4444-4444-8444-444444444444"
+    "deployment_id": "22222222-2222-4222-8222-222222222222"
   },
   "input": {
     "messages": [
@@ -218,86 +178,80 @@ Extend inference binding, not the decision-binding registry. `InferenceBinding` 
 }
 ```
 
-This is a proposed `POST /v1/inferences` body, with existing Bearer authentication and `Idempotency-Key` headers. UUIDs and prompts are illustrative fixtures, not real resources or game instructions.
+This proposed `POST /v1/inferences` uses existing Bearer authentication and `Idempotency-Key`. IDs/prompts are synthetic. An optional UUID `model_binding.deployment_revision_id` requires that exact currently serving revision for a **new** admission. The binding forbids catalog `provider`, `model`, `billing_mode`, connection IDs and endpoint URLs. Omit `input.model`; Macrofold injects the admitted revision's alias. Reject conflicting supplied model fields rather than silently retargeting them.
 
-The deployment binding requires all three IDs and forbids `provider`, `model`, `billing_mode`, `provider_connection_id` or endpoint URLs. The caller omits `input.model`; Macrofold injects the revision's served alias. Reject a supplied native model field rather than silently rewriting a possibly mistaken identity. A saved inference definition, when supported, resolves to this same binding and admission path; it cannot create another bypass.
+Before resolving today's serving revision, look up an existing invocation by its original idempotency key/body through the normal authorization owner. Reuse returns that invocation and its original model revision, including after a rollout or stop. It cannot bind the same invocation to today's model, fail because an old explicit pin is no longer current, or replay the inference. The public request body stays the idempotency identity; server-resolved revision/endpoint is its stored execution snapshot.
 
-The adapter preserves supported customer messages/parameters; it does not add an OpenLegend persona or OpenRouter routing/reasoning fields. Capability checks reject unsupported parameters, modalities, tools, streaming or schema keywords before dispatch. Do not silently drop a parameter, turn strict schema into JSON-object mode, add a repair call or change a reasoning mode.
+For new work, resolve revision, current authority, readiness, concurrency and applicable limits through existing Run admission. Keep source lookup, provider billing polls, full capability probes and hosting reconciliation off this path. Cache immutable revision/prepared metadata, without caching away current authorization. There is one upstream generation request; no per-turn management, manifest or tokenizer HTTP call.
 
-Macrofold checks declared output/context policy and request bytes before Run admission. The authenticated managed wrapper then renders/counts the exact deployed tokenizer/chat template, including the actual model-visible system/schema/tool overhead, in the same upstream request before starting generation. It rejects overflow and never silently trims. This avoids a separate synchronous tokenization HTTP request on every NPC turn. A wrapper rejection after Run admission uses the normal terminal Run with `provider_outcome:"not_invoked"`, `outcome:"failed"` and `reason_code:"context_window_exceeded"`; it does not pretend no Run was admitted or no hosting time accrued.
+Preserve supported messages, sampling parameters, output formats and native response contents. Do not inject a persona, OpenRouter options, experiment settings or repair prompt. Existing multiple-completion/aggregate-output limits remain available when the runtime supports them; OpenLegend ordinarily requests one result. Returned tool calls are data and grant no tool authority.
 
-An imported endpoint must qualify equivalent exact-tokenizer, overflow-rejection and no-truncation behavior for the in-game path. An operator-declared endpoint without that evidence remains an explicitly labeled offline diagnostic path with byte/output/deadline bounds and provider-context errors; approximate token counts are never presented as exact. The direct inference effective timeout remains **at most 240 seconds**, despite the broader shared schema's 300-second bound. Use the smaller of existing limits, qualified runtime capacity, provider ceilings and remaining activation admission time. `max_output_tokens` remains explicit; native max-token fields must be absent or exactly agree.
+Effective execution timeout is at most **240 seconds**, bounded further by current platform, provider and caller limits. Native max-token fields must be absent or agree with the explicit limit. If `stop_at` is set, new work must fit its remaining execution time; background maintenance stops capacity even without incoming traffic. Existing request/response byte bounds and cancellation semantics still apply.
 
-The initial serving profile produces one completion per request (`n=1`) and no runtime-initiated outbound tools. Returned tool calls remain data for the customer's normal authorization/execution path. Sampling seed is recorded when supported; GPU/runtime nondeterminism means the same seed is not a determinism guarantee.
-
-Top-level `stream` continues to select Macrofold's existing native streaming transport. Stream framing, terminal Run receipts, cancellation, retrieval and replay remain the current protocol; do not invent a second SSE envelope. OpenLegend's first integration uses `stream:false` and final validated results. Later public text streaming depends on its separate speech-publication design.
+Top-level `stream` uses Macrofold's existing streaming/recovery protocol when supported. Use the existing final-result path otherwise. OpenLegend's existing partial-text publication rules remain independent of provider selection. Streaming does not authorize game effects before final validation.
 
 ## 6. Terminal receipt and cost semantics
 
-Preserve all required current [inference receipt](../api/openapi.json) fields and statuses. `result.inference.value` contains the full provider-native ChatCompletion response, **not** already-decoded NPC JSON. OpenLegend reads its supported final text, parses the requested JSON and applies its existing current-world validation before acting. Truncation, reasoning-only output, a refusal, ambiguous/multiple usable choices or unsupported tool output is not a successful NPC action.
+Preserve all required current inference receipt fields/statuses and the complete provider-native `result.inference.value`. Macrofold does not return already-decoded NPC JSON. OpenLegend parses its supported output and applies the same current-world validation used for other models.
 
-Add to every deployment-backed terminal `result.inference`:
+Add these siblings inside `result.inference` for every admitted deployment-backed terminal receipt:
 
 ```json
 {
   "deployment": {
     "deployment_id": "22222222-2222-4222-8222-222222222222",
-    "deployment_revision_id": "33333333-3333-4333-8333-333333333333",
-    "activation_id": "44444444-4444-4444-8444-444444444444",
-    "artifact_manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "runtime_image_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "qualification_id": "55555555-5555-4555-8555-555555555555",
-    "identity_evidence": "verified_manifest"
+    "deployment_revision_id": "33333333-3333-4333-8333-333333333333"
   },
   "cost_attribution": {
-    "basis": "deployment_activation",
-    "activation_id": "44444444-4444-4444-8444-444444444444",
-    "request_charge_micro_usd": "0",
+    "basis": "deployment",
+    "deployment_id": "22222222-2222-4222-8222-222222222222",
     "infrastructure_cost_included": false
   }
 }
 ```
 
-These are additions inside the existing receipt, not a complete terminal response. Nullable unattested fields follow the activation projection. A receipt freezes its admitted revision/certificate and actual responding manifest evidence; returned headers/alias mismatch produces invalid output or uncertainty as appropriate, never another model call. `model_revision` identifies the known HF commit with `model_revision_status:"pinned"` only for verified pinned serving; an operator declaration alone must not be upgraded to provider attestation.
+These identify the admitted target, including when the provider fails. They are not a complete response. Existing model-source provenance fields may report a pinned HF commit for a managed pinned recipe; operator declarations must stay declared/unknown. Boot, hardware, usage availability and diagnostic metadata do not become additional acceptance conditions.
 
-For the initial zero-per-request-fee BYOK policy:
+A valid completed answer is associated with the admitted revision, not whatever worker or revision is current when it arrives. Restart, credential rotation, replica replacement and deliberate subsequent rollout do not by themselves invalidate it. Current cancellation, authorization and application-state validity still apply. A crash before a usable result exists is an ordinary failed/uncertain request; recovery of hosting never justifies replaying that request blindly.
 
-- `billing.billing_mode:"byok"`, `charged_micro_usd:"0"` and `budget_cost_micro_usd:"0"` describe **this inference's separate request charge**.
-- `reserved_micro_usd` retains the original caller ceiling; any unused request reservation releases through the existing settlement owner.
-- `reported_micro_usd:"0"` is the frozen request-price result. It is not a provider GPU invoice.
-- `provider_cost_micro_usd:null`, `provider_cost_status:"unavailable"`, `provider_reported_cost_usd:null`, `provider_reported_cost_status:"unavailable"`, `upstream_inference_cost_usd:null`: there is no truthful per-call infrastructure price here.
-- Token `usage` and completeness remain factual counts; missing stays null. Request-fee settlement may be final even if GPU accounting remains uncertain; do not reuse one flag for both.
+For the initial separately hosted BYOK request policy:
 
-Explicit `max_cost_micro_usd:"0"` is acceptable only under this verified zero request-fee policy; it never creates free capacity or bypasses the activation authorization. OpenLegend may initially retain its existing positive reservation ceiling. Its no-external-call mode still blocks all calls, including prepaid/external servers.
+- `billing_mode:"byok"`, `charged_micro_usd:"0"`, `budget_cost_micro_usd:"0"` and `reported_micro_usd:"0"` describe the separate **request fee**.
+- Preserve original `reserved_micro_usd` and release the unused request reservation through existing settlement.
+- `provider_cost_micro_usd`, `provider_reported_cost_usd` and `upstream_inference_cost_usd` are null when no truthful per-call infrastructure price exists; their corresponding status fields remain unavailable.
+- Token usage/completeness is factual and independent of billing; missing counts remain null.
 
-Sum activation infrastructure cost once per unique activation, plus separately metered non-deployment calls, for an experiment's total. Do not apportion a shared GPU bill into fake authoritative per-character charges or sum estimated and reported versions. For comparable diagnostics, cost per valid result is whole measured experiment cost divided by valid results, explicitly a derived metric.
+An explicit zero request-cost ceiling is valid for this policy, but never starts free capacity or bypasses service authorization. OpenLegend's no-external-call mode still prevents inference to prepaid or external servers.
 
-## 7. Admission errors, ambiguity and shutdown
+Hosting costs are observed per deployment and time window, once. Do not turn shared GPU cost into an authoritative per-NPC fee or charge it again in a request journal. Optional experiments may calculate labeled allocations or cost per usable answer from a measured window. Neither gameplay nor acceptance of useful output waits for invoice reconciliation.
 
-Use the existing error envelope and Run recovery contracts. These codes are **pre-admission** results only when the server has established no Run/provider dispatch for this request:
+## 7. Admission errors and operational recovery
+
+These codes promise no new Run/provider dispatch only when that fact is established. Already-admitted/ambiguous work retains the existing terminal or HTTP 202 recovery contract.
 
 | HTTP/code | Meaning | Caller behavior |
 | --- | --- | --- |
-| 400 `invalid_deployment_binding` | Mixed/missing identity or conflicting native model | Correct config; no call |
-| 403 `permission_denied` | Current resource/grant/connection delegation insufficient | Stop; no fallback credentials |
-| 409 `deployment_binding_stale` | Triple does not identify the selected revision/activation | Explicitly select a new profile; never substitute current |
-| 409 `deployment_not_ready` | Provisioning, warming, qualification or lost readiness | Operator inspects activation; inference does not wake it |
-| 409 `deployment_expired` | Admission window closed or activation terminal | Explicitly authorize a new activation if desired |
-| 422 `unsupported_model_capability` | Format/context/parameter/schema not qualified | Change the declared experiment, not a hidden request downgrade |
-| 429 `deployment_capacity` | Deployment concurrency exhausted | End this attempt or explicitly resubmit same identity within its original deadline |
-| 402 `deployment_budget_exhausted` | Infrastructure admission ceiling reached | Stop; operator may separately fund a new activation |
-| 503 `deployment_unavailable` | Before-admission service/dependency unavailable | Inspect; only confirmed no-dispatch failures may be retried under existing explicit policy |
+| 400 `invalid_deployment_binding` | Invalid/mixed binding or conflicting model input | Correct configuration |
+| 403 `permission_denied` | Current resource, workspace or connection authority insufficient | No credential fallback |
+| 409 `deployment_binding_stale` | An explicit revision pin differs from the serving revision for new work | Deliberately select another revision if desired |
+| 409 `deployment_not_ready` | Starting, stopped, draining or no healthy capacity | Surface availability; running services recover automatically |
+| 422 `unsupported_model_capability` | Requested format, parameter or limit unsupported | Choose a supported request; no hidden downgrade |
+| 429 `deployment_capacity` | Current bounded concurrency exhausted | Existing explicit pre-admission retry policy only |
+| 402 `deployment_budget_exhausted` | Accepted hosting policy cannot support current planned rate/capacity | Owner adjusts hosting policy or provider configuration |
+| 503 `deployment_unavailable` | Dependency unavailable before admission | Preserve uncertainty distinction; no blind replay |
 
-No Run/provider dispatch for one request does not mean zero infrastructure charges: warm capacity can already be billable. Existing `inference_admission_unknown`, HTTP 202 reasons and ambiguous network responses remain authoritative. If a Run was admitted, report the normal terminal/recovery receipt with `provider_outcome` and uncertainty; never retroactively return a code promising no dispatch.
+No dispatch for one request does not mean warm infrastructure is free. Existing `inference_admission_unknown`, HTTP 202 reasons, cancellation and receipt retrieval remain authoritative. SDKs retain one inference submission by default. Explicit safe pre-admission retries use the same key/body and original total deadline; uncertain submission recovers the same Run. Do not add an inference retry loop, alternate model, refusal retry or schema-repair call as part of hosting recovery.
 
-Existing SDKs default to one inference submission; keep that default. No automatic second model, provider retry, refusal retry, schema repair, larger allocation or reopened activation. Reusing a key recovers the same invocation; a changed body conflicts. Revocation, source drift, session stop and expiry fence future dispatch and publication; use existing cancellation/receipt recovery rather than duplicate application state machines.
+A same-revision replica/process failure removes unhealthy capacity from routing. Healthy replicas continue; ordinary provider recovery and bounded service reconciliation restore missing capacity under standing limits. Boot IDs do not fence otherwise valid same-revision requests. Repeated startup failures, unrecoverable source/config errors, revoked credentials or a violated hosting ceiling require visible degraded/failed status and bounded cleanup; never expand spending to force success.
 
-Stopping sets `admission_open:false` transactionally, fences the activation, waits only its frozen drain allowance and aborts remaining requests. A request must fit within `admit_until`; no new work may consume the cleanup reserve. Provider teardown and final accounting are reconciled independently. A control-plane failure reports `cleanup_pending` with unresolved liability and operator action; neither a disconnected stream nor an accepted DELETE proves billing has stopped.
+An operator stop/retirement closes new admissions immediately, then drains accepted work within existing deadlines and the documented bounded drain timeout. Valid completed work can still publish under current permissions. After that allowance, cancel remaining calls and reconcile teardown. Revocation, unlike a routine stop, retains its current publication restrictions. A missing DELETE acknowledgement or empty observation does not prove billing stopped; persist `cleanup_pending` and actual owned resource identities until resolved.
 
 ## 8. Contract acceptance and coordinated release
 
-The implementer must verify the same golden native request and full terminal receipt through Macrofold REST/SDK and OpenLegend's actual serializer/decoder. Required checks cover exact triple, no model field/vendor leakage, final native response decoding, zero request fee with nonzero/unknown infrastructure cost, unknown dispatch recovery, expired/revoked grants, strict schema rejection, concurrency, identity drift and final shutdown evidence. Fixtures establish contracts; paid qualification establishes actual provider behavior separately.
+Implement the production slice before optional benchmarking: metadata and grants; service lifecycle; direct inference/streaming and receipts; generated clients and operator controls; OpenLegend production configuration. Detailed work remains in [maintainer TODO](../maintainers/TODO.md#hugging-face-model-deployments).
 
-Ship Macrofold schemas/domain/provider path and regenerate all current SDKs first. Publish a version whose API actually supports this contract. Then update OpenLegend's pinned client/serialization and start with explicit operator-only experiment configuration. An old server's missing endpoint/binding support fails visibly; never emulate support by falling back to OpenRouter.
+Verify the same native request and full terminal receipt through Macrofold REST/SDK and OpenLegend's actual serializer/decoder. Acceptance covers stable deployment routing and optional pin, idempotent recovery across rollout, automatic same-revision restart, valid old-request completion, current revocation, local JSON validation, unsupported capabilities, concurrency/backpressure, zero request fee versus nonzero/unknown hosting costs, and confirmed managed cleanup. Fixtures establish contracts; separately authorized live checks establish provider behavior and realistic latency.
 
-The same branch name in two repositories is coordination, not an atomic release. Each implementation records tested client/server commits and runtime image digest. No default production model changes, public model marketplace, fine-tuning service, general GPU worker scheduler or automatic cheapest-provider router are required.
+Ship actual Macrofold API/client support before enabling its consumer. OpenLegend operator configuration selects the target for production NPC generation; an absent feature fails visibly without hidden OpenRouter fallback. Record tested client/server revisions and runtime image in release evidence. Source/runtime upgrades are deliberate operations, while routine healthy replacement is ordinary service maintenance.
+
+Experiments may pin a revision and record inputs, output strategy, outcomes, timing and cost observations through the same API. No experiment ID, study manifest, qualification certificate, boot pin, finite activation or owner invoice attestation is a prerequisite of production inference.

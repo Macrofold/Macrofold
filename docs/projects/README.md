@@ -18,7 +18,7 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 - Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Implementation and verification in progress: immediate request ownership, shared accounting, batched authorization observation, typed recovery and all five SDKs. Hosted lifetime and measured deployment capacity remain acceptance gates.
 
-- Hugging Face model deployments: [feature specification](hugging-face-model-deployments-feature-spec.md), [technical design](hugging-face-model-deployments-tech-design.md), [shared contract](hugging-face-model-deployments-contract.md), [research](hugging-face-model-deployments-research.md) and [agent brief](hugging-face-model-deployments-agent-brief.md). Design complete for finite BYOK hosting and external endpoints through existing inference; [implementation and live qualification](../maintainers/TODO.md#hugging-face-model-deployments) remain open.
+- Hugging Face model deployments: [feature specification](hugging-face-model-deployments-feature-spec.md), [technical design](hugging-face-model-deployments-tech-design.md), [shared contract](hugging-face-model-deployments-contract.md), [research](hugging-face-model-deployments-research.md) and [agent brief](hugging-face-model-deployments-agent-brief.md). Design complete for production BYOK serving and compatible external endpoints through existing inference; [implementation and live acceptance](../maintainers/TODO.md#hugging-face-model-deployments) remain open.
 
 - [OpenRouter decision-model routing](decision-model-routing.md): reviewed Decision 1/Jev routing, native and typed requests, and shared billing controls.
 

@@ -8,22 +8,23 @@ Navigation and content density take inspiration from Linear, Vercel and Stripe. 
 
 ## Implemented navigation
 
-| Surface                                        | What a user can operate                                                                                                                                 |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public home, pricing, quickstart and reference | Understand persistent hosted work, inspect configured prices, read examples and browse the full OpenAPI reference                                       |
-| Home                                           | Task composer, real setup checklist, five starters, integration prompt, recent workspaces/runs and activity                                               |
-| Templates                                      | Search ready/planned examples, inspect instructions/results, copy prompts and prefill the existing preset form                                          |
-| Workspaces                                       | Default list or remembered grid layout, server search and cursor pagination, persistent/ephemeral creation, archive and pending-deletion views          |
-| Workspace/worktree                              | Switch independent branches; files, runs, checkpoints, Git and settings tabs; new run and terminal handoff                                              |
-| Runs                                           | Paged history, status filtering, status/harness/model/cost rows and run drilldown                                                                       |
-| Run detail                                     | Live output, activity and tool-call tabs, exposed reasoning summaries, input, cancellation, same-session follow-up, persistence and usage summary       |
-| Connections                                    | Model BYOK, remote MCP, reviewed stdio MCP, Composio and web-search connection configuration; discovery, authorization, explicit tool grants and revoke |
-| API keys                                       | Generate a scoped/workspace-restricted key, copy the secret once, inspect metadata and revoke                                                             |
-| Usage and billing                              | Recorded requests and usage, prepaid balance/debt, Stripe checkout/subscription controls, storage observation/allowance and explicit overage budget     |
-| Account, security and team                     | Profile/password, MFA/recovery, sessions/OAuth grants, organization switching, invitations, role changes and access audit                               |
-| Webhooks                                       | Register destinations/events, reveal or rotate signing secret, inspect delivery attempts and retry                                                      |
-| Developers                                     | AI integration brief, CLI setup, curl example, downloadable OpenAPI and Scalar interactive reference                                                    |
-| Operations                                     | Privileged growth/cohorts, usage, request activity, stored reports, infrastructure health and account drilldown                                         |
+| Surface                                        | What a user can operate                                                                                                                                                    |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public home, pricing, quickstart and reference | Understand persistent hosted work, inspect configured prices, read examples and browse the full OpenAPI reference                                                          |
+| Home                                           | Task composer, real setup checklist, five starters, integration prompt, recent workspaces/runs and activity                                                                |
+| Templates                                      | Search ready/planned examples, inspect instructions/results, copy prompts and prefill the existing preset form                                                             |
+| Workspaces                                     | Default list or remembered grid layout, server search and cursor pagination, persistent/ephemeral creation, archive and pending-deletion views                             |
+| Workspace/worktree                             | Switch independent branches; files, runs, checkpoints, Git and settings tabs; new run and terminal handoff                                                                 |
+| Runs                                           | Paged history, status filtering, status/harness/model/cost rows and run drilldown                                                                                          |
+| Run detail                                     | Live output, activity and tool-call tabs, exposed reasoning summaries, input, cancellation, same-session follow-up, persistence and usage summary                          |
+| Connections                                    | Model BYOK, remote MCP, reviewed stdio MCP, Composio and web-search connection configuration; discovery, authorization, explicit tool grants and revoke                    |
+| Model deployments                              | Inspect HF compatibility and hosting, create stopped services/revisions, configure limits, start/stop/rollback, manage application grants and view health/cost uncertainty |
+| API keys                                       | Generate a scoped/workspace-restricted key, copy the secret once, inspect metadata and revoke                                                                              |
+| Usage and billing                              | Recorded requests and usage, prepaid balance/debt, Stripe checkout/subscription controls, storage observation/allowance and explicit overage budget                        |
+| Account, security and team                     | Profile/password, MFA/recovery, sessions/OAuth grants, organization switching, invitations, role changes and access audit                                                  |
+| Webhooks                                       | Register destinations/events, reveal or rotate signing secret, inspect delivery attempts and retry                                                                         |
+| Developers                                     | AI integration brief, CLI setup, curl example, downloadable OpenAPI and Scalar interactive reference                                                                       |
+| Operations                                     | Privileged growth/cohorts, usage, request activity, stored reports, infrastructure health and account drilldown                                                            |
 
 All configuration-dependent actions call real domain/provider boundaries. Missing production credentials produce setup errors. Local execution is prominently labeled as simulation and records zero model tokens. There is no synthetic successful payment or connector authorization.
 
@@ -42,6 +43,8 @@ Six ready starter definitions (five featured, including Personal assistant) own 
 Setup-copy actions load the canonical [Build with AI brief](../../getting-started/agents.md) on demand and resolve documentation links to the current origin. The displayed manual-copy text matches clipboard content. Example-specific prompts use the same published guide paths and retain explicit credential and spending instructions. None contain credentials or imply a connection has been authorized.
 
 ## Shared interactions
+
+The shared `Button` and custom template cards reuse `lib/use-hydrated.ts` to keep JavaScript click actions disabled in server HTML until hydration attaches their handlers. React's server/client snapshots provide readiness without timers or a global listener; client navigation is immediately interactive. Native form-submit buttons without a click handler and ordinary links retain their browser behavior. Explicit disabled and busy states still apply after hydration.
 
 `app/interaction.css` provides default 160 ms control transitions, 180 ms entrances, 120 ms exits, hidden scrollbars, and single focus indicators. Established controls can retain their more specific short durations. Use `input-surface` on a composite field: its wrapper owns focus and its inner text input has no second outline. Standalone fields fade to a muted one-pixel border and faint halo; buttons and links retain keyboard outlines. Forced colors uses an explicit system outline. Scrolling itself remains enabled. Radix exit animations preserve its unmount/focus lifecycle; Sonner retains its own stacking, dismissal, and swipe transforms.
 
@@ -102,6 +105,14 @@ A terminal disconnect does not cancel the run. Cancellation and persistence are 
 Connection types expose distinct fields and explanations. Model keys are write-only secrets. Remote MCP accepts a public HTTPS endpoint (or an explicitly allowed local development origin) and supported auth method, performs discovery and provides explicit tool selection. OAuth returns to connection management; provider authorization does not approve tools or grant execution access. Stdio uses an operator-reviewed catalog entry and structured configuration, rather than arbitrary package installation in a control-plane function. Composio brokers app authorization while the domain retains ownership and grants. GitHub installation/repository selection belongs to the workspace's Git view.
 
 Errors identify missing configuration, authentication, ownership, discovery or grant problems. A failed access read blocks permission editing until a successful retry. Tools and Access share one revision cache; stale drafts survive a 412, display current state, and require explicit retry. URL workspace/preset filters clear independently and reset cursor pages. Rule editors reuse server-search selectors and the existing modal/table controls. Run previews use the same query cache and clear one-run exceptions when context changes. Shared clipboard actions confirm success only after the browser accepts the text and retain a manual-copy path when access is denied. Test/discover actions inspect the protocol; invoking a metered provider tool remains subject to the execution budget and paid-execution guard. [tool security](../identity-integrations/tools-security.md) describes the provider boundaries.
+
+## Model services
+
+`components/model-deployments.tsx` uses the generated public API for the [model deployment workflow](../execution/model-deployments.md). Setup offers owner-filtered encrypted connections with inline masked credential entry, bounded source inspection, registered runtime parameters and compatible GPU offers. It retains the inspected full source commit when saving. An external endpoint records explicit operator capability declarations and separate hosting responsibility. Saving creates stopped metadata; starting requires a deliberate operating policy.
+
+The detail view separates desired/serving revisions, observed readiness, admission, current grants and infrastructure costs. Revisions and grants paginate. The selected desired revision is fetched once by ID when it is outside the current history page; draft external revisions preserve its declared context, output and concurrency limits. Owners can create a revision, select any saved revision for rollout or rollback, narrow/expand limits, stop and retire. Policy forms explain warm idle billing, hourly versus ongoing exposure, provider spending controls and optional stop time. Accepted control responses refresh authoritative state; they never mark readiness or completed shutdown optimistically. Unknown costs and pending cleanup remain visible, and external stop explicitly leaves host shutdown and billing with the operator.
+
+Application access grants current members or API keys read/use in explicit selected or all-workspace scope. A failed grant read blocks edits. Management controls use the server's `can_manage` projection; authorization remains server-side. Lists, connection selectors and forms preserve loading, empty, denied, retry and pending states. Organization changes continue through the shared shell's request cancellation and cache clearing.
 
 ## Operations and growth
 

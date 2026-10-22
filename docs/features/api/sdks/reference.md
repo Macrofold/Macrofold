@@ -1,6 +1,6 @@
 # SDK resource reference
 
-Generated from the [OpenAPI contract](../../../api/openapi.json). All 167 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
+Generated from the [OpenAPI contract](../../../api/openapi.json). All 179 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
 
 Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as `client.workspaces().create(...)`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
 
@@ -326,3 +326,20 @@ Run text streams handle SSE, cursors and duplicate suppression internally, exclu
 | OpenAPI operation | TypeScript / Java | Python / Rust | Go |
 | --- | --- | --- | --- |
 | `listHarnesses` | `harnesses.list` | `harnesses.list` | `Harnesses.List` |
+
+## ModelDeployments
+
+| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
+| --- | --- | --- | --- |
+| `inspectModelDeployment` | `modelDeployments.inspect` | `model_deployments.inspect` | `ModelDeployments.Inspect` |
+| `createModelDeployment` | `modelDeployments.create` | `model_deployments.create` | `ModelDeployments.Create` |
+| `listModelDeployments` | `modelDeployments.list` | `model_deployments.list` | `ModelDeployments.List` |
+| `getModelDeployment` | `modelDeployments.get` | `model_deployments.get` | `ModelDeployments.Get` |
+| `deleteModelDeployment` | `modelDeployments.delete` | `model_deployments.delete` | `ModelDeployments.Delete` |
+| `createModelDeploymentRevision` | `modelDeployments.createRevision` | `model_deployments.create_revision` | `ModelDeployments.CreateRevision` |
+| `listModelDeploymentRevisions` | `modelDeployments.listRevisions` | `model_deployments.list_revisions` | `ModelDeployments.ListRevisions` |
+| `getModelDeploymentRevision` | `modelDeployments.getRevision` | `model_deployments.get_revision` | `ModelDeployments.GetRevision` |
+| `listModelDeploymentGrants` | `modelDeployments.listGrants` | `model_deployments.list_grants` | `ModelDeployments.ListGrants` |
+| `createModelDeploymentGrant` | `modelDeployments.createGrant` | `model_deployments.create_grant` | `ModelDeployments.CreateGrant` |
+| `revokeModelDeploymentGrant` | `modelDeployments.revokeGrant` | `model_deployments.revoke_grant` | `ModelDeployments.RevokeGrant` |
+| `setModelDeploymentService` | `modelDeployments.setService` | `model_deployments.set_service` | `ModelDeployments.SetService` |

@@ -5,6 +5,7 @@ import { actorAuthorized } from './actor-authorization';
 import { authorizeContext } from './context-artifacts';
 import { principalFor } from './engine';
 import { AppError, assert } from './errors';
+import { authorizeDeploymentInvocationTx } from './model-deployments';
 
 /** The caller holds the fresh Run lock. Provider usage is independent of
  * publication authority: denial removes the value, never incurred accounting.
@@ -27,6 +28,19 @@ export async function inferencePublicationReceipt(
   );
   let allowed =
     !current.result.content_expired && (currentActorAllowed ?? (await actorAuthorized(tx, current)));
+  if (allowed && current.config.deployment_target) {
+    try {
+      await authorizeDeploymentInvocationTx(
+        tx,
+        principalFor(current),
+        current.config.deployment_target,
+        current.workspace_id ?? undefined,
+      );
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      allowed = false;
+    }
+  }
   const references = current.config.context_reference ? [current.config.context_reference] : [];
   if (allowed && current.kind === 'bounded_agent' && current.config.definition.bounded_agent) {
     // Evidence retained for recovery does not retain a revoked disclosure grant.

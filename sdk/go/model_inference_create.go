@@ -25,7 +25,7 @@ type InferenceCreate struct {
 	Definition *InferenceCreateDefinition `json:"definition,omitempty"`
 	Input interface{} `json:"input"`
 	Context *DecisionTaskWakeContext `json:"context,omitempty"`
-	ModelBinding DecisionBinding `json:"model_binding"`
+	ModelBinding InferenceBinding `json:"model_binding"`
 	Limits *InferenceLimits `json:"limits,omitempty"`
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
@@ -38,7 +38,7 @@ type _InferenceCreate InferenceCreate
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewInferenceCreate(input interface{}, modelBinding DecisionBinding) *InferenceCreate {
+func NewInferenceCreate(input interface{}, modelBinding InferenceBinding) *InferenceCreate {
 	this := InferenceCreate{}
 	this.Input = input
 	this.ModelBinding = modelBinding
@@ -176,9 +176,9 @@ func (o *InferenceCreate) SetContext(v DecisionTaskWakeContext) {
 }
 
 // GetModelBinding returns the ModelBinding field value
-func (o *InferenceCreate) GetModelBinding() DecisionBinding {
+func (o *InferenceCreate) GetModelBinding() InferenceBinding {
 	if o == nil {
-		var ret DecisionBinding
+		var ret InferenceBinding
 		return ret
 	}
 
@@ -187,7 +187,7 @@ func (o *InferenceCreate) GetModelBinding() DecisionBinding {
 
 // GetModelBindingOk returns a tuple with the ModelBinding field value
 // and a boolean to check if the value has been set.
-func (o *InferenceCreate) GetModelBindingOk() (*DecisionBinding, bool) {
+func (o *InferenceCreate) GetModelBindingOk() (*InferenceBinding, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -195,7 +195,7 @@ func (o *InferenceCreate) GetModelBindingOk() (*DecisionBinding, bool) {
 }
 
 // SetModelBinding sets field value
-func (o *InferenceCreate) SetModelBinding(v DecisionBinding) {
+func (o *InferenceCreate) SetModelBinding(v InferenceBinding) {
 	o.ModelBinding = v
 }
 

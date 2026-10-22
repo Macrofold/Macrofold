@@ -1,5 +1,84 @@
 import { randomUUID } from 'node:crypto';
+import AxeBuilder from '@axe-core/playwright';
 import { test, expect, fixtureOrigin } from '../fixtures/browser';
+
+for (const target of [
+  {
+    route: '/triggers',
+    label: 'trigger',
+    action: /Create trigger/,
+    dialog: 'Create trigger',
+    link: 'Setup guide →',
+    href: '/docs/triggers',
+  },
+  {
+    route: '/templates',
+    label: 'template library',
+    action: /Weekly workspace digest/,
+    dialog: 'Weekly workspace digest',
+    link: 'Your presets',
+    href: '/agents',
+  },
+  {
+    route: '/',
+    label: 'featured template',
+    action: /Research brief/,
+    dialog: 'Research brief',
+    link: 'Browse library',
+    href: '/templates',
+  },
+]) {
+  test(`JavaScript ${target.label} actions wait for hydration before opening their dialog`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/login');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
+    let release!: () => void;
+    const scripts = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/_next/static/**/*.js', async (route) => {
+      await scripts;
+      await route.continue();
+    });
+    const action = page.getByRole('button', { name: target.action }).first();
+    try {
+      await page.goto(target.route, { waitUntil: 'commit' });
+      if (target.route === '/') {
+        // Home waits for client data before rendering its featured cards.
+        await expect(page.getByRole('main').getByRole('status')).toHaveText('Loading…');
+        await expect(action).toHaveCount(0);
+      } else {
+        await expect(action).toBeVisible();
+        await expect(action).toBeDisabled();
+        await expect(page.getByRole('link', { name: target.link, exact: true })).toHaveAttribute(
+          'href',
+          target.href,
+        );
+      }
+    } finally {
+      release();
+    }
+    await expect(action).toBeEnabled();
+    await action.click();
+    const dialog = page.getByRole('dialog', { name: target.dialog, exact: true });
+    if (target.label === 'trigger') {
+      await expect(dialog.getByRole('combobox', { name: 'Integration', exact: true })).toBeVisible();
+    } else {
+      await expect(dialog.getByRole('link', { name: 'Use and schedule', exact: true })).toBeVisible();
+    }
+    const audit = await new AxeBuilder({ page })
+      .include('[role="dialog"]')
+      .withTags(['wcag2a', 'wcag2aa'])
+      .analyze();
+    expect(audit.violations).toEqual([]);
+    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(action).toBeFocused();
+  });
+}
 
 test('composite fields have one focus indicator, subtle border motion, and hidden scrollbars', async ({
   page,

@@ -23,6 +23,53 @@ def test_application_immediate_json_and_sse():
         assert value.billing.billing_mode == 'managed' and not value.billing.provisional
         assert int(value.billing.charged_micro_usd) > 0
     with Client(base_url=os.environ['MACROFOLD_FIXTURE_ORIGIN'], api_key=os.environ['MACROFOLD_FIXTURE_KEY']) as client:
+        deployment_id = os.environ['MACROFOLD_FIXTURE_DEPLOYMENT']
+        deployment = client.model_deployments.get(deployment_id)
+        assert deployment.state == 'stopped' and deployment.serving_revision_id is None
+        assert deployment.infrastructure_cost.estimated_micro_usd is None
+        assert deployment.cost_policy.request_charge_micro_usd == '0'
+        selected = client.model_deployments.get_revision(deployment_id, os.environ['MACROFOLD_FIXTURE_DEPLOYMENT_REVISION'])
+        assert selected.source.actual_instance.kind == 'external'
+        assert selected.hosting.actual_instance.kind == 'external_openai'
+        assert len(client.model_deployments.list_grants(deployment_id).data) == 1
+        with open(os.environ['MACROFOLD_FIXTURE_DEPLOYMENT_INFERENCE_INPUT']) as source:
+            stopped_body = json.load(source)
+        with pytest.raises(ApiError) as stopped:
+            client.inferences.create(**stopped_body)
+        assert stopped.value.status == 409 and stopped.value.code == 'deployment_not_ready'
+        ready_id = os.environ['MACROFOLD_FIXTURE_READY_DEPLOYMENT_PYTHON']
+        ready_revision = os.environ['MACROFOLD_FIXTURE_READY_DEPLOYMENT_REVISION_PYTHON']
+        with open(os.environ['MACROFOLD_FIXTURE_READY_DEPLOYMENT_INPUT_PYTHON']) as source:
+            ready_body = json.load(source)
+        def deployment_receipt(result, native_extra):
+            assert result.final and result.inference and result.inference.outcome == 'value'
+            value = result.inference
+            assert str(value.deployment.deployment_id) == ready_id
+            assert str(value.deployment.deployment_revision_id) == ready_revision
+            assert value.cost_attribution.basis == 'deployment' and not value.cost_attribution.infrastructure_cost_included
+            assert value.billing.billing_mode == 'byok'
+            assert value.billing.charged_micro_usd == value.billing.budget_cost_micro_usd == value.billing.reported_micro_usd == '0'
+            assert value.billing.provider_cost_micro_usd is value.billing.provider_reported_cost_usd is value.billing.upstream_inference_cost_usd is None
+            assert value.usage.input_tokens == '11' and value.usage.output_tokens == '4'
+            assert value.value['choices'][0]['message']['content'] == 'Hello from the deployment SDK fixture.'
+            if native_extra:
+                assert value.value['provider_native_extra'] == {'retained': True}
+                assert value.value['choices'][0]['message']['annotations'] == []
+        ready_options = RequestOptions(idempotency_key='python-deployment-'+os.urandom(8).hex())
+        ready_response = client.inferences.create(**ready_body, request_options=ready_options)
+        ready_result = client.runs.wait(ready_response.run_id) if ready_response.status == 'running' else ready_response.result
+        deployment_receipt(ready_result, True)
+        deployed_text, deployed_terminal = '', False
+        for event in client.inferences.stream(ready_body):
+            if event.type == 'output.delta': deployed_text += event.data.text
+            if event.type == 'run.succeeded':
+                deployment_receipt(event.data.result, False)
+                deployed_terminal = True
+        assert deployed_text == 'Hello from the deployment SDK fixture.' and deployed_terminal
+        client.model_deployments.set_service(ready_id, deployment_revision_id=ready_revision, desired_state='stopped', policy={'max_concurrent_requests': 2, 'stop_at': None})
+        recovered = client.inferences.create(**ready_body, request_options=ready_options)
+        assert recovered.run_id == ready_response.run_id
+        deployment_receipt(recovered.result, True)
         options = RequestOptions(idempotency_key='python-immediate-'+os.urandom(8).hex())
         response = client.inferences.create(**body, request_options=options)
         assert response.status == 'succeeded' and response.result

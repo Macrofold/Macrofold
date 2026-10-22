@@ -21,17 +21,17 @@ Direct protocols remain the existing reviewed `decisionModel` routes. Adding ano
 
 ## Layer boundaries
 
-| Owner                             | Responsibility                                                                                                       |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| OpenAPI / generated clients       | Optional request flag, SSE response media type, typed `InferenceStreamEvent` envelope                                |
-| `core/decision.ts`                | Vendor-independent output fragment and sink, plus completed/incomplete `DecisionResponse`                            |
-| `providers/inference-stream.ts`   | Incremental SSE framing, native response assembly, vendor terminal detection, usage and content identity             |
-| `providers/decision-protocols.ts` | Protocol capability, preparation and existing response normalization                                                 |
-| `core/direct-inference.ts`, `core/inference-invocations.ts` | Immediate ownership, response evidence, atomic accounting/result and evidence-only recovery |
-| `core/inference-engine.ts`        | Queued/bounded invocation, evidence tools, settlement and trace ownership |
-| `core/direct-inference-stream.ts` | Transient HTTP reader, producer lifetime, heartbeat, bounded backpressure and result replay                          |
-| `core/inference-output.ts`        | Bounded-agent fragments coalesced into existing durable events                                                       |
-| Maintained SDK transports         | Single-POST SSE iteration/callbacks, error identity and reader cleanup                                               |
+| Owner                                                       | Responsibility                                                                                           |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| OpenAPI / generated clients                                 | Optional request flag, SSE response media type, typed `InferenceStreamEvent` envelope                    |
+| `core/decision.ts`                                          | Vendor-independent output fragment and sink, plus completed/incomplete `DecisionResponse`                |
+| `providers/inference-stream.ts`                             | Incremental SSE framing, native response assembly, vendor terminal detection, usage and content identity |
+| `providers/decision-protocols.ts`                           | Protocol capability, preparation and existing response normalization                                     |
+| `core/direct-inference.ts`, `core/inference-invocations.ts` | Immediate ownership, response evidence, atomic accounting/result and evidence-only recovery              |
+| `core/inference-engine.ts`                                  | Queued/bounded invocation, evidence tools, settlement and trace ownership                                |
+| `core/direct-inference-stream.ts`                           | Transient HTTP reader, producer lifetime, heartbeat, bounded backpressure and result replay              |
+| `core/inference-output.ts`                                  | Bounded-agent fragments coalesced into existing durable events                                           |
+| Maintained SDK transports                                   | Single-POST SSE iteration/callbacks, error identity and reader cleanup                                   |
 
 Provider adapters use pinned MIT `eventsource-parser` 3.1.1 for framing, promoted from the existing dependency graph. Billing and permissions remain in core. SDKs reuse their existing SSE framing for direct and durable delivery, while retaining different recovery behavior. No broker, new service, database table or tracing SDK upgrade is needed.
 
@@ -51,7 +51,7 @@ The assembler retains the existing 512 KiB response bound, checks it in bounded 
 
 ## Output, completion and failure
 
-Direct/bounded text fragments carry invocation, message, content and optional choice identities. Tool-argument fragments carry separate tool identity and opaque text. Do not concatenate separate choices, blocks or model turns. `output.started`, `output.finished` and `output.refusal.delta` retain those boundaries. Private reasoning is not published as assistant text. Native streams preserve their existing harness-specific event granularity.
+Direct/bounded text fragments carry invocation, message, content and optional choice identities. Tool-argument fragments carry separate tool identity and opaque text. Do not concatenate separate choices, blocks or model turns. `output.started`, `output.finished` and `output.refusal.delta` retain those boundaries. Private reasoning is not published as assistant text. The shared OpenAI-compatible chat assembler preserves upstream `reasoning`/`reasoning_content` strings, roles and log-probability arrays in the final provider-native response, independently of answer deltas. Arrays accumulate in place within the existing 8 MiB wire and 512 KiB assembled-response limits. Focused parser regressions cover this behavior; this does not add direct reasoning events. Native streams preserve their existing harness-specific event granularity.
 
 Anthropic completion requires `message_stop` and a stop reason. OpenRouter requires `[DONE]` after choice finish reasons; accounting-only chunks before that marker are retained. EOF, malformed frames, upstream errors, timeout or cancellation produce incomplete evidence, not a successful full response. Available token counts survive, but incomplete usage remains provisional under the existing financial policy. A provider-native response retains its stop reason (including truncation); typed decision output still has to validate.
 
@@ -77,13 +77,13 @@ The CLI's shared renderer handles all three reasoning events. Human output label
 
 Manual live execution used the actual TypeScript SDK, HTTP handler, SQL worker, native Docker processes and provider gateway with disposable data. All five supported adapters returned successful answer-only results, complete model usage and verified checkpoints. Client-observed times below include cold startup and polling; these are single observations, not benchmarks or promises of earlier text.
 
-| Harness / route | First readable thinking | First answer text | Readable reasoning fragments |
-| --- | --- | --- | --- |
-| Codex / OpenAI `gpt-5.4-mini` | 25,633 ms | 25,633 ms | 10 |
-| Claude Code / Anthropic Haiku 4.5 | 14,334 ms | 21,021 ms | 24 |
-| OpenCode / OpenRouter Muse | 16,518 ms | 19,748 ms | 1 |
-| Hermes / OpenRouter Muse | 22,319 ms | 22,319 ms | 1 |
-| Pi / OpenRouter DeepSeek V3.2 | 11,061 ms | 24,990 ms | 78 |
+| Harness / route                   | First readable thinking | First answer text | Readable reasoning fragments |
+| --------------------------------- | ----------------------- | ----------------- | ---------------------------- |
+| Codex / OpenAI `gpt-5.4-mini`     | 25,633 ms               | 25,633 ms         | 10                           |
+| Claude Code / Anthropic Haiku 4.5 | 14,334 ms               | 21,021 ms         | 24                           |
+| OpenCode / OpenRouter Muse        | 16,518 ms               | 19,748 ms         | 1                            |
+| Hermes / OpenRouter Muse          | 22,319 ms               | 22,319 ms         | 1                            |
+| Pi / OpenRouter DeepSeek V3.2     | 11,061 ms               | 24,990 ms         | 78                           |
 
 OpenRouter routes explicitly requested low effort. Pi with Muse emitted start/end without readable text: the pinned SDK stores that route's `reasoning_details` in replay-signature metadata instead of emitting text deltas. The adapter deliberately does not decode that opaque field. A separate Pi/DeepSeek run verified actual readable deltas. DeepSeek **harness** streaming still rejects with HTTP 400 before provider dispatch; this is distinct from choosing a DeepSeek model through Pi.
 
@@ -117,28 +117,30 @@ Each model invocation produces one generation observation containing assembled o
 - A live bounded-agent Sonnet call emitted invocation-tagged durable deltas, validated its final `hello` value and settled usage. Two Haiku attempts returned fenced JSON and correctly failed schema validation while retaining streaming delivery and billing; this is not evidence of guaranteed schema compliance from prompted JSON.
 - After the operator added OpenRouter credit, a fresh three-provider manual pass succeeded with synthetic inputs and at most $0.10 reserved per call. OpenRouter and Anthropic used TypeScript SDK → loopback HTTP → direct inference; OpenAI used the real authenticated native model gateway, with fixture-prepared run lifecycle state and no actual Codex process. All three delivered deltas before completion and recorded complete usage. Langfuse API readback found exactly one generation per call with full input/output, matching tokens and recorded charges.
 
-  | Provider / model | First client text | Completion | Input / output tokens | Recorded cost |
-  | --- | --- | --- | --- | --- |
-  | OpenRouter / `openai/gpt-5.4-mini` | 1,268 ms | 1,908 ms | 23 / 64 | $0.000306 |
-  | Anthropic / `claude-haiku-4-5-20251001` | 902 ms | 1,865 ms | 25 / 91 | $0.000480 |
-  | OpenAI gateway / `gpt-5.4-mini` | 1,697 ms | 2,307 ms | 23 / 55 | $0.000266 |
+  | Provider / model                        | First client text | Completion | Input / output tokens | Recorded cost |
+  | --------------------------------------- | ----------------- | ---------- | --------------------- | ------------- |
+  | OpenRouter / `openai/gpt-5.4-mini`      | 1,268 ms          | 1,908 ms   | 23 / 64               | $0.000306     |
+  | Anthropic / `claude-haiku-4-5-20251001` | 902 ms            | 1,865 ms   | 25 / 91               | $0.000480     |
+  | OpenAI gateway / `gpt-5.4-mini`         | 1,697 ms          | 2,307 ms   | 23 / 55               | $0.000266     |
 
   These are single-call observations, not benchmarks or deployed/full-harness acceptance. OpenRouter reported $0.00030525 upstream cost; the ledger's $0.000306 reflects integer micro-USD rounding. The original credit rejection remains valid failure evidence. Sanitized outputs, timed deltas and trace API readbacks are retained under ignored `.data/manual-streaming/live-three-*` and `live-*-trace.json`; the disposable database was removed after verification.
+
 - Real native harness streaming passed through TypeScript SDK → local HTTP → SQL worker → Docker → live provider gateway, with fresh disposable workspaces and synthetic prompts. Each run delivered public `output.delta` events before terminal run completion, recorded complete model usage, and persisted a verified checkpoint.
 
-  | Harness / provider | First public text | Run completion | Delta events | Model calls | Recorded model cost |
-  | --- | --- | --- | --- | --- | --- |
-  | Codex / OpenAI | 15,972 ms | 22,363 ms | 306 | 1 | $0.005865 |
-  | Claude Code / Anthropic | 22,199 ms | 23,190 ms | 43 | 1 | $0.067592 |
-  | OpenCode / OpenRouter | 17,159 ms | 18,545 ms | 283 | 1 | $0.004520 |
-  | Hermes / OpenAI | 23,794 ms | 27,729 ms | 301 | 2 | $0.006248 |
-  | Pi / OpenAI | 6,719 ms | 11,298 ms | 295 | 1 | $0.002359 |
+  | Harness / provider      | First public text | Run completion | Delta events | Model calls | Recorded model cost |
+  | ----------------------- | ----------------- | -------------- | ------------ | ----------- | ------------------- |
+  | Codex / OpenAI          | 15,972 ms         | 22,363 ms      | 306          | 1           | $0.005865           |
+  | Claude Code / Anthropic | 22,199 ms         | 23,190 ms      | 43           | 1           | $0.067592           |
+  | OpenCode / OpenRouter   | 17,159 ms         | 18,545 ms      | 283          | 1           | $0.004520           |
+  | Hermes / OpenAI         | 23,794 ms         | 27,729 ms      | 301          | 2           | $0.006248           |
+  | Pi / OpenAI             | 6,719 ms          | 11,298 ms      | 295          | 1           | $0.002359           |
 
   OpenAI routes used `gpt-5.4-mini`, OpenRouter used `openai/gpt-5.4-mini`, and Claude used `claude-haiku-4-5-20251001`. These single-run timings include admission, container/harness startup and event polling; they do not establish token-by-token flush latency or warm-session performance. Polling can deliver accumulated deltas after provider generation finishes but before checkpoint completion. DeepSeek rejected `stream: true` with HTTP 400 `streaming_not_supported` and zero provider calls. The successful matrix recorded $0.086584 in model charges, excluding earlier interrupted diagnostic attempts and compute.
 
   Langfuse API readback verified one generation per actual model call (six total), captured input/output, and matching aggregate token counts and recorded model charges.
 
   The first Codex attempts exposed a rejected upstream-reader cancellation escaping cleanup and crashing the local host. The model gateway now handles that cleanup rejection while retaining settlement in the read loop; the full matrix passed afterward. The temporary HTTP adapter also now handles source errors/client closure. Type checking passed. Detailed synthetic outputs, timed events and trace readbacks are retained under ignored `.data/manual-streaming/harness-*`; the disposable database and owned containers were removed. This verifies the installed local diagnostic image, not a newly built release image or hosted deployment.
+
 - No automated tests were written or run, by explicit operator instruction. Deferred parser, accounting, admission, bounded-agent, SDK and lifecycle regression cases are in the central TODO. Native multi-turn/cancellation streaming journeys and hosted response flushing/disconnect survival remain separate acceptance work.
 
 ## Deferred scope and reference documentation

@@ -17,6 +17,14 @@ const TriggersView = dynamic(() => import('./triggers').then((m) => m.TriggersVi
 const SecurityView = dynamic(() => import('./security').then((m) => m.SecurityView), { loading });
 const TeamView = dynamic(() => import('./team').then((m) => m.TeamView), { loading });
 const WorkersView = dynamic(() => import('./workers').then((m) => m.WorkersView), { loading });
+const ModelDeploymentsView = dynamic(
+  () => import('./model-deployments').then((m) => m.ModelDeploymentsView),
+  { loading },
+);
+const ModelDeploymentDetail = dynamic(
+  () => import('./model-deployments').then((m) => m.ModelDeploymentDetail),
+  { loading },
+);
 const WorkspacesView = dynamic(() => import('./workspaces').then((m) => m.WorkspacesView), { loading });
 const WorktreeView = dynamic(() => import('./workspaces').then((m) => m.WorktreeView), { loading });
 const RunDetail = dynamic(() => import('./runs').then((m) => m.RunDetail), { loading });
@@ -50,6 +58,12 @@ export function Dashboard({ segments }: { segments: string[] }) {
       <RunsView onRun={() => setCompose(true)} />
     );
   else if (route === 'workers') content = <WorkersView />;
+  else if (route === 'model-deployments')
+    content = segments[1] ? (
+      <ModelDeploymentDetail key={segments[1]} deploymentId={segments[1]} />
+    ) : (
+      <ModelDeploymentsView />
+    );
   else if (route === 'connections') content = <ConnectionsView />;
   else if (route === 'webhooks') content = <WebhooksView />;
   else if (route === 'triggers') content = <TriggersView key="triggers" />;
@@ -140,8 +154,8 @@ function DevelopersView() {
           <SectionHeading title="Optional · Integration paths" />
           <p>
             Building an assistant for each customer? The Customer agents path handles setup and ownership
-            using the same workspaces, worktrees, presets and runs. Add account connections when your customers
-            need them.
+            using the same workspaces, worktrees, presets and runs. Add account connections when your
+            customers need them.
           </p>
           <div className="button-row">
             <Link href="/docs/customer-agents/quickstart" className="button secondary">

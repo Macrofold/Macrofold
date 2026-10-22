@@ -55,6 +55,10 @@ pub struct InferenceReceipt {
     pub usage: Box<models::InferenceUsage>,
     #[serde(rename = "billing")]
     pub billing: Box<models::InferenceBilling>,
+    #[serde(rename = "deployment", skip_serializing_if = "Option::is_none")]
+    pub deployment: Option<Box<models::InferenceReceiptDeployment>>,
+    #[serde(rename = "cost_attribution", skip_serializing_if = "Option::is_none")]
+    pub cost_attribution: Option<Box<models::InferenceReceiptCostAttribution>>,
 }
 
 impl InferenceReceipt {
@@ -81,6 +85,8 @@ impl InferenceReceipt {
             provider_evidence: None,
             usage: Box::new(usage),
             billing: Box::new(billing),
+            deployment: None,
+            cost_attribution: None,
         }
     }
 }

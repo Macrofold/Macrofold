@@ -41,9 +41,27 @@ impl Recommendation {
 }
 ///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[serde(try_from = "bool", into = "bool")]
 pub enum ActionExecuted {
-    #[serde(rename = "false")]
     False,
+}
+
+impl TryFrom<bool> for ActionExecuted {
+    type Error = &'static str;
+
+    fn try_from(value: bool) -> Result<Self, Self::Error> {
+        if value == false {
+            Ok(Self::False)
+        } else {
+            Err("Expected false")
+        }
+    }
+}
+
+impl From<ActionExecuted> for bool {
+    fn from(_: ActionExecuted) -> bool {
+        false
+    }
 }
 
 impl Default for ActionExecuted {

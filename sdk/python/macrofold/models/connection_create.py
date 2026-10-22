@@ -46,8 +46,8 @@ class ConnectionCreate(BaseModel):
     @field_validator('kind')
     def kind_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription']):
-            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription')")
+        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription', 'hugging_face', 'runpod', 'external_model']):
+            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription', 'hugging_face', 'runpod', 'external_model')")
         return value
 
     @field_validator('auth_method')

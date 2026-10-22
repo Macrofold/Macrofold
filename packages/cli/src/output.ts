@@ -1,5 +1,6 @@
 import { stdin, stdout, stderr } from 'node:process';
 import { createInterface } from 'node:readline/promises';
+import { StringDecoder } from 'node:string_decoder';
 import { stripVTControlCharacters } from 'node:util';
 import { ApiError, TransportError } from '../../../sdk/typescript/src/client';
 
@@ -29,7 +30,7 @@ export function output(value: unknown, json = false) {
       stdout.write('No results.\n');
       return;
     }
-    const keys = ['id', 'name', 'status', 'harness', 'model', 'created_at'].filter((k) =>
+    const keys = ['id', 'name', 'status', 'state', 'harness', 'model', 'created_at'].filter((k) =>
       rows.some((r) => r[k] !== undefined),
     );
     for (const row of rows) stdout.write(keys.map((k) => terminalText(row[k] ?? '')).join('  ') + '\n');
@@ -50,17 +51,23 @@ export async function prompt(question: string) {
 }
 export async function confirm(question: string, yes = false) {
   if (yes) return;
-  if (!stdin.isTTY) throw new CliError('Review with --dry-run, then pass --yes to apply without a terminal.');
+  if (!stdin.isTTY)
+    throw new CliError('This command needs confirmation. Pass --yes to confirm without a terminal.');
   if (!/^y(es)?$/i.test((await prompt(question + ' [y/N] ')).trim()))
     throw new CliError('No changes applied.', 0);
 }
 export async function readStdin() {
-  let text = '';
+  const decoder = new StringDecoder('utf8');
+  let text = '',
+    bytes = 0;
   for await (const chunk of stdin) {
-    text += chunk;
-    if (Buffer.byteLength(text) > 4 * 1024 * 1024) throw new CliError('Input exceeds 4 MiB.');
+    bytes += Buffer.byteLength(chunk);
+    if (bytes > 4 * 1024 * 1024) throw new CliError('Input exceeds 4 MiB.');
+    // Pipe chunks can end inside a character; retain those bytes for the next
+    // chunk while enforcing the limit on the original input, not decoded text.
+    text += decoder.write(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
-  return text;
+  return text + decoder.end();
 }
 export function exitFor(error: unknown) {
   if (error instanceof CliError) return error.exitCode;

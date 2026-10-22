@@ -479,7 +479,7 @@ export function decisionProtocol(provider: string, model?: string): DecisionProt
 
 /** Usage has its own trust boundary: a malformed answer must not discard valid
  * billing facts, and one invalid count must not manufacture a complete record. */
-function independentUsage(raw: unknown, chat: boolean, provider: DecisionBinding['provider']) {
+export function independentUsage(raw: unknown, chat: boolean, provider: string) {
   const parsed = independentUsageSchema.safeParse(raw);
   const u = parsed.success ? parsed.data.usage : undefined;
   const costs = provider === 'openrouter' ? reportedCost(u) : {};

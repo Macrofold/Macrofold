@@ -10,7 +10,12 @@ import { assert, AppError } from './errors';
 import { seal, unseal, canonical, sha256 } from './crypto';
 import { config } from './config';
 import * as resources from './resources';
-import { mcpFetch, validateMcpURL, validatePublicURL } from '../../providers/src/network';
+import {
+  mcpFetch,
+  validateMcpURL,
+  validatePublicURL,
+  validateModelEndpointURL,
+} from '../../providers/src/network';
 import type { components } from '../../contracts/api';
 import { withConnectionOAuth } from './mcp-oauth';
 import { approvedStdio } from './stdio-catalog';
@@ -80,7 +85,45 @@ export async function saveConnection(
         : await validateClaudeFallback(tx, p, input.api_fallback);
   }
   if (merged.url)
-    await (merged.kind === 'mcp_remote' ? validateMcpURL : validatePublicURL)(String(merged.url));
+    await (
+      merged.kind === 'mcp_remote'
+        ? validateMcpURL
+        : merged.kind === 'external_model'
+          ? validateModelEndpointURL
+          : validatePublicURL
+    )(String(merged.url));
+  if (['hugging_face', 'runpod', 'external_model'].includes(String(merged.kind))) {
+    const external = merged.kind === 'external_model';
+    assert(
+      !input.secret_headers && !input.secret_env,
+      400,
+      'invalid_credentials',
+      'Model hosting connections use their exact account key or endpoint bearer credential.',
+    );
+    assert(
+      external
+        ? !!merged.url && ['bearer', 'none'].includes(String(merged.auth_method))
+        : !merged.url && merged.auth_method === 'api_key',
+      400,
+      'invalid_model_deployment',
+      'Use a fixed provider API key, or an exact endpoint URL with bearer or no authentication.',
+    );
+    assert(
+      merged.auth_method === 'none' ? !input.secret : !!(input.secret || existing?.secret_ciphertext),
+      400,
+      'credentials_required',
+      'Provide the selected account or endpoint credential.',
+    );
+    if (external) {
+      const endpoint = new URL(String(merged.url));
+      assert(
+        !endpoint.search && !endpoint.hash && !endpoint.pathname.endsWith('/'),
+        400,
+        'invalid_model_deployment',
+        'Use the exact OpenAI base URL without a trailing slash, query or fragment.',
+      );
+    }
+  }
   if (merged.kind === 'search') {
     const provider = searchIdentity(merged);
     assert(
@@ -217,7 +260,8 @@ async function rawConnectionTools(
   c: resources.Document<'connections'>,
   refresh = false,
 ): Promise<RawConnectionTool[]> {
-  if (c.kind === 'model' || c.kind === 'claude_subscription') return [];
+  if (['model', 'claude_subscription', 'hugging_face', 'runpod', 'external_model'].includes(c.kind))
+    return [];
   if (c.kind === 'search') return [searchTool];
   if (c.kind === 'mcp_stdio') return approvedStdio(c.package, c.package_version).tools;
   const setup = c.kind === 'composio' ? await enabledConnector(String(c.provider)) : undefined;
@@ -291,7 +335,7 @@ export async function testConnection(tx: Tx, p: Principal, c: resources.Document
       status = 'unknown';
       message =
         'Named configuration saved. Native Claude subscription authentication is pending provider approval and runtime validation; no account was contacted.';
-    } else if (c.kind === 'model') {
+    } else if (['model', 'hugging_face', 'runpod', 'external_model'].includes(c.kind)) {
       status = 'unknown';
       message =
         'Credential stored. No inference request was made; the first authorized run validates it with the provider.';

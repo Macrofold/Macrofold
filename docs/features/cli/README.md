@@ -60,6 +60,29 @@ macrofold git status
 
 A remote worktree is an independent worktree and branch. It does not create a local checkout. Use `worktree checkout NAME --local PATH` explicitly when you want a verified local Git worktree for review.
 
+## Host and operate a custom model
+
+Use [model deployments](../execution/model-deployments.md) for a persistent inference service. Normal login includes `model-deployments:read` and `model-deployments:use`; request management consent with `macrofold login --scope model-deployments:write --scope connections:write`. Applications also need an explicit deployment grant with their ordinary Run permissions.
+
+```sh
+macrofold connection add --config-file private-connection.json --json
+macrofold model-deployment inspect Qwen/Qwen3-0.6B --compute-connection RUNPOD_CONNECTION_ID --json
+macrofold model-deployment create --config-file deployment.json --json
+macrofold model-deployment revisions DEPLOYMENT_ID --json
+macrofold model-deployment start DEPLOYMENT_ID --revision REVISION_ID --policy-file policy.json --json
+macrofold model-deployment show DEPLOYMENT_ID --json
+macrofold model-deployment grant DEPLOYMENT_ID --config-file grant.json --json
+macrofold model-deployment stop DEPLOYMENT_ID --json
+```
+
+Configuration files contain the corresponding public API request objects. Protect them with `chmod 600 FILE`; `--config-file -` or `--policy-file -` reads one object from stdin. Keep provider credentials in connection input only. Inspection performs no generation or provisioning. Creation saves a stopped deployment with the explicitly supplied access list. A service command returning accepted state does not establish readiness or completed shutdown.
+
+Rotate a connection token with `macrofold connection update CONNECTION_ID --config-file private-connection-update.json`; its JSON body can contain `{"secret":"REPLACEMENT_TOKEN"}`. Use a token for the same provider account so resource ownership remains verifiable. Changing provider accounts requires a new connection. Tokens never belong in command-line arguments.
+
+Use `revise --config-file revision.json` to save immutable model/runtime settings, then `update --revision REVISION_ID` to drain and load them. `rollback --revision PRIOR_REVISION_ID` deliberately selects a saved revision. `update --policy-file policy.json` changes operating limits; omitted policy reuses the stored limits. `grants`, `grant`, and `revoke --grant GRANT_ID` manage current application access. `delete --yes` retires the deployment while retaining required history and cleanup obligations. Mutations accept `--idempotency-key KEY` to recover the same original request deliberately.
+
+Warm managed capacity costs money between requests. The hourly ceiling limits planned infrastructure rate, not lifetime spend; reported and estimated costs are separate, and unknown costs stay unknown. Stopping an external endpoint closes Macrofold access only: its owner must stop the host and its billing separately.
+
 ## Transfer files deliberately
 
 ```sh

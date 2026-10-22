@@ -65,7 +65,7 @@ def example(schema):
 
 
 def snake(value):
-    return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', value).replace('-', '_').lower()
+    return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', value).replace('-', '_').replace(' ', '_').lower()
 
 
 OPERATIONS = [(path, verb, op) for path, item in SPEC['paths'].items() for verb, op in item.items() if isinstance(op, dict) and not any('text/event-stream' in resolve(response).get('content', {}) for response in op.get('responses', {}).values()) and 'operationId' in op]

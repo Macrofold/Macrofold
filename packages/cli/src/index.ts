@@ -103,6 +103,36 @@ const workerFlags = {
   }),
 };
 const specialFlags: Record<string, Interfaces.FlagInput> = {
+  'model-deployment inspect': {
+    'config-file': Flags.string({ description: 'Inspection JSON file, or - for stdin' }),
+    revision: Flags.string({ description: 'Hugging Face ref; resolved to an immutable commit' }),
+    'source-connection': Flags.string({ description: 'Owner Hugging Face connection ID' }),
+    'compute-connection': Flags.string({
+      description: 'Owner RunPod connection ID for fresh hosting offers',
+    }),
+  },
+  'model-deployment create': { 'config-file': Flags.string(), 'idempotency-key': Flags.string() },
+  'model-deployment revision': { revision: Flags.string() },
+  'model-deployment revise': { 'config-file': Flags.string(), 'idempotency-key': Flags.string() },
+  'model-deployment grant': { 'config-file': Flags.string(), 'idempotency-key': Flags.string() },
+  'model-deployment revoke': { grant: Flags.string(), 'idempotency-key': Flags.string() },
+  'model-deployment start': {
+    revision: Flags.string(),
+    'policy-file': Flags.string(),
+    'idempotency-key': Flags.string(),
+  },
+  'model-deployment update': {
+    revision: Flags.string(),
+    'policy-file': Flags.string(),
+    'idempotency-key': Flags.string(),
+  },
+  'model-deployment rollback': {
+    revision: Flags.string(),
+    'policy-file': Flags.string(),
+    'idempotency-key': Flags.string(),
+  },
+  'model-deployment stop': { 'idempotency-key': Flags.string() },
+  'model-deployment delete': { yes: Flags.boolean(), 'idempotency-key': Flags.string() },
   'worker create': workerFlags,
   'worker update': { ...workerFlags, name: Flags.string(), revision: Flags.integer({ min: 1 }) },
   'worker pause': { force: Flags.boolean(), yes: Flags.boolean() },
@@ -137,9 +167,13 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
   'checkpoint create': { pin: Flags.boolean() },
   'checkpoint restore': { yes: Flags.boolean() },
   'connection add': { 'config-file': Flags.string() },
+  'connection update': { 'config-file': Flags.string(), 'idempotency-key': Flags.string() },
   usage: { from: Flags.string(), to: Flags.string() },
 };
 const listCommands = new Set([
+  'model-deployment list',
+  'model-deployment revisions',
+  'model-deployment grants',
   'worker list',
   'workspace list',
   'worktree list',
@@ -153,6 +187,8 @@ const listCommands = new Set([
 ]);
 const unlimitedArgs = new Set(['run', 'workspace create', 'files push', 'files pull', 'files diff']);
 const noArgs = new Set([
+  'model-deployment list',
+  'model-deployment create',
   'worker list',
   'worker offerings',
   'login',
@@ -176,6 +212,20 @@ const noArgs = new Set([
   'version',
 ]);
 const examples: Record<string, string> = {
+  'model-deployment inspect':
+    'macrofold model-deployment inspect Qwen/Qwen3-0.6B\nmacrofold model-deployment inspect --config-file inspection.json --json',
+  'model-deployment create': 'macrofold model-deployment create --config-file deployment.json --json',
+  'model-deployment revise':
+    'macrofold model-deployment revise DEPLOYMENT_ID --config-file revision.json --json',
+  'model-deployment start':
+    'macrofold model-deployment start DEPLOYMENT_ID --revision REVISION_ID --policy-file policy.json --json',
+  'model-deployment update':
+    'macrofold model-deployment update DEPLOYMENT_ID --policy-file policy.json --json',
+  'model-deployment rollback':
+    'macrofold model-deployment rollback DEPLOYMENT_ID --revision PRIOR_REVISION_ID --json',
+  'model-deployment grant': 'macrofold model-deployment grant DEPLOYMENT_ID --config-file grant.json --json',
+  'model-deployment revoke': 'macrofold model-deployment revoke DEPLOYMENT_ID --grant GRANT_ID --json',
+  'model-deployment stop': 'macrofold model-deployment stop DEPLOYMENT_ID --json',
   'worker create':
     'macrofold worker create openlegend --compute server --dedicated --shared-runs --min-instances 1 --max-hourly-cost 1.00',
   'worker update': 'macrofold worker update WORKER_ID --max-hourly-cost 2.00 --revision 3',
@@ -190,10 +240,14 @@ const examples: Record<string, string> = {
   'files push': 'macrofold files push src --dry-run\nmacrofold files push src --yes',
   'files pull': 'macrofold files pull notes --dry-run\nmacrofold files pull notes --yes',
   'connection add': 'macrofold connection add --config-file private-connection.json',
+  'connection update':
+    'macrofold connection update CONNECTION_ID --config-file private-connection-update.json',
   'run input': 'macrofold run input RUN_ID --request REQUEST_ID --answer-file answer.json',
 };
 const subcommands = (command: string) =>
-  Object.keys(handlers).filter((name) => name.startsWith(command + ' ')).sort();
+  Object.keys(handlers)
+    .filter((name) => name.startsWith(command + ' '))
+    .sort();
 function help(command?: string) {
   const children = command ? subcommands(command) : [];
   const keys = command
@@ -212,7 +266,7 @@ function help(command?: string) {
           .sort()
           .map((name) => '  ' + name)
           .join('\n')}\n  completion bash|zsh|fish|powershell`
-  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}\nLinking selects a remote workspace; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse macrofold doctor to inspect the model catalog without starting inference.\n`;
+  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}${command?.startsWith('model-deployment') || command === 'connection update' ? '\nNormal login includes model-deployments:read/use. For management, run macrofold login --scope model-deployments:write --scope connections:write.\n' : ''}\nLinking selects a remote workspace; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse macrofold doctor to inspect the model catalog without starting inference.\n`;
 }
 function completion(shell: string) {
   const words = [

@@ -430,7 +430,7 @@ class ConnectionsResource:
         )
         return decode(models.AuthorizationLink, result, identity)
 
-    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription", "hugging_face", "runpod", "external_model"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createConnection",
@@ -599,7 +599,7 @@ class ConnectionsResource:
         )
         return decode(models.ConnectionTest, result, identity)
 
-    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription", "hugging_face", "runpod", "external_model"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("updateConnection",
@@ -1939,7 +1939,7 @@ class InferencesResource:
         finally:
             stream.close()
 
-    def create(self, *, workspace_id: str | UUID | Omit = OMIT, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams | Omit = OMIT, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams | Omit = OMIT, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, stream: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.InferenceResponse:
+    def create(self, *, workspace_id: str | UUID | Omit = OMIT, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams | Omit = OMIT, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams | Omit = OMIT, model_binding: params.InferenceBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, stream: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.InferenceResponse:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createInference",
@@ -2304,6 +2304,166 @@ class HarnessesResource:
         )
         return decode(models.ListHarnesses200Response, result, identity)
 
+class ModelDeploymentsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def create(self, *, name: str, source: params.ModelDeploymentSourceParams, runtime: params.ModelDeploymentRuntimeParams, hosting: params.ModelDeploymentHostingParams, access: params.CreateModelDeploymentAccessParams, request_options: RequestOptions | None = None) -> models.ModelDeployment:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createModelDeployment",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"name": name,"source": source,"runtime": runtime,"hosting": hosting,"access": access}),
+        )
+        return decode(models.ModelDeployment, result, identity)
+
+    def create_grant(self, deployment_id: str | UUID, *, subject: params.CreateModelDeploymentGrantSubjectChoice1Params | params.CreateModelDeploymentGrantSubjectChoice2Params, workspace_scope: params.CreateModelDeploymentGrantWorkspaceScopeChoice1Params | params.CreateModelDeploymentGrantWorkspaceScopeChoice2Params, request_options: RequestOptions | None = None) -> models.ModelDeploymentGrant:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createModelDeploymentGrant",
+            path=parameters({"deployment_id": deployment_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"subject": subject,"workspace_scope": workspace_scope}),
+        )
+        return decode(models.ModelDeploymentGrant, result, identity)
+
+    def create_revision(self, deployment_id: str | UUID, *, source: params.ModelDeploymentSourceParams, runtime: params.ModelDeploymentRuntimeParams, hosting: params.ModelDeploymentHostingParams, request_options: RequestOptions | None = None) -> models.ModelDeploymentRevision:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createModelDeploymentRevision",
+            path=parameters({"deployment_id": deployment_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"source": source,"runtime": runtime,"hosting": hosting}),
+        )
+        return decode(models.ModelDeploymentRevision, result, identity)
+
+    def delete(self, deployment_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ModelDeployment:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteModelDeployment",
+            path=parameters({"deployment_id": deployment_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.ModelDeployment, result, identity)
+
+    def get(self, deployment_id: str | UUID, *, workspace_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeployment:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getModelDeployment",
+            path=parameters({"deployment_id": deployment_id}),
+            query=parameters({"workspace_id": workspace_id}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.ModelDeployment, result, identity)
+
+    def get_revision(self, deployment_id: str | UUID, revision_id: str | UUID, *, workspace_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeploymentRevision:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getModelDeploymentRevision",
+            path=parameters({"deployment_id": deployment_id,"revision_id": revision_id}),
+            query=parameters({"workspace_id": workspace_id}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.ModelDeploymentRevision, result, identity)
+
+    def inspect(self, *, source: params.ModelDeploymentHuggingFaceSourceParams, task: Literal["text_generation"], compute_connection_id: str | UUID | Omit = OMIT, runtime_preferences: params.InspectModelDeploymentRuntimePreferencesParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeploymentInspection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("inspectModelDeployment",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"source": source,"task": task,"compute_connection_id": compute_connection_id,"runtime_preferences": runtime_preferences}),
+        )
+        return decode(models.ModelDeploymentInspection, result, identity)
+
+    def list_grants(self, deployment_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeploymentGrantPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listModelDeploymentGrants",
+            path=parameters({"deployment_id": deployment_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.ModelDeploymentGrantPage, result, identity)
+
+    def list_revisions(self, deployment_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeploymentRevisionPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listModelDeploymentRevisions",
+            path=parameters({"deployment_id": deployment_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.ModelDeploymentRevisionPage, result, identity)
+
+    def list(self, *, workspace_id: str | UUID | Omit = OMIT, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeploymentPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listModelDeployments",
+            path=parameters({}),
+            query=parameters({"workspace_id": workspace_id,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.ModelDeploymentPage, result, identity)
+
+    def revoke_grant(self, deployment_id: str | UUID, grant_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ModelDeploymentGrant:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("revokeModelDeploymentGrant",
+            path=parameters({"deployment_id": deployment_id,"grant_id": grant_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.ModelDeploymentGrant, result, identity)
+
+    def set_service(self, deployment_id: str | UUID, *, deployment_revision_id: str | UUID, desired_state: Literal["running", "stopped"], policy: params.ModelDeploymentServicePolicyParams, request_options: RequestOptions | None = None) -> models.ModelDeployment:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("setModelDeploymentService",
+            path=parameters({"deployment_id": deployment_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"deployment_revision_id": deployment_revision_id,"desired_state": desired_state,"policy": policy}),
+        )
+        return decode(models.ModelDeployment, result, identity)
+
 class Resources:
     def _init_resources(self, client: Client) -> None:
         self.tasks = TasksResource(client)
@@ -2334,3 +2494,4 @@ class Resources:
         self.me = MeResource(client)
         self.requests = RequestsResource(client)
         self.harnesses = HarnessesResource(client)
+        self.model_deployments = ModelDeploymentsResource(client)

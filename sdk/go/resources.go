@@ -2,8 +2,8 @@
 package macrofold
 import ("context"; "os"; "time")
 const DefaultOrigin = "https://app.macrofold.ai"
-type Client struct { *APIClient; Tasks *TasksResource;WebhookDeliveries *WebhookDeliveriesResource;Runs *RunsResource;Organizations *OrganizationsResource;Checkpoints *CheckpointsResource;Connections *ConnectionsResource;Triggers *TriggersResource;CustomerAgents *CustomerAgentsResource;Worktrees *WorktreesResource;SlackConnections *SlackConnectionsResource;Workspaces *WorkspacesResource;Workers *WorkersResource;Operator *OperatorResource;Integrations *IntegrationsResource;Billing *BillingResource;ApiKeys *ApiKeysResource;Sessions *SessionsResource;Inferences *InferencesResource;WebhookEndpoints *WebhookEndpointsResource;Artifacts *ArtifactsResource;Transfers *TransfersResource;Usage *UsageResource;Operations *OperationsResource;Models *ModelsResource;Agents *AgentsResource;Me *MeResource;Requests *RequestsResource;Harnesses *HarnessesResource }
-func resources(api *APIClient) *Client { return &Client{APIClient:api, Tasks:&TasksResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Runs:&RunsResource{api},Organizations:&OrganizationsResource{api},Checkpoints:&CheckpointsResource{api},Connections:&ConnectionsResource{api},Triggers:&TriggersResource{api},CustomerAgents:&CustomerAgentsResource{api},Worktrees:&WorktreesResource{api},SlackConnections:&SlackConnectionsResource{api},Workspaces:&WorkspacesResource{api},Workers:&WorkersResource{api},Operator:&OperatorResource{api},Integrations:&IntegrationsResource{api},Billing:&BillingResource{api},ApiKeys:&ApiKeysResource{api},Sessions:&SessionsResource{api},Inferences:&InferencesResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},Artifacts:&ArtifactsResource{api},Transfers:&TransfersResource{api},Usage:&UsageResource{api},Operations:&OperationsResource{api},Models:&ModelsResource{api},Agents:&AgentsResource{api},Me:&MeResource{api},Requests:&RequestsResource{api},Harnesses:&HarnessesResource{api},} }
+type Client struct { *APIClient; Tasks *TasksResource;WebhookDeliveries *WebhookDeliveriesResource;Runs *RunsResource;Organizations *OrganizationsResource;Checkpoints *CheckpointsResource;Connections *ConnectionsResource;Triggers *TriggersResource;CustomerAgents *CustomerAgentsResource;Worktrees *WorktreesResource;SlackConnections *SlackConnectionsResource;Workspaces *WorkspacesResource;Workers *WorkersResource;Operator *OperatorResource;Integrations *IntegrationsResource;Billing *BillingResource;ApiKeys *ApiKeysResource;Sessions *SessionsResource;Inferences *InferencesResource;WebhookEndpoints *WebhookEndpointsResource;Artifacts *ArtifactsResource;Transfers *TransfersResource;Usage *UsageResource;Operations *OperationsResource;Models *ModelsResource;Agents *AgentsResource;Me *MeResource;Requests *RequestsResource;Harnesses *HarnessesResource;ModelDeployments *ModelDeploymentsResource }
+func resources(api *APIClient) *Client { return &Client{APIClient:api, Tasks:&TasksResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Runs:&RunsResource{api},Organizations:&OrganizationsResource{api},Checkpoints:&CheckpointsResource{api},Connections:&ConnectionsResource{api},Triggers:&TriggersResource{api},CustomerAgents:&CustomerAgentsResource{api},Worktrees:&WorktreesResource{api},SlackConnections:&SlackConnectionsResource{api},Workspaces:&WorkspacesResource{api},Workers:&WorkersResource{api},Operator:&OperatorResource{api},Integrations:&IntegrationsResource{api},Billing:&BillingResource{api},ApiKeys:&ApiKeysResource{api},Sessions:&SessionsResource{api},Inferences:&InferencesResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},Artifacts:&ArtifactsResource{api},Transfers:&TransfersResource{api},Usage:&UsageResource{api},Operations:&OperationsResource{api},Models:&ModelsResource{api},Agents:&AgentsResource{api},Me:&MeResource{api},Requests:&RequestsResource{api},Harnesses:&HarnessesResource{api},ModelDeployments:&ModelDeploymentsResource{api},} }
 
 type TasksResource struct {client *APIClient}
 func (r *TasksResource) CloseDecision(ctx context.Context, taskId string, options ...RequestOption) (*DecisionTask, error) {
@@ -2344,4 +2344,170 @@ func (r *HarnessesResource) List(ctx context.Context, params *ListHarnessesParam
 if params.Limit != nil {call = call.Limit(*params.Limit)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
+      }
+type ModelDeploymentsResource struct {client *APIClient}
+func (r *ModelDeploymentsResource) Create(ctx context.Context, input *ModelDeploymentCreate, options ...RequestOption) (*ModelDeployment, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.ModelDeploymentsAPI.CreateModelDeployment(ctx)
+        if input != nil {call = call.ModelDeploymentCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *ModelDeploymentsResource) CreateGrant(ctx context.Context, deploymentId string, input *ModelDeploymentGrantInput, options ...RequestOption) (*ModelDeploymentGrant, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.ModelDeploymentsAPI.CreateModelDeploymentGrant(ctx, deploymentId)
+        if input != nil {call = call.ModelDeploymentGrantInput(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *ModelDeploymentsResource) CreateRevision(ctx context.Context, deploymentId string, input *ModelDeploymentRevisionCreate, options ...RequestOption) (*ModelDeploymentRevision, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.ModelDeploymentsAPI.CreateModelDeploymentRevision(ctx, deploymentId)
+        if input != nil {call = call.ModelDeploymentRevisionCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *ModelDeploymentsResource) Delete(ctx context.Context, deploymentId string, options ...RequestOption) (*ModelDeployment, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.ModelDeploymentsAPI.DeleteModelDeployment(ctx, deploymentId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type GetModelDeploymentParams struct {WorkspaceId *string}
+func (r *ModelDeploymentsResource) Get(ctx context.Context, deploymentId string, params *GetModelDeploymentParams, options ...RequestOption) (*ModelDeployment, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &GetModelDeploymentParams{}}
+        call := r.client.ModelDeploymentsAPI.GetModelDeployment(ctx, deploymentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type GetModelDeploymentRevisionParams struct {WorkspaceId *string}
+func (r *ModelDeploymentsResource) GetRevision(ctx context.Context, deploymentId string, revisionId string, params *GetModelDeploymentRevisionParams, options ...RequestOption) (*ModelDeploymentRevision, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &GetModelDeploymentRevisionParams{}}
+        call := r.client.ModelDeploymentsAPI.GetModelDeploymentRevision(ctx, deploymentId, revisionId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *ModelDeploymentsResource) Inspect(ctx context.Context, input *ModelDeploymentInspectionInput, options ...RequestOption) (*ModelDeploymentInspection, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.ModelDeploymentsAPI.InspectModelDeployment(ctx)
+        if input != nil {call = call.ModelDeploymentInspectionInput(*input)}
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListModelDeploymentGrantsParams struct {Cursor *string;Limit *int32}
+func (r *ModelDeploymentsResource) ListGrants(ctx context.Context, deploymentId string, params *ListModelDeploymentGrantsParams, options ...RequestOption) (*ModelDeploymentGrantPage, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListModelDeploymentGrantsParams{}}
+        call := r.client.ModelDeploymentsAPI.ListModelDeploymentGrants(ctx, deploymentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListModelDeploymentRevisionsParams struct {Cursor *string;Limit *int32}
+func (r *ModelDeploymentsResource) ListRevisions(ctx context.Context, deploymentId string, params *ListModelDeploymentRevisionsParams, options ...RequestOption) (*ModelDeploymentRevisionPage, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListModelDeploymentRevisionsParams{}}
+        call := r.client.ModelDeploymentsAPI.ListModelDeploymentRevisions(ctx, deploymentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListModelDeploymentsParams struct {WorkspaceId *string;Cursor *string;Limit *int32}
+func (r *ModelDeploymentsResource) List(ctx context.Context, params *ListModelDeploymentsParams, options ...RequestOption) (*ModelDeploymentPage, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListModelDeploymentsParams{}}
+        call := r.client.ModelDeploymentsAPI.ListModelDeployments(ctx)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
+if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *ModelDeploymentsResource) RevokeGrant(ctx context.Context, deploymentId string, grantId string, options ...RequestOption) (*ModelDeploymentGrant, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.ModelDeploymentsAPI.RevokeModelDeploymentGrant(ctx, deploymentId, grantId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *ModelDeploymentsResource) SetService(ctx context.Context, deploymentId string, input *ModelDeploymentServiceInput, options ...RequestOption) (*ModelDeployment, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.ModelDeploymentsAPI.SetModelDeploymentService(ctx, deploymentId)
+        if input != nil {call = call.ModelDeploymentServiceInput(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
       }

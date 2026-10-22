@@ -18,6 +18,12 @@ export const keyPermissions = {
   'workers:read': { label: 'View Worker configuration and compute usage', preset: 'read-only' },
   'workers:use': { label: 'Run agents on authorized Workers', preset: 'read-write' },
   'workers:write': { label: 'Manage Worker capacity, spending and lifecycle', preset: 'full-access' },
+  'model-deployments:read': { label: 'View model deployments and serving revisions', preset: 'read-only' },
+  'model-deployments:use': { label: 'Call granted model deployments', preset: 'read-write' },
+  'model-deployments:write': {
+    label: 'Manage model hosting, spending and application access',
+    preset: 'full-access',
+  },
   'connections:read': { label: 'View connections and tools', preset: 'read-only' },
   'connections:write': { label: 'Manage connections and access rules', preset: 'read-write' },
   'usage:read': { label: 'View usage and billing', preset: 'read-only' },
@@ -42,7 +48,7 @@ export const keyPermissionPresets = [
     value: 'read-write',
     label: 'Read & write',
     description:
-      'Run agents and manage workspaces, files, connections and automation. Excludes Worker spending/lifecycle, billing, API-key and team administration, and permanent workspace deletion.',
+      'Run agents, call granted model deployments and manage workspaces, files, connections and automation. Excludes compute/model hosting administration, billing, API-key and team administration, and permanent workspace deletion.',
   },
   {
     value: 'full-access',

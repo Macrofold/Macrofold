@@ -55,6 +55,7 @@ globalThis.fetch = async (input, init) => {
 config.allowPaid = true; // Safe only after installing the closed fixture transport above.
 process.env.ANTHROPIC_API_KEY = 'sdk-fixture-not-a-provider-key';
 let backgroundFailed = false;
+const deploymentCalls: Record<string, number> = {};
 const background = (task: () => Promise<void>) => {
   void Promise.resolve()
     .then(task)
@@ -69,6 +70,85 @@ createServer(async (incoming, outgoing) => {
     if (incoming.url === '/health') {
       outgoing.statusCode = backgroundFailed ? 500 : 200;
       outgoing.end('ready');
+      return;
+    }
+    // A real loopback OpenAI transport exercises the deployment adapter's
+    // DNS-to-socket boundary. It never forwards to an external provider.
+    if (incoming.url?.startsWith('/model-fixture/')) {
+      if (incoming.headers.authorization !== 'Bearer sdk-external-fixture-not-a-provider-key') {
+        outgoing.writeHead(401).end();
+        return;
+      }
+      outgoing.setHeader('Content-Type', 'application/json');
+      if (incoming.url === '/model-fixture/observations') {
+        outgoing.end(JSON.stringify(deploymentCalls));
+        return;
+      }
+      if (incoming.url === '/model-fixture/v1/models') {
+        outgoing.end(
+          JSON.stringify({
+            data: ['typescript', 'python', 'go', 'rust', 'java'].map((language) => ({
+              id: `fixture-model-${language}`,
+            })),
+          }),
+        );
+        return;
+      }
+      if (incoming.url !== '/model-fixture/v1/chat/completions' || incoming.method !== 'POST') {
+        outgoing.writeHead(404).end();
+        return;
+      }
+      const chunks: Buffer[] = [];
+      for await (const chunk of incoming) chunks.push(Buffer.from(chunk));
+      const input = JSON.parse(Buffer.concat(chunks).toString()) as { model?: unknown; stream?: unknown };
+      if (
+        typeof input.model !== 'string' ||
+        !/^fixture-model-(typescript|python|go|rust|java)$/.test(input.model)
+      ) {
+        outgoing.writeHead(400).end();
+        return;
+      }
+      deploymentCalls[input.model] = (deploymentCalls[input.model] ?? 0) + 1;
+      const value = {
+        id: 'sdk-deployment-completion',
+        object: 'chat.completion',
+        model: input.model,
+        provider_native_extra: { retained: true },
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: 'Hello from the deployment SDK fixture.',
+              annotations: [],
+            },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 11, completion_tokens: 4, total_tokens: 15 },
+      };
+      if (!input.stream) {
+        outgoing.end(JSON.stringify(value));
+        return;
+      }
+      outgoing.setHeader('Content-Type', 'text/event-stream');
+      outgoing.end(
+        [
+          {
+            id: value.id,
+            model: value.model,
+            choices: [{ index: 0, delta: value.choices[0].message, finish_reason: null }],
+          },
+          {
+            id: value.id,
+            model: value.model,
+            choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+            usage: value.usage,
+          },
+        ]
+          .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+          .join('') + 'data: [DONE]\n\n',
+      );
       return;
     }
     const headers = new Headers();

@@ -49,7 +49,7 @@ class Recommendation(BaseModel):
     @field_validator('action_executed')
     def action_executed_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['false']):
+        if value is not False:
             raise ValueError("must be one of enum values ('false')")
         return value
 

@@ -4,7 +4,8 @@ import { X, ArrowUpRight, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Children, useId, isValidElement, cloneElement, type ReactElement } from 'react';
+import { Children, useId, useRef, isValidElement, cloneElement, type ReactElement } from 'react';
+import { useHydrated } from '../lib/use-hydrated';
 import { WaitingText } from './waiting-text';
 import { Select } from './select';
 export { Select } from './select';
@@ -17,11 +18,12 @@ export function Button({
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   busy?: boolean;
 }) {
+  const hydrated = useHydrated();
   return (
     <button
       {...props}
       aria-busy={busy || undefined}
-      disabled={props.disabled || busy}
+      disabled={props.disabled || busy || (!!props.onClick && !hydrated)}
       className={clsx('button', variant, props.className)}
     >
       {Children.map(children, (child) =>
@@ -73,11 +75,24 @@ export function Modal({
   wide?: boolean;
   className?: string;
 }) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className={clsx('dialog', wide && 'wide', className)}>
+        <Dialog.Content
+          className={clsx('dialog', wide && 'wide', className)}
+          onOpenAutoFocus={() => {
+            // Controlled callers have no Dialog.Trigger for Radix to return to.
+            // See docs/product/design-language.md#product-interface-system.
+            returnFocus.current =
+              document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (returnFocus.current?.isConnected) returnFocus.current.focus();
+          }}
+        >
           <div className="dialog-heading">
             <div>
               <Dialog.Title>{title}</Dialog.Title>

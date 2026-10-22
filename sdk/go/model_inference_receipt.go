@@ -41,6 +41,8 @@ type InferenceReceipt struct {
 	ProviderEvidence *InferenceReceiptProviderEvidence `json:"provider_evidence,omitempty"`
 	Usage InferenceUsage `json:"usage"`
 	Billing InferenceBilling `json:"billing"`
+	Deployment *InferenceReceiptDeployment `json:"deployment,omitempty"`
+	CostAttribution *InferenceReceiptCostAttribution `json:"cost_attribution,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -670,6 +672,70 @@ func (o *InferenceReceipt) SetBilling(v InferenceBilling) {
 	o.Billing = v
 }
 
+// GetDeployment returns the Deployment field value if set, zero value otherwise.
+func (o *InferenceReceipt) GetDeployment() InferenceReceiptDeployment {
+	if o == nil || IsNil(o.Deployment) {
+		var ret InferenceReceiptDeployment
+		return ret
+	}
+	return *o.Deployment
+}
+
+// GetDeploymentOk returns a tuple with the Deployment field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceReceipt) GetDeploymentOk() (*InferenceReceiptDeployment, bool) {
+	if o == nil || IsNil(o.Deployment) {
+		return nil, false
+	}
+	return o.Deployment, true
+}
+
+// HasDeployment returns a boolean if a field has been set.
+func (o *InferenceReceipt) HasDeployment() bool {
+	if o != nil && !IsNil(o.Deployment) {
+		return true
+	}
+
+	return false
+}
+
+// SetDeployment gets a reference to the given InferenceReceiptDeployment and assigns it to the Deployment field.
+func (o *InferenceReceipt) SetDeployment(v InferenceReceiptDeployment) {
+	o.Deployment = &v
+}
+
+// GetCostAttribution returns the CostAttribution field value if set, zero value otherwise.
+func (o *InferenceReceipt) GetCostAttribution() InferenceReceiptCostAttribution {
+	if o == nil || IsNil(o.CostAttribution) {
+		var ret InferenceReceiptCostAttribution
+		return ret
+	}
+	return *o.CostAttribution
+}
+
+// GetCostAttributionOk returns a tuple with the CostAttribution field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceReceipt) GetCostAttributionOk() (*InferenceReceiptCostAttribution, bool) {
+	if o == nil || IsNil(o.CostAttribution) {
+		return nil, false
+	}
+	return o.CostAttribution, true
+}
+
+// HasCostAttribution returns a boolean if a field has been set.
+func (o *InferenceReceipt) HasCostAttribution() bool {
+	if o != nil && !IsNil(o.CostAttribution) {
+		return true
+	}
+
+	return false
+}
+
+// SetCostAttribution gets a reference to the given InferenceReceiptCostAttribution and assigns it to the CostAttribution field.
+func (o *InferenceReceipt) SetCostAttribution(v InferenceReceiptCostAttribution) {
+	o.CostAttribution = &v
+}
+
 func (o InferenceReceipt) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -715,6 +781,12 @@ func (o InferenceReceipt) ToMap() (map[string]interface{}, error) {
 	}
 	toSerialize["usage"] = o.Usage
 	toSerialize["billing"] = o.Billing
+	if !IsNil(o.Deployment) {
+		toSerialize["deployment"] = o.Deployment
+	}
+	if !IsNil(o.CostAttribution) {
+		toSerialize["cost_attribution"] = o.CostAttribution
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -792,6 +864,8 @@ func (o *InferenceReceipt) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "provider_evidence")
 		delete(additionalProperties, "usage")
 		delete(additionalProperties, "billing")
+		delete(additionalProperties, "deployment")
+		delete(additionalProperties, "cost_attribution")
 		o.AdditionalProperties = additionalProperties
 	}
 

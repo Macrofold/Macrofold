@@ -60,7 +60,7 @@ Direct inference promotes `eventsource-parser` 3.1.1 (MIT), already present tran
 
 ## Custom model serving
 
-The separate custom-model wrapper pins official vLLM 0.32.0 by its Linux AMD64 image digest plus HTTPX 0.28.1, Starlette 1.9.0, Uvicorn 0.54.0 and Hugging Face Hub 1.33.0. Its [runtime guide](../../infra/model-serving/README.md#verification-and-dependencies) records licenses and the narrow upstream dependency-graph repair/exception. Preserve upstream CUDA, engine and model notices; scan the complete OS/Python artifact before release. This image is separate from the native harness graph above and is not published by ordinary CI.
+The separate custom-model wrapper pins official vLLM 0.32.0 by its Linux AMD64 image digest plus HTTPX 0.28.1, Starlette 1.9.0, Uvicorn 0.54.0 and Hugging Face Hub 1.33.0. Its [runtime guide](../../infra/model-serving/README.md#verification-and-dependencies) records licenses, the narrow upstream dependency-graph repair/exception, fixed Ubuntu security packages and hash-pinned certifi 2026.10.19 (MPL-2.0). Unused pip/uv installers are removed after dependency validation. Preserve upstream CUDA, engine and model notices; the [acceptance record](../projects/hugging-face-model-deployments-tech-design.md#current-implementation-evidence) owns complete-image scan results and their limits. This image is separate from the native harness graph above and is not published by ordinary CI.
 
 ## Contributor guidance validation
 

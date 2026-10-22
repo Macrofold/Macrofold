@@ -191,7 +191,7 @@ test('shows loading, empty and denied states with retry and prevents creating wi
     });
   });
   await page.reload();
-  await expect(page.getByRole('alert')).toContainText('Deployment access denied.');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Deployment access denied.');
   await expect(page.getByRole('button', { name: 'Create deployment', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
   await page.screenshot({

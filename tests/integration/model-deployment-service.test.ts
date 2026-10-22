@@ -170,6 +170,25 @@ it('rounds storage bytes exactly beyond JavaScript’s safe integer range', asyn
   expect(rates.hourly_micro_usd).toBe('7515000000');
 });
 
+it('rejects physical VRAM that does not fit within the selected runtime utilization', async () => {
+  const record = revision({ source_evidence: { memory_estimate_bytes: '30000000000' } });
+  record.runtime = { ...runtime, parameters: { ...runtime.parameters, gpu_memory_utilization: 0.5 } };
+  await expect(quoteManagedService(record, policy(), 'fixture-runpod-key', provider())).rejects.toMatchObject(
+    { status: 422, code: 'invalid_hosting_policy' },
+  );
+  record.source_evidence.memory_estimate_bytes = '24000000000';
+  expect(
+    await quoteManagedService(
+      record,
+      { ...policy(), max_hourly_cost_micro_usd: '10000000' },
+      'fixture-runpod-key',
+      provider(),
+    ),
+  ).toMatchObject({
+    gpu_hourly_micro_usd: '9000000',
+  });
+});
+
 it('distinguishes a narrowing service policy from increased capacity, rate or operating duration', () => {
   const current = { ...policy(), stop_at: '2030-01-02T00:00:00Z' };
   expect(

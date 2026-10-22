@@ -46,23 +46,27 @@ def prepare(config: ModelConfig, directory: Path, token: str | None) -> dict:
         result.mkdir()
         for file in path.rglob("*"):
             relative = file.relative_to(path).as_posix()
-            if not file.is_file() or not any(fnmatch(relative, pattern) for pattern in patterns):
+            if not file.is_file() or relative.endswith(".safetensors") or not any(fnmatch(relative, pattern) for pattern in patterns):
                 continue
-            if relative.endswith(".safetensors.index.json"):
-                index = json.loads(file.read_text())
-                if not isinstance(index.get("weight_map"), dict) or set(index["weight_map"].values()) != set(weights or []):
-                    continue
             target = result / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.symlink_to(file)
+        # vLLM's maintained safetensors loader scans only the model root. Flat
+        # unique links preserve selected shards even across nested variants;
+        # source indexes would refer to paths outside this prepared view.
+        # See docs/projects/hugging-face-model-deployments-tech-design.md#4-source-preparation-and-runtime-profiles.
+        for index, filename in enumerate(weights or []):
+            file = path / filename
+            if not file.is_file():
+                raise ValueError("A selected model artifact is missing")
+            (result / f"weights-{index:05}.safetensors").symlink_to(file)
         return result
 
     source = config.source
-    patterns = source["weight_files"] + TOKENIZER_FILES + ["generation_config.json", "*.safetensors.index.json"]
+    patterns = source["weight_files"] + TOKENIZER_FILES
     model = materialize(snapshot(source, patterns), "model", patterns, source["weight_files"])
-    for name in ["config.json", *source["weight_files"]]:
-        if not (model / name).is_file():
-            raise ValueError("A selected model artifact is missing")
+    if not (model / "config.json").is_file():
+        raise ValueError("A model configuration is missing")
     tokenizer = materialize(snapshot(source["tokenizer"], TOKENIZER_FILES), "tokenizer", TOKENIZER_FILES) if source.get("tokenizer") else model
     tokenizer_config = tokenizer / "tokenizer_config.json"
     if not tokenizer_config.is_file():

@@ -24,6 +24,19 @@ export const defaultRuntimeParameters: components['schemas']['ModelDeploymentRun
   tensor_parallel_size: 1,
   gpu_memory_utilization: 0.9,
 };
+export function runtimeMemoryFits(
+  memoryBytes: string,
+  estimatedBytes: string,
+  parameters: components['schemas']['ModelDeploymentRuntimeParameters'],
+  gpuCount = parameters.tensor_parallel_size ?? 1,
+) {
+  // vLLM reserves only this fraction of aggregate VRAM for weights and cache.
+  // Compare decimal fractions exactly rather than rounding large byte counts.
+  const [whole, fraction = ''] = String(parameters.gpu_memory_utilization ?? 0.9).split('.');
+  const numerator = BigInt(whole + fraction);
+  const denominator = 10n ** BigInt(fraction.length);
+  return BigInt(memoryBytes) * BigInt(gpuCount) * numerator >= BigInt(estimatedBytes) * denominator;
+}
 export const chatParameters = [
   'messages',
   'temperature',

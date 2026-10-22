@@ -346,8 +346,9 @@ async function observeCosts(
   provider: ModelHostingProvider,
 ) {
   if (!resource.provider_id) return;
-  const end = new Date();
-  const start = new Date(Math.max(resource.created_at.getTime(), end.getTime() - 30 * 86_400_000));
+  const now = Date.now();
+  const end = resource.deleted_at ?? new Date(now);
+  const start = new Date(Math.max(resource.created_at.getTime(), now - 30 * 86_400_000));
   if (start >= end) return;
   const observations = await provider.costs(
     key,
@@ -392,7 +393,7 @@ async function historicalCosts(org: string, row: DeploymentRow, provider: ModelH
       AND g.connection_id=r.connection_id AND g.organization_id=r.organization_id AND g.approved_by=$2
     JOIN memberships m ON m.organization_id=r.organization_id AND m.user_id=$2 AND m.role IN ('owner','admin')
     JOIN auth."user" u ON u.id=m.user_id AND u."emailVerified"=true
-    WHERE r.deployment_id=$1 AND r.deleted_at IS NOT NULL AND r.provider_id IS NOT NULL
+    WHERE r.deployment_id=$1 AND r.deleted_at>now()-interval '30 days' AND r.provider_id IS NOT NULL
       AND c.data->>'owner_subject_id'=$2 AND c.data->>'kind'='runpod' AND c.data->>'status'='healthy'
       AND coalesce((c.data->>'deleted')::boolean,false)=false AND c.data->>'secret_ciphertext' IS NOT NULL
       AND (r.observed_at IS NULL OR r.observed_at<now()-interval '5 minutes')
@@ -963,11 +964,23 @@ export async function advanceModelDeployment(
     });
   } finally {
     await historicalCosts(org, current.row, provider).catch(() => {});
-    await mutate(org, current, async (tx, row) => {
-      const seconds = Math.min(300, 5 * 2 ** Math.min(6, row.failure_attempts));
+    await transaction(org, async (tx) => {
+      // A newer control generation still waits for this owner's I/O to finish,
+      // but must not wait for its lease expiry afterward. Only the exact lease
+      // owner can release; newer control actions retain their immediate due time.
       await tx.query(
-        "UPDATE model_deployments SET lease_id=NULL,lease_until=NULL,next_check_at=clock_timestamp()+($2::integer*interval '1 second'),updated_at=now() WHERE id=$1",
-        [row.id, seconds],
+        `UPDATE model_deployments SET lease_id=NULL,lease_until=NULL,
+        next_check_at=CASE WHEN generation<>$3 THEN next_check_at
+          WHEN (desired_state='running' AND failure_code IS DISTINCT FROM 'service_recovery_exhausted')
+            OR state NOT IN ('stopped','failed') OR EXISTS(SELECT 1 FROM model_deployment_resources r
+              WHERE r.deployment_id=model_deployments.id AND r.deleted_at IS NULL)
+            THEN clock_timestamp()+(least(300,5*power(2,least(6,failure_attempts)))::integer*interval '1 second')
+          WHEN EXISTS(SELECT 1 FROM model_deployment_resources r WHERE r.deployment_id=model_deployments.id
+              AND r.deleted_at>clock_timestamp()-interval '30 days' AND r.provider_id IS NOT NULL)
+            THEN clock_timestamp()+interval '5 minutes'
+          ELSE NULL END,
+        updated_at=now() WHERE id=$1 AND lease_id=$2`,
+        [current.row.id, current.lease, current.row.generation],
       );
     });
   }

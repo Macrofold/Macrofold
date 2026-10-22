@@ -9,6 +9,7 @@ import * as deployments from '../../packages/core/src/model-deployments';
 import { runtimeCapabilities } from '../../packages/core/src/model-deployment-profiles';
 import { advanceModelDeployment } from '../../packages/core/src/model-deployment-reconciler';
 import { prepareConnectionSave } from '../../packages/core/src/model-hosting-connections';
+import { prepareService } from '../../packages/core/src/model-deployment-service';
 import type { RequestContext } from '../../packages/core/src/api-types';
 import type {
   DeploymentResourceRow,
@@ -45,6 +46,7 @@ class FixtureProvider implements ModelHostingProvider {
   failInspect = false;
   lostDelete = false;
   amount = '100';
+  costCalls: { providerId: string; start: string; end: string }[] = [];
   deleteKey = 'synthetic-compute-secret';
   onCreate?: () => Promise<void>;
   async catalog() {
@@ -112,7 +114,8 @@ class FixtureProvider implements ModelHostingProvider {
     this.entries.delete(providerId);
     if (this.lostDelete) throw new Error('Synthetic lost delete acknowledgment');
   }
-  async costs(_secret: string, _providerId: string, start: string) {
+  async costs(_secret: string, providerId: string, start: string, end: string) {
+    this.costCalls.push({ providerId, start, end });
     const bucket = Math.floor(Date.parse(start) / 3_600_000) * 3_600_000;
     return [
       {
@@ -234,7 +237,7 @@ beforeEach(async () => {
   revisionId = created.desired_revision_id;
   await transaction(org(), async (tx) => {
     await tx.query(
-      "UPDATE model_deployments SET desired_state='running',policy=$2,state='starting',startup_at=now() WHERE id=$1",
+      "UPDATE model_deployments SET desired_state='running',policy=$2,state='starting',startup_at=now(),next_check_at=now() WHERE id=$1",
       [deploymentId, JSON.stringify(policy)],
     );
   });
@@ -255,6 +258,51 @@ afterAll(async () => {
 });
 
 describe('persistent model service reconciliation', () => {
+  it('keeps quiescent metadata out of the due index while admitting pending cleanup', async () => {
+    await advance();
+    await stopIntent();
+    provider.failInspect = true;
+    await advance();
+    const quiescent = Array.from({ length: 1000 }, () => ({ deployment: id(), revision: id() }));
+    await transaction(org(), async (tx) => {
+      await tx.query(
+        `INSERT INTO model_deployments(id,organization_id,owner_subject_id,name)
+        SELECT d.deployment,$1,$2,'Stopped discovery fixture' FROM jsonb_to_recordset($3::jsonb) AS d(deployment uuid)`,
+        [org(), account.p.userId, JSON.stringify(quiescent)],
+      );
+      await tx.query(
+        `INSERT INTO model_deployment_revisions(id,organization_id,deployment_id,source,runtime,hosting,capabilities,source_evidence)
+        SELECT d.revision,$1,d.deployment,r.source,r.runtime,r.hosting,r.capabilities,r.source_evidence
+        FROM jsonb_to_recordset($3::jsonb) AS d(deployment uuid,revision uuid),model_deployment_revisions r WHERE r.id=$2`,
+        [org(), revisionId, JSON.stringify(quiescent)],
+      );
+      await tx.query(
+        `UPDATE model_deployments SET desired_revision_id=d.revision
+        FROM jsonb_to_recordset($1::jsonb) AS d(deployment uuid,revision uuid) WHERE id=d.deployment`,
+        [JSON.stringify(quiescent)],
+      );
+      const idle = await tx.query<{ count: string }>(
+        'SELECT count(*) FROM model_deployments WHERE id=ANY($1::uuid[]) AND next_check_at IS NULL',
+        [quiescent.map((value) => value.deployment)],
+      );
+      expect(idle.rows[0].count).toBe('1000');
+      await tx.query('UPDATE model_deployments SET next_check_at=now() WHERE id=$1', [deploymentId]);
+    });
+    const candidates = await pool.query<{ id: string }>(
+      `SELECT id FROM reporting.model_deployment_dispatch WHERE next_check_at<=now()
+      AND (lease_until IS NULL OR lease_until<now()) ORDER BY next_check_at,id LIMIT 20`,
+    );
+    expect(candidates.rows.map((value) => value.id)).toContain(deploymentId);
+    expect(candidates.rows.some((value) => quiescent.some((idle) => idle.deployment === value.id))).toBe(
+      false,
+    );
+    const plan = await pool.query<{ 'QUERY PLAN': string }>(
+      `EXPLAIN SELECT id FROM reporting.model_deployment_dispatch WHERE next_check_at<=now()
+      AND (lease_until IS NULL OR lease_until<now()) ORDER BY next_check_at,id LIMIT 20`,
+    );
+    expect(plan.rows.map((value) => value['QUERY PLAN']).join('\n')).toContain('model_deployments_due');
+  });
+
   it('commits the only create permit before provider I/O and fences concurrent reconcilers', async () => {
     let entered!: () => void;
     let release!: () => void;
@@ -424,11 +472,47 @@ describe('persistent model service reconciliation', () => {
     expect((await row()).serving_revision_id).toBeNull();
     expect((await resource()).provider_id).toBe('endpoint-1');
     config.allowPaid = false;
-    await due(true);
+    // The stale create owner releases its exact lease when it finishes. A stop
+    // must not wait for the old 120s lease to expire before owned cleanup.
+    expect((await row()).lease_id).toBeNull();
     await advanceModelDeployment(org(), deploymentId, provider);
     expect((await row()).state).toBe('stopped');
     expect((await resource()).cleanup_secret_ciphertext).toBeNull();
     expect(provider.deletes).toBe(1);
+  });
+
+  it('cannot release a replacement lease after its own provider call finishes late', async () => {
+    let entered!: () => void;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    provider.onCreate = async () => {
+      entered();
+      await held;
+    };
+    const first = advanceModelDeployment(org(), deploymentId, provider);
+    await ready;
+    const successor = id();
+    try {
+      await transaction(org(), (tx) =>
+        tx.query(
+          "UPDATE model_deployments SET lease_id=$2,lease_until=now()+interval '2 minutes',next_check_at=now()+interval '1 minute' WHERE id=$1",
+          [deploymentId, successor],
+        ),
+      );
+    } finally {
+      release();
+      await first;
+    }
+    const current = await row();
+    expect(current.lease_id).toBe(successor);
+    expect(current.lease_until?.getTime()).toBeGreaterThan(Date.now());
+    expect(current.next_check_at?.getTime()).toBeGreaterThan(Date.now());
+    expect((await resource()).provider_id).toBe('endpoint-1');
   });
 
   it('cleans owned infrastructure after connection disconnect erased ordinary credentials and scale-down failed', async () => {
@@ -630,6 +714,8 @@ describe('persistent model service reconciliation', () => {
     await advance();
     await stopIntent();
     await advance();
+    const deletedAt = (await resource()).deleted_at;
+    if (!deletedAt) throw new Error('Expected confirmed cleanup.');
     expect((await resource()).cleanup_secret_ciphertext).toBeNull();
     provider.amount = '175';
     await transaction(org(), async (tx) => {
@@ -639,6 +725,8 @@ describe('persistent model service reconciliation', () => {
       );
     });
     await advance();
+    expect(provider.costCalls.at(-1)?.end).toBe(deletedAt.toISOString());
+    expect((await row()).next_check_at?.getTime()).toBeGreaterThan(Date.now() + 290_000);
     const facts = await transaction(org(), (tx) =>
       tx.query<{ provider_reported_micro_usd: string; estimated_micro_usd: string | null }>(
         `SELECT provider_reported_micro_usd,estimated_micro_usd FROM model_deployment_cost_observations
@@ -649,6 +737,32 @@ describe('persistent model service reconciliation', () => {
     expect(facts.rows).toEqual([{ provider_reported_micro_usd: '175', estimated_micro_usd: null }]);
     expect(provider.creates).toBe(1);
     expect(provider.deletes).toBe(1);
+  });
+
+  it('stops polling deleted resources beyond the bounded billing observation window without erasing costs', async () => {
+    await advance();
+    await advance();
+    await stopIntent();
+    await advance();
+    const costCalls = provider.costCalls.length;
+    await transaction(org(), (tx) =>
+      tx.query(
+        `UPDATE model_deployment_resources SET created_at=now()-interval '32 days',
+      deleted_at=now()-interval '31 days',observed_at=now()-interval '6 minutes' WHERE deployment_id=$1`,
+        [deploymentId],
+      ),
+    );
+    await advance();
+    expect(provider.costCalls).toHaveLength(costCalls);
+    expect((await row()).next_check_at).toBeNull();
+    const observations = await transaction(org(), (tx) =>
+      tx.query<{ amount: string }>(
+        `SELECT c.provider_reported_micro_usd AS amount FROM model_deployment_cost_observations c
+      JOIN model_deployment_resources r ON r.id=c.resource_id WHERE r.deployment_id=$1`,
+        [deploymentId],
+      ),
+    );
+    expect(observations.rows).toEqual([{ amount: '100' }]);
   });
 
   it('bounds a failed model load and keeps cleanup progressing after recovery is exhausted', async () => {
@@ -668,6 +782,41 @@ describe('persistent model service reconciliation', () => {
     expect((await row()).state).toBe('failed');
     expect((await resource()).deleted_at).not.toBeNull();
     expect(provider.creates).toBe(1);
+  });
+
+  it('gives an explicit owner retry a fresh startup window after exhausted loading', async () => {
+    await advance();
+    const failed = provider.entries.get('endpoint-1');
+    if (!failed) throw new Error('Expected fixture endpoint.');
+    failed.ready_replicas = 0;
+    await transaction(org(), (tx) =>
+      tx.query("UPDATE model_deployments SET startup_at=now()-interval '21 minutes' WHERE id=$1", [
+        deploymentId,
+      ]),
+    );
+    await advance();
+    await advance();
+    expect((await resource()).deleted_at).not.toBeNull();
+    expect((await row()).failure_code).toBe('service_recovery_exhausted');
+    const body = { deployment_revision_id: revisionId, desired_state: 'running', policy };
+    const context: RequestContext = {
+      ...rotationContext(),
+      request: new Request(`${config.origin}/v1/model-deployments/${deploymentId}/service`),
+      params: { deployment_id: deploymentId },
+      body,
+      bytes: Buffer.from(JSON.stringify(body)),
+      operationId: 'setModelDeploymentService',
+    };
+    const prepared = await prepareService(context, provider);
+    await transaction(org(), (tx) => prepared.commit(tx, account.p));
+    await advance();
+    const replacement = provider.entries.get('endpoint-2');
+    if (!replacement) throw new Error('Expected replacement endpoint.');
+    replacement.ready_replicas = 0;
+    await advance();
+    expect(await row()).toMatchObject({ state: 'starting', failure_code: 'model_loading' });
+    expect(provider.creates).toBe(2);
+    expect(provider.deletes).toBe(1);
   });
 
   it('probes an external model without generation and stops access without deleting its host', async () => {
@@ -715,7 +864,7 @@ describe('persistent model service reconciliation', () => {
     revisionId = created.desired_revision_id;
     await transaction(org(), async (tx) => {
       await tx.query(
-        "UPDATE model_deployments SET desired_state='running',state='starting',policy=$2 WHERE id=$1",
+        "UPDATE model_deployments SET desired_state='running',state='starting',policy=$2,next_check_at=now() WHERE id=$1",
         [deploymentId, JSON.stringify({ max_concurrent_requests: 2 })],
       );
     });

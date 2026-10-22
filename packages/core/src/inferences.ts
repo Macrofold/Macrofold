@@ -180,8 +180,6 @@ async function admitInferenceState(
     'execution_limit_exceeded',
     'The timeout exceeds the account execution policy.',
   );
-  const secret = target ? '' : await modelCredential(tx, p.userId, catalogBinding(input));
-  const deploymentHeaders = target ? await deploymentCredentialTx(tx, p, target) : undefined;
   const configuration = prepared?.configuration ?? { ...inferenceConfiguration(p, input, model), ...source };
   assert(
     !prepared || digest(prepared.configuration.rate_card) === digest(model),
@@ -259,6 +257,11 @@ async function admitInferenceState(
       'The requested execution window cannot fit this host lifetime.',
     );
   }
+  // Capacity locks can wait while an owner disconnects or rotates a connection.
+  // Resolve both catalog and deployment credentials after those waits, before
+  // admitting dispatch. See docs/features/decisions/implementation.md#durable-request-boundary.
+  const secret = target ? '' : await modelCredential(tx, p.userId, catalogBinding(input));
+  const deploymentHeaders = target ? await deploymentCredentialTx(tx, p, target) : undefined;
   const runId = id();
   // Anchor before the SQL statement so wire latency can only shorten, never
   // extend, the provider window relative to PostgreSQL's accepted deadline.
@@ -541,7 +544,13 @@ export async function prepareInference(
       // miss a newly admitted Run in its dependent-cancellation scan.
       const organizationLocked =
         direct &&
-        (!!input.workspace_id || 'definition_id' in input.definition || 'artifact_id' in input.context);
+        (deploymentBinding(input.model_binding) ||
+          !!input.workspace_id ||
+          'definition_id' in input.definition ||
+          'artifact_id' in input.context);
+      // Deployment selection takes a row lock. Keep organization -> deployment
+      // ordering identical for stateless and workspace calls to avoid a cycle.
+      // See docs/projects/hugging-face-model-deployments-tech-design.md#8-inference-path-and-performance.
       if (organizationLocked) await lock(tx, `organization:${principal.organizationId}`);
       if ('definition_id' in input.definition) await resolveDefinition(tx, principal, input);
       if ('artifact_id' in input.context)

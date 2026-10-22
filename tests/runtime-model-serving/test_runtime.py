@@ -125,7 +125,7 @@ class ConfigurationTests(unittest.TestCase):
                 result = prepare_module.prepare(config(), directory, "synthetic-download-secret")
             self.assertEqual(calls[0]["revision"], COMMIT)
             self.assertEqual(calls[0]["token"], "synthetic-download-secret")
-            self.assertTrue((Path(result["model_path"]) / "model.safetensors").is_file())
+            self.assertEqual((Path(result["model_path"]) / "weights-00000.safetensors").read_bytes(), b"synthetic selected weights")
             self.assertFalse((Path(result["model_path"]) / "other.safetensors").exists())
             self.assertFalse((Path(result["model_path"]) / "untrusted.py").exists())
             verified.mismatches.append("corrupt cached weights")
@@ -133,6 +133,33 @@ class ConfigurationTests(unittest.TestCase):
             corrupt.mkdir()
             with patch.dict(sys.modules, {"huggingface_hub": hub}), self.assertRaises(ValueError):
                 prepare_module.prepare(config(), corrupt, None)
+
+    def test_nested_weight_variants_are_exposed_to_the_pinned_root_only_loader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            snapshot = base / "snapshots" / COMMIT
+            snapshot.mkdir(parents=True)
+            (snapshot / "config.json").write_text("{}")
+            (snapshot / "tokenizer_config.json").write_text("{}")
+            (snapshot / "chat_template.jinja").write_text("{{ messages }}")
+            for variant in ["a", "b", "unselected"]:
+                (snapshot / variant).mkdir()
+                (snapshot / variant / "model.safetensors").write_bytes(variant.encode())
+            # The source index refers to original paths, which must not filter
+            # the flat, selected loader view back to an empty set.
+            (snapshot / "model.safetensors.index.json").write_text(json.dumps({"weight_map": {"first": "a/model.safetensors", "second": "b/model.safetensors"}}))
+            value = copy.deepcopy(RECIPE)
+            value["source"]["weight_files"] = ["a/model.safetensors", "b/model.safetensors"]
+            directory = base / "worker"
+            directory.mkdir()
+            api = types.SimpleNamespace(verify_repo_checksums=lambda **kwargs: types.SimpleNamespace(mismatches=[], extra_paths=[], checked_count=6))
+            hub = types.SimpleNamespace(HfApi=lambda **kwargs: api, snapshot_download=lambda **kwargs: str(snapshot))
+            with patch.dict(sys.modules, {"huggingface_hub": hub}):
+                result = prepare_module.prepare(config(value), directory, None)
+            model = Path(result["model_path"])
+            self.assertEqual(sorted(file.read_bytes() for file in model.glob("*.safetensors")), [b"a", b"b"])
+            self.assertFalse((model / "model.safetensors.index.json").exists())
+            self.assertTrue((model / "chat_template.jinja").is_file())
 
 
 class TransportTests(unittest.IsolatedAsyncioTestCase):

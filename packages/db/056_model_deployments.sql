@@ -8,13 +8,13 @@ CREATE TABLE model_deployments (
  state text NOT NULL DEFAULT 'stopped' CHECK(state IN ('stopped','starting','ready','degraded','stopping','failed','cleanup_pending')),
  policy jsonb, accepted_rates jsonb, generation bigint NOT NULL DEFAULT 0, retired boolean NOT NULL DEFAULT false,
  ready_replicas integer, observed_at timestamptz, failure_code text,
- next_check_at timestamptz NOT NULL DEFAULT now(), lease_id uuid, lease_until timestamptz,
+ next_check_at timestamptz, lease_id uuid, lease_until timestamptz,
  failure_attempts integer NOT NULL DEFAULT 0, startup_at timestamptz, drain_started_at timestamptz,
  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(organization_id,id)
 );
 CREATE INDEX model_deployments_listing ON model_deployments(organization_id,id DESC);
-CREATE INDEX model_deployments_due ON model_deployments(next_check_at,id);
+CREATE INDEX model_deployments_due ON model_deployments(next_check_at,id) WHERE next_check_at IS NOT NULL;
 CREATE TABLE model_deployment_revisions (
  id uuid PRIMARY KEY, organization_id uuid NOT NULL, deployment_id uuid NOT NULL,
  source jsonb NOT NULL, runtime jsonb NOT NULL, hosting jsonb NOT NULL, capabilities jsonb NOT NULL,
@@ -42,6 +42,7 @@ CREATE TABLE model_deployment_grants (
 CREATE UNIQUE INDEX model_deployment_grant_active ON model_deployment_grants
  (deployment_id,subject_kind,subject_id,coalesce(workspace_ids,'{}'::uuid[])) WHERE revoked_at IS NULL;
 CREATE INDEX model_deployment_grant_subject ON model_deployment_grants(deployment_id,subject_kind,subject_id) WHERE revoked_at IS NULL;
+CREATE INDEX model_deployment_grants_listing ON model_deployment_grants(deployment_id,id DESC);
 CREATE TABLE model_deployment_connections (
  organization_id uuid NOT NULL, deployment_id uuid NOT NULL, revision_id uuid NOT NULL,
  connection_id uuid NOT NULL, approved_by text NOT NULL REFERENCES auth."user"(id),
@@ -63,7 +64,7 @@ CREATE TABLE model_deployment_resources (
 );
 CREATE UNIQUE INDEX model_deployment_one_resource ON model_deployment_resources(deployment_id) WHERE deleted_at IS NULL;
 CREATE INDEX model_deployment_resources_listing ON model_deployment_resources(deployment_id,(deleted_at IS NULL) DESC,created_at DESC,id DESC);
-CREATE INDEX model_deployment_historical_cost_due ON model_deployment_resources(deployment_id,observed_at NULLS FIRST,id) WHERE deleted_at IS NOT NULL AND provider_id IS NOT NULL;
+CREATE INDEX model_deployment_historical_cost_due ON model_deployment_resources(deployment_id,deleted_at DESC,observed_at,id) WHERE deleted_at IS NOT NULL AND provider_id IS NOT NULL;
 CREATE TABLE model_deployment_cost_observations (
  organization_id uuid NOT NULL, resource_id uuid NOT NULL, period_start timestamptz NOT NULL, period_end timestamptz NOT NULL,
  estimated_micro_usd bigint, provider_reported_micro_usd bigint, as_of timestamptz NOT NULL DEFAULT now(),

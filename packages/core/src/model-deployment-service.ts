@@ -9,7 +9,12 @@ import { config } from './config';
 import { canonical, unseal } from './crypto';
 import * as resources from './resources';
 import * as deployments from './model-deployments';
-import { runtimeCapabilities, modelServingImage } from './model-deployment-profiles';
+import {
+  runtimeCapabilities,
+  modelServingImage,
+  defaultRuntimeParameters,
+  runtimeMemoryFits,
+} from './model-deployment-profiles';
 import type {
   DeploymentPolicy,
   DeploymentRevisionRow,
@@ -75,7 +80,11 @@ export async function inspect(
       .filter(
         (o) =>
           result.memory_estimate_bytes === null ||
-          BigInt(o.memory_bytes) >= BigInt(result.memory_estimate_bytes),
+          runtimeMemoryFits(
+            o.memory_bytes,
+            result.memory_estimate_bytes,
+            body.runtime_preferences?.parameters ?? defaultRuntimeParameters,
+          ),
       )
       .map((o) => ({
         gpu_pool_id: o.pool,
@@ -303,15 +312,17 @@ export async function quoteManagedService(
     'Every eligible GPU pool requires current complete price evidence.',
   );
   const memory = revision.source_evidence.memory_estimate_bytes;
+  const parameters = 'profile_id' in revision.runtime ? revision.runtime.parameters : undefined;
   assert(
     typeof memory === 'string' &&
-      selected.every(
-        (o) =>
-          BigInt(o.memory_bytes) *
-            BigInt(
-              revision.hosting.kind === 'runpod_serverless' ? revision.hosting.placement.gpu_count : 1,
-            ) >=
-          BigInt(memory),
+      parameters &&
+      selected.every((o) =>
+        runtimeMemoryFits(
+          o.memory_bytes,
+          memory,
+          parameters,
+          revision.hosting.kind === 'runpod_serverless' ? revision.hosting.placement.gpu_count : 1,
+        ),
       ),
     422,
     'invalid_hosting_policy',
@@ -418,12 +429,17 @@ export async function prepareService(
           revision.hosting.kind === 'external_openai' ? 'external_model' : 'runpod',
         );
       }
+      // Explicit recovery or a new selected revision starts a fresh bounded
+      // episode. Capacity edits retain its clock rather than extending spending.
+      // See docs/projects/hugging-face-model-deployments-tech-design.md#7-service-updates-drain-and-cleanup.
       await tx.query(
         `UPDATE model_deployments SET desired_state=$2,desired_revision_id=$3,policy=$4,generation=generation+1,
       state=CASE WHEN $2='stopped' THEN CASE WHEN state='stopped' THEN 'stopped' ELSE 'stopping' END
         WHEN serving_revision_id=$3 AND state IN ('ready','degraded') THEN state ELSE 'starting' END,
       accepted_rates=coalesce($5::jsonb,accepted_rates), failure_code=NULL,failure_attempts=0,
-      startup_at=CASE WHEN $2='running' THEN coalesce(startup_at,now()) ELSE NULL END,
+      startup_at=CASE WHEN $2='running' THEN CASE
+        WHEN desired_state<>'running' OR desired_revision_id<>$3 OR failure_code='service_recovery_exhausted' THEN now()
+        ELSE coalesce(startup_at,now()) END ELSE NULL END,
       drain_started_at=CASE WHEN $2='stopped' OR (serving_revision_id IS NOT NULL AND serving_revision_id<>$3) THEN coalesce(drain_started_at,now()) ELSE NULL END,
       next_check_at=now(),updated_at=now() WHERE id=$1`,
         [

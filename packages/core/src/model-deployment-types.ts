@@ -31,7 +31,7 @@ export type DeploymentRow = {
   ready_replicas: number | null;
   observed_at: Date | null;
   failure_code: string | null;
-  next_check_at: Date;
+  next_check_at: Date | null;
   lease_id: string | null;
   lease_until: Date | null;
   failure_attempts: number;

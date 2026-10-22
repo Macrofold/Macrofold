@@ -536,7 +536,15 @@ export async function createGrant(
     'invalid_model_deployment',
     'Select between one and 100 distinct workspaces.',
   );
-  for (const workspace of workspaces ?? []) await resources.get(tx, 'workspaces', workspace, p);
+  if (workspaces) {
+    const visible = await tx.query(
+      "SELECT id FROM workspaces WHERE id=ANY($1::uuid[]) AND coalesce(data->>'deleted','false')<>'true'",
+      [workspaces],
+    );
+    // Management is unrestricted; tenant RLS plus undeleted existence is the
+    // complete workspace check. Do not hydrate each workspace under this lock.
+    assert(visible.rowCount === workspaces.length, 404, 'not_found', 'Resource not found.');
+  }
   const existing = await tx.query(
     "SELECT 1 FROM model_deployment_grants WHERE deployment_id=$1 AND subject_kind=$2 AND subject_id=$3 AND coalesce(workspace_ids,'{}'::uuid[])=coalesce($4::uuid[],'{}'::uuid[]) AND revoked_at IS NULL",
     [deploymentId, input.subject.kind, subject, workspaces],

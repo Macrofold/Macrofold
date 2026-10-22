@@ -2,7 +2,7 @@ import { createServer, type ServerResponse } from 'node:http';
 import { once } from 'node:events';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
-import { authPool, pool, transaction } from '../../packages/db';
+import { authPool, pool, transaction, lock } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { id, seal } from '../../packages/core/src/crypto';
 import { createKey } from '../../packages/core/src/keys';
@@ -10,6 +10,7 @@ import * as resources from '../../packages/core/src/resources';
 import { handleApi } from '../../packages/core/src/http';
 import type { Principal } from '../../packages/core/src/auth';
 import type { InferenceCreate } from '../../packages/core/src/decision';
+import { prepareInference } from '../../packages/core/src/inferences';
 import type { ModelDeploymentCapabilities } from '../../packages/core/src/model-deployment-types';
 
 const caps: ModelDeploymentCapabilities = {
@@ -181,6 +182,51 @@ function api(input: unknown, identity = id()) {
   );
 }
 
+it('orders stateless deployment admission behind organization control without locking the deployment first', async () => {
+  const { deploymentId } = await deployment();
+  const scopes = ['runs:write', 'runs:read', 'model-deployments:read', 'model-deployments:use'];
+  const issued = await transaction(owner.organizationId, async (tx) => {
+    const application = await createKey(tx, owner, { name: 'Stateless application', scopes });
+    await tx.query(
+      "INSERT INTO model_deployment_grants(id,organization_id,deployment_id,subject_kind,subject_id,approved_by) VALUES($1,$2,$3,'api_key',$4,$5)",
+      [id(), owner.organizationId, deploymentId, application.id, owner.userId],
+    );
+    return application;
+  });
+  const principal: Principal = { ...owner, id: issued.id, kind: 'api_key', scopes, workspaceIds: [] };
+  const prepared = await prepareInference(
+    principal,
+    { ...body(deploymentId), workspace_id: undefined },
+    'inference',
+    true,
+  );
+  let admission: Promise<unknown> | undefined;
+  try {
+    await transaction(owner.organizationId, async (tx) => {
+      await lock(tx, `organization:${owner.organizationId}`);
+      const { pid } = (await tx.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')).rows[0];
+      admission = transaction(owner.organizationId, (next) => prepared.commit(next, principal));
+      await expect
+        .poll(async () => {
+          const waiting = await pool.query<{ count: number }>(
+            "SELECT count(*)::integer AS count FROM pg_stat_activity WHERE wait_event_type='Lock' AND $1=ANY(pg_blocking_pids(pid)) AND query LIKE '%pg_advisory_xact_lock%'",
+            [pid],
+          );
+          return waiting.rows[0].count;
+        })
+        .toBeGreaterThan(0);
+      // A workspace-bound admission or organization control owns this order.
+      // Taking the deployment first on the stateless path creates a lock cycle.
+      await tx.query('SELECT id FROM model_deployments WHERE id=$1 FOR UPDATE NOWAIT', [deploymentId]);
+    });
+    expect(await admission).toMatchObject({ status: 'running' });
+    expect(calls).toBe(0);
+  } finally {
+    await admission?.catch(() => {});
+    await prepared.dispose();
+  }
+});
+
 it('rejects mixed deployment bindings with the canonical error before admitting or dispatching', async () => {
   const { deploymentId } = await deployment();
   const invalid = await api({
@@ -201,6 +247,47 @@ it('rejects mixed deployment bindings with the canonical error before admitting 
     ]),
   );
   expect(count.rows[0].count).toBe('0');
+});
+
+it('rechecks delegated credentials after waiting for shared inference capacity', async () => {
+  const { deploymentId, connectionId } = await deployment();
+  const principal: Principal = {
+    ...owner,
+    id: keyId,
+    kind: 'api_key',
+    scopes: ['runs:write', 'runs:read', 'model-deployments:read', 'model-deployments:use'],
+    workspaceIds: [workspace],
+  };
+  const prepared = await prepareInference(principal, body(deploymentId), 'inference', true);
+  let admission: Promise<unknown> | undefined;
+  try {
+    await transaction(owner.organizationId, async (tx) => {
+      await lock(tx, 'capacity:global');
+      const { pid } = (await tx.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')).rows[0];
+      admission = transaction(owner.organizationId, (next) => prepared.commit(next, principal));
+      await expect
+        .poll(async () => {
+          const waiting = await pool.query<{ count: number }>(
+            "SELECT count(*)::integer AS count FROM pg_stat_activity WHERE wait_event_type='Lock' AND $1=ANY(pg_blocking_pids(pid)) AND query LIKE '%pg_advisory_xact_lock%'",
+            [pid],
+          );
+          return waiting.rows[0].count;
+        })
+        .toBeGreaterThan(0);
+      await transaction(owner.organizationId, (edit) =>
+        resources.update(edit, 'connections', connectionId, { status: 'expired' }),
+      );
+    });
+    await expect(admission).rejects.toMatchObject({ code: 'permission_denied' });
+    const runs = await transaction(owner.organizationId, (tx) =>
+      tx.query("SELECT id FROM runs WHERE config#>>'{deployment_target,deployment_id}'=$1", [deploymentId]),
+    );
+    expect(runs.rows).toEqual([]);
+    expect(calls).toBe(0);
+  } finally {
+    await admission?.catch(() => {});
+    await prepared.dispose();
+  }
 });
 
 it('returns a native answer and original revision on replay after stop without charging hosting per request', async () => {

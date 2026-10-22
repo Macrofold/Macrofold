@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { fixtureAccount } from '../fixtures/account';
 import { authPool, pool, transaction } from '../../packages/db';
 import { id, seal } from '../../packages/core/src/crypto';
@@ -320,6 +320,71 @@ it('serializes duplicate grant creation and permits a new grant only after expli
   expect(next.grant_id).not.toBe(saved.grant_id);
   expect(next.revoked_at).toBeNull();
 });
+
+it('validates a full selected workspace grant with one bounded existence read', async () => {
+  const { created } = await fixture();
+  const selected = Array.from({ length: 100 }, () => id());
+  await transaction(owner.organizationId, async (tx) => {
+    await tx.query(
+      `INSERT INTO workspaces(id,organization_id,data)
+      SELECT workspace_id,$1,'{"name":"Batched grant fixture"}'::jsonb FROM unnest($2::uuid[]) AS workspace_id`,
+      [owner.organizationId, selected],
+    );
+    const reads = vi.spyOn(tx, 'query');
+    try {
+      const granted = await deployments.createGrant(tx, owner, created.id, {
+        subject: { kind: 'api_key', api_key_id: application.id },
+        workspace_scope: { kind: 'selected', workspace_ids: selected },
+      });
+      expect(granted.workspace_scope).toEqual({ kind: 'selected', workspace_ids: [...selected].sort() });
+      expect(
+        reads.mock.calls.filter(([query]) => typeof query === 'string' && query.includes('FROM workspaces')),
+      ).toHaveLength(1);
+    } finally {
+      reads.mockRestore();
+    }
+  });
+});
+
+it.each(['foreign', 'deleted', 'missing'] as const)(
+  'rejects a selected grant containing a %s workspace without publishing the grant',
+  async (kind) => {
+    const { created } = await fixture();
+    const invalid =
+      kind === 'missing'
+        ? id()
+        : await transaction(
+            kind === 'foreign' ? foreign.organizationId : owner.organizationId,
+            async (tx) =>
+              (
+                await resources.create(
+                  tx,
+                  'workspaces',
+                  kind === 'foreign' ? foreign.organizationId : owner.organizationId,
+                  {
+                    name: 'Invalid grant fixture',
+                    ...(kind === 'deleted' ? { deleted: true } : {}),
+                  },
+                )
+              ).id,
+          );
+    await expect(
+      transaction(owner.organizationId, (tx) =>
+        deployments.createGrant(tx, owner, created.id, {
+          subject: { kind: 'api_key', api_key_id: application.id },
+          workspace_scope: { kind: 'selected', workspace_ids: [workspace, invalid] },
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 404, code: 'not_found' });
+    expect(
+      (
+        await transaction(owner.organizationId, (tx) =>
+          deployments.listGrants(tx, owner, created.id, new URLSearchParams()),
+        )
+      ).data,
+    ).toEqual([]);
+  },
+);
 
 it('uses rotated credentials in the same immutable endpoint revision and rejects silent retargeting', async () => {
   const { created, connection } = await fixture();

@@ -19,6 +19,10 @@ function fixtures(
     architecture?: string;
     license?: string;
     gated?: boolean;
+    templateArtifact?: boolean;
+    templateText?: string;
+    tokenizerTemplateArtifact?: boolean;
+    dtype?: string;
   } = {},
 ) {
   const fetch = vi.mocked(huggingFaceMetadataFetch).mockImplementation(async (input, init) => {
@@ -29,10 +33,13 @@ function fixtures(
         pipeline_tag: 'text-generation',
         gated: options.gated ?? false,
         cardData: { license: options.license ?? 'apache-2.0' },
-        siblings: (options.weights ?? ['model.safetensors']).map((rfilename) => ({
-          rfilename,
-          lfs: { size: 1_000_000_000 },
-        })),
+        siblings: [
+          ...(options.weights ?? ['model.safetensors']).map((rfilename) => ({
+            rfilename,
+            lfs: { size: 1_000_000_000 },
+          })),
+          ...(options.templateArtifact ? [{ rfilename: 'chat_template.jinja', size: 128 }] : []),
+        ],
       });
     if (url === `https://huggingface.co/fixture/model/resolve/${commit}/config.json`)
       return Response.json({
@@ -43,16 +50,30 @@ function fixtures(
         num_attention_heads: 4,
         hidden_size: 128,
         max_position_embeddings: 8192,
+        ...(options.dtype ? { dtype: options.dtype } : {}),
       });
     if (url === `https://huggingface.co/fixture/model/resolve/${commit}/tokenizer_config.json`)
       return Response.json({
         ...(options.missingTemplate ? {} : { chat_template: options.template ?? '{{ messages }}' }),
         ...(options.tokenizerRemoteCode ? { auto_map: { AutoTokenizer: ['custom.Tokenizer', null] } } : {}),
       });
+    if (
+      url === `https://huggingface.co/fixture/model/resolve/${commit}/chat_template.jinja` &&
+      options.templateArtifact
+    )
+      return new Response(options.templateText ?? '{{ messages }}');
     if (url === 'https://huggingface.co/api/models/fixture/tokenizer/revision/stable?blobs=true')
-      return Response.json({ sha: tokenizerCommit, siblings: [] });
+      return Response.json({
+        sha: tokenizerCommit,
+        siblings: options.tokenizerTemplateArtifact ? [{ rfilename: 'chat_template.jinja', size: 128 }] : [],
+      });
     if (url === `https://huggingface.co/fixture/tokenizer/resolve/${tokenizerCommit}/tokenizer_config.json`)
-      return Response.json({ chat_template: '{{ messages }}' });
+      return Response.json(options.tokenizerTemplateArtifact ? {} : { chat_template: '{{ messages }}' });
+    if (
+      url === `https://huggingface.co/fixture/tokenizer/resolve/${tokenizerCommit}/chat_template.jinja` &&
+      options.tokenizerTemplateArtifact
+    )
+      return new Response('{{ messages }}');
     throw new Error(`Unexpected metadata URL: ${url}; authenticated=${Boolean(init?.headers)}`);
   });
   return fetch;
@@ -239,6 +260,51 @@ it('pins a separately selected tokenizer and checks only the selected weight var
   });
 });
 
+it('accepts the canonical pinned standalone chat template in the model tokenizer', async () => {
+  fixtures({ missingTemplate: true, templateArtifact: true });
+  const result = await inspectHuggingFace(inspection());
+  expect(result.supported).toBe(true);
+  expect(result.findings).toEqual([]);
+});
+
+it('uses the separate tokenizer inventory for standalone templates', async () => {
+  fixtures({ missingTemplate: true, tokenizerTemplateArtifact: true });
+  const result = await inspectHuggingFace({
+    source: {
+      kind: 'hugging_face',
+      repository: 'fixture/model',
+      tokenizer: { repository: 'fixture/tokenizer', revision: 'stable' },
+    },
+    task: 'text_generation',
+  });
+  expect(result.supported).toBe(true);
+  expect(result.source?.tokenizer).toEqual({ repository: 'fixture/tokenizer', revision: tokenizerCommit });
+});
+
+it('rejects an empty standalone template rather than treating its manifest entry as usable', async () => {
+  fixtures({ missingTemplate: true, templateArtifact: true, templateText: '   ' });
+  const result = await inspectHuggingFace(inspection());
+  expect(result.supported).toBe(false);
+  expect(result.findings).toContainEqual(expect.objectContaining({ code: 'missing_chat_template' }));
+});
+
+it('budgets float32 weight conversion and KV cache rather than reusing half precision', async () => {
+  fixtures({ dtype: 'bfloat16' });
+  const result = await inspectHuggingFace({
+    ...inspection(),
+    runtime_preferences: {
+      profile_id: 'vllm-0.32.0-text',
+      parameters: {
+        context_window_tokens: 4096,
+        max_output_tokens: 1024,
+        max_concurrent_requests: 4,
+        dtype: 'float',
+      },
+    },
+  });
+  expect(result.memory_estimate_bytes).toBe('4564260864');
+});
+
 it('distinguishes inaccessible or unavailable metadata from a definitive unsupported model', async () => {
   vi.mocked(huggingFaceMetadataFetch).mockResolvedValue(new Response('', { status: 403 }));
   await expect(inspectHuggingFace(inspection())).rejects.toMatchObject({
@@ -250,4 +316,27 @@ it('distinguishes inaccessible or unavailable metadata from a definitive unsuppo
     code: 'deployment_provider_unavailable',
     status: 503,
   });
+});
+
+it.each([404, 403])('closes unused metadata bodies promptly for HTTP %i', async (status) => {
+  const fetch = fixtures();
+  const original = fetch.getMockImplementation();
+  if (!original) throw new Error('Missing fixture transport');
+  const cancel = vi.fn();
+  fetch.mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (status === 403 || url.endsWith('/config.json'))
+      return new Response(new ReadableStream({ cancel }), { status });
+    return original(input, init);
+  });
+  if (status === 403)
+    await expect(inspectHuggingFace(inspection())).rejects.toMatchObject({
+      code: 'model_source_access_denied',
+    });
+  else {
+    const result = await inspectHuggingFace(inspection());
+    expect(result.supported).toBe(false);
+    expect(result.findings).toContainEqual(expect.objectContaining({ code: 'missing_model_config' }));
+  }
+  expect(cancel).toHaveBeenCalledTimes(1);
 });

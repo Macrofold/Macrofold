@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { huggingFaceMetadataFetch } from './network';
 import { assert, AppError } from '../../core/src/errors';
+import { boundedBody } from '../../core/src/body';
 import type { components } from '../../contracts/api';
 import {
   defaultRuntimeParameters,
@@ -34,6 +35,8 @@ const configSchema = z
   .object({
     architectures: z.array(z.string()).optional(),
     auto_map: z.unknown().optional(),
+    dtype: z.string().nullish(),
+    torch_dtype: z.string().nullish(),
     num_hidden_layers: z.number().int().positive().optional(),
     num_key_value_heads: z.number().int().positive().optional(),
     num_attention_heads: z.number().int().positive().optional(),
@@ -120,11 +123,12 @@ export function normalizeHuggingFaceSource(input: Source): Source {
     );
   return { ...input, repository, ...(revision ? { revision } : {}) };
 }
-async function metadata(path: string, secret?: string, optional = false): Promise<unknown> {
+async function metadata(path: string, secret?: string, optional = false, text = false): Promise<unknown> {
   const signal = AbortSignal.timeout(15000);
-  const pinned = /^([^/]+\/[^/]+)\/resolve\/([a-f0-9]{40})\/(config\.json|tokenizer_config\.json)$/.exec(
-    path,
-  );
+  const pinned =
+    /^([^/]+\/[^/]+)\/resolve\/([a-f0-9]{40})\/(config\.json|tokenizer_config\.json|chat_template\.jinja)$/.exec(
+      path,
+    );
   let url = new URL(`https://huggingface.co/${path}`);
   let response: Response | undefined;
   for (let redirects = 0; redirects <= 3; redirects++) {
@@ -156,6 +160,7 @@ async function metadata(path: string, secret?: string, optional = false): Promis
     url = next;
   }
   assert(response, 503, 'deployment_provider_unavailable', 'Hugging Face metadata is unavailable.');
+  if (!response.ok) await response.body?.cancel();
   if (optional && response.status === 404) return null;
   assert(
     response.ok,
@@ -165,7 +170,9 @@ async function metadata(path: string, secret?: string, optional = false): Promis
       : 'deployment_provider_unavailable',
     'Hugging Face metadata is unavailable. Check the repository and this owner’s gated/private access.',
   );
-  return response.json();
+  return text
+    ? (await boundedBody(response.body, 64 * 1024, 15000, signal)).toString('utf8')
+    : response.json();
 }
 export async function inspectHuggingFace(
   input: components['schemas']['ModelDeploymentInspectionInput'],
@@ -230,6 +237,7 @@ export async function inspectHuggingFace(
     pinned.weight_files = selected.map((f) => f.rfilename);
     normalizeHuggingFaceSource(pinned);
     let tokenizerConfig = tokenizer;
+    let tokenizerSource = { repository: source.repository, revision: info.sha, siblings: info.siblings };
     if (source.tokenizer) {
       const normalized = normalizeHuggingFaceSource({ kind: 'hugging_face', ...source.tokenizer });
       const ti = infoSchema.parse(
@@ -239,6 +247,7 @@ export async function inspectHuggingFace(
         ),
       );
       pinned.tokenizer = { repository: normalized.repository, revision: ti.sha };
+      tokenizerSource = { repository: normalized.repository, revision: ti.sha, siblings: ti.siblings };
       tokenizerConfig = await metadata(
         `${normalized.repository}/resolve/${ti.sha}/tokenizer_config.json`,
         secret,
@@ -272,6 +281,18 @@ export async function inspectHuggingFace(
       usableTemplate =
         entries.success && (Object.keys(entries.data).length === 1 || Object.hasOwn(entries.data, 'default'));
     }
+    if (
+      !usableTemplate &&
+      tokenizerSource.siblings.some((file) => file.rfilename === 'chat_template.jinja')
+    ) {
+      const standalone = await metadata(
+        `${tokenizerSource.repository}/resolve/${tokenizerSource.revision}/chat_template.jinja`,
+        secret,
+        true,
+        true,
+      );
+      usableTemplate = typeof standalone === 'string' && standalone.trim().length > 0;
+    }
     if (!usableTemplate)
       add(
         'missing_chat_template',
@@ -297,13 +318,23 @@ export async function inspectHuggingFace(
           c.num_hidden_layers *
           (c.num_key_value_heads || c.num_attention_heads || 0) *
           dimension *
-          2 *
+          (parameters.dtype === 'float' ? 4 : 2) *
           parameters.context_window_tokens *
           parameters.max_concurrent_requests
         : null;
+    // The native engine can widen unquantized source weights. A missing source
+    // dtype cannot justify assuming half precision when float32 was requested.
+    const sourceDtype = c.dtype ?? c.torch_dtype;
+    const sourceElementBytes = ['float32', 'float'].includes(sourceDtype ?? '')
+      ? 4
+      : ['float16', 'half', 'bfloat16'].includes(sourceDtype ?? '')
+        ? 2
+        : 1;
+    const weightMultiplier =
+      parameters.dtype === 'float' && !parameters.quantization ? 4 / sourceElementBytes : 1;
     const memory =
       bytes !== null && kv !== null && Number.isSafeInteger(kv)
-        ? (bytes * 12n) / 10n + BigInt(kv) + 2n * 1024n ** 3n
+        ? (bytes * BigInt(weightMultiplier) * 12n) / 10n + BigInt(kv) + 2n * 1024n ** 3n
         : null;
     const license = Array.isArray(info.cardData?.license)
       ? info.cardData.license.join(', ')

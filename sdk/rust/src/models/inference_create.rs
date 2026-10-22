@@ -22,7 +22,7 @@ pub struct InferenceCreate {
     #[serde(rename = "context", skip_serializing_if = "Option::is_none")]
     pub context: Option<Box<models::DecisionTaskWakeContext>>,
     #[serde(rename = "model_binding")]
-    pub model_binding: Box<models::DecisionBinding>,
+    pub model_binding: Box<models::InferenceBinding>,
     #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
     pub limits: Option<Box<models::InferenceLimits>>,
     #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
@@ -33,7 +33,7 @@ pub struct InferenceCreate {
 }
 
 impl InferenceCreate {
-    pub fn new(input: Option<serde_json::Value>, model_binding: models::DecisionBinding) -> InferenceCreate {
+    pub fn new(input: Option<serde_json::Value>, model_binding: models::InferenceBinding) -> InferenceCreate {
         InferenceCreate {
             workspace_id: None,
             definition: None,

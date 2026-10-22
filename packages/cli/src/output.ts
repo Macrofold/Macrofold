@@ -29,7 +29,7 @@ export function output(value: unknown, json = false) {
       stdout.write('No results.\n');
       return;
     }
-    const keys = ['id', 'name', 'status', 'harness', 'model', 'created_at'].filter((k) =>
+    const keys = ['id', 'name', 'status', 'state', 'harness', 'model', 'created_at'].filter((k) =>
       rows.some((r) => r[k] !== undefined),
     );
     for (const row of rows) stdout.write(keys.map((k) => terminalText(row[k] ?? '')).join('  ') + '\n');

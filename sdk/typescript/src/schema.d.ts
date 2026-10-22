@@ -2385,6 +2385,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/model-deployments/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** inspect Model Deployment */
+        post: operations["inspectModelDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/model-deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** list Model Deployments */
+        get: operations["listModelDeployments"];
+        put?: never;
+        /** create Model Deployment */
+        post: operations["createModelDeployment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/model-deployments/{deployment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** get Model Deployment */
+        get: operations["getModelDeployment"];
+        put?: never;
+        post?: never;
+        /** delete Model Deployment */
+        delete: operations["deleteModelDeployment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/model-deployments/{deployment_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** list Model Deployment Revisions */
+        get: operations["listModelDeploymentRevisions"];
+        put?: never;
+        /** create Model Deployment Revision */
+        post: operations["createModelDeploymentRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/model-deployments/{deployment_id}/revisions/{revision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** get Model Deployment Revision */
+        get: operations["getModelDeploymentRevision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/model-deployments/{deployment_id}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** list Model Deployment Grants */
+        get: operations["listModelDeploymentGrants"];
+        put?: never;
+        /** create Model Deployment Grant */
+        post: operations["createModelDeploymentGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/model-deployments/{deployment_id}/grants/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** revoke Model Deployment Grant */
+        delete: operations["revokeModelDeploymentGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/model-deployments/{deployment_id}/service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** set Model Deployment Service */
+        put: operations["setModelDeploymentService"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2467,7 +2607,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -2739,7 +2879,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name?: string;
             /** @enum {string} */
-            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
+            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -2764,7 +2904,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -3406,6 +3546,20 @@ export interface components {
             };
             usage: components["schemas"]["InferenceUsage"];
             billing: components["schemas"]["InferenceBilling"];
+            deployment?: {
+                /** Format: uuid */
+                deployment_id: string;
+                /** Format: uuid */
+                deployment_revision_id: string;
+            };
+            cost_attribution?: {
+                /** @enum {string} */
+                basis: "deployment";
+                /** Format: uuid */
+                deployment_id: string;
+                /** @constant */
+                infrastructure_cost_included: false;
+            };
         } & unknown;
         /** @description Trusted read_context tool only. References are scoped to this application and audience. No shell, customer code, or mutating tools. */
         BoundedAgentPolicy: {
@@ -4960,7 +5114,7 @@ export interface components {
             definition?: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
             input: unknown;
             context?: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
-            model_binding: components["schemas"]["DecisionBinding"];
+            model_binding: components["schemas"]["InferenceBinding"];
             limits?: components["schemas"]["InferenceLimits"];
             model_parameters?: components["schemas"]["ModelParameters"];
             /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
@@ -5042,7 +5196,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -5259,6 +5413,297 @@ export interface components {
             /** @enum {string} */
             reason: "result_available";
         };
+        ModelDeploymentCapabilities: {
+            /** @enum {string} */
+            protocol: "openai_chat";
+            input_modalities: "text"[];
+            chat_completions: boolean;
+            json_object: boolean;
+            json_schema: boolean;
+            tools: boolean;
+            streaming: boolean;
+            stream_usage: boolean;
+            schema_keywords: string[];
+            accepted_parameters: string[];
+            schema_dialect: string | null;
+            context_window_tokens: number;
+            max_output_tokens: number;
+            max_concurrent_requests: number;
+        };
+        ModelDeploymentBinding: {
+            /** Format: uuid */
+            deployment_id: string;
+            /** Format: uuid */
+            deployment_revision_id?: string;
+        };
+        InferenceBinding: components["schemas"]["DecisionBinding"] | components["schemas"]["ModelDeploymentBinding"];
+        ModelDeploymentRuntimeParameters: {
+            context_window_tokens: number;
+            max_output_tokens: number;
+            max_concurrent_requests: number;
+            /** @enum {string} */
+            dtype?: "auto" | "half" | "bfloat16" | "float";
+            /** @enum {string} */
+            quantization?: "awq" | "gptq" | "fp8" | "compressed-tensors";
+            tensor_parallel_size?: number;
+            gpu_memory_utilization?: number;
+            /** @enum {string} */
+            tool_call_parser?: "hermes" | "llama3_json" | "mistral";
+            /** @enum {string} */
+            reasoning_parser?: "deepseek_r1" | "qwen3";
+        };
+        ModelDeploymentHuggingFaceSource: {
+            /** @enum {string} */
+            kind: "hugging_face";
+            repository: string;
+            revision?: string;
+            /** Format: uuid */
+            source_connection_id?: string;
+            weight_files?: string[];
+            tokenizer?: {
+                repository: string;
+                revision?: string;
+            };
+            /** @enum {string} */
+            chat_template?: "tokenizer";
+            license_acknowledged?: boolean;
+        };
+        ModelDeploymentExternalSource: {
+            /** @enum {string} */
+            kind: "external";
+            repository?: string | null;
+            revision?: string | null;
+            capabilities: components["schemas"]["ModelDeploymentCapabilities"];
+        };
+        ModelDeploymentSource: components["schemas"]["ModelDeploymentHuggingFaceSource"] | components["schemas"]["ModelDeploymentExternalSource"];
+        ModelDeploymentRuntime: {
+            /** @enum {string} */
+            profile_id: "vllm-0.32.0-text";
+            parameters: components["schemas"]["ModelDeploymentRuntimeParameters"];
+        } | {
+            /** @enum {string} */
+            kind: "external";
+            engine?: string | null;
+            version?: string | null;
+        };
+        ModelDeploymentHosting: {
+            /** @enum {string} */
+            kind: "runpod_serverless";
+            /** Format: uuid */
+            compute_connection_id: string;
+            placement: {
+                region_ids: string[];
+                gpu_pool_ids: string[];
+                gpu_count: number;
+            };
+        } | {
+            /** @enum {string} */
+            kind: "external_openai";
+            /** Format: uuid */
+            endpoint_connection_id: string;
+            model_alias: string;
+            /** @enum {string} */
+            lifecycle: "external";
+            /** @constant */
+            external_hosting_acknowledged: true;
+        };
+        ModelDeploymentServicePolicy: {
+            min_replicas: number;
+            max_replicas: number;
+            max_concurrent_requests: number;
+            max_hourly_cost_micro_usd: string;
+            /** Format: date-time */
+            stop_at?: string | null;
+        } | {
+            max_concurrent_requests: number;
+            /** Format: date-time */
+            stop_at?: string | null;
+        };
+        ModelDeploymentGrantInput: {
+            subject: {
+                /** @enum {string} */
+                kind: "subject";
+                /** Format: uuid */
+                subject_id: string;
+            } | {
+                /** @enum {string} */
+                kind: "api_key";
+                /** Format: uuid */
+                api_key_id: string;
+            };
+            workspace_scope: {
+                /** @enum {string} */
+                kind: "all";
+            } | {
+                /** @enum {string} */
+                kind: "selected";
+                workspace_ids: string[];
+            };
+        };
+        ModelDeploymentGrant: {
+            subject: {
+                /** @enum {string} */
+                kind: "subject";
+                /** Format: uuid */
+                subject_id: string;
+            } | {
+                /** @enum {string} */
+                kind: "api_key";
+                /** Format: uuid */
+                api_key_id: string;
+            };
+            workspace_scope: {
+                /** @enum {string} */
+                kind: "all";
+            } | {
+                /** @enum {string} */
+                kind: "selected";
+                workspace_ids: string[];
+            };
+            /** Format: uuid */
+            grant_id: string;
+            /** Format: uuid */
+            deployment_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            revoked_at: string | null;
+        };
+        ModelDeploymentRevisionCreate: {
+            source: components["schemas"]["ModelDeploymentSource"];
+            runtime: components["schemas"]["ModelDeploymentRuntime"];
+            hosting: components["schemas"]["ModelDeploymentHosting"];
+        };
+        ModelDeploymentCreate: {
+            name: string;
+            source: components["schemas"]["ModelDeploymentSource"];
+            runtime: components["schemas"]["ModelDeploymentRuntime"];
+            hosting: components["schemas"]["ModelDeploymentHosting"];
+            access: {
+                grants: components["schemas"]["ModelDeploymentGrantInput"][];
+            };
+        };
+        ModelDeploymentRevision: {
+            /** Format: uuid */
+            deployment_id: string;
+            /** Format: uuid */
+            deployment_revision_id: string;
+            source: components["schemas"]["ModelDeploymentSource"];
+            runtime: components["schemas"]["ModelDeploymentRuntime"];
+            hosting: components["schemas"]["ModelDeploymentHosting"];
+            capabilities: components["schemas"]["ModelDeploymentCapabilities"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        ModelDeploymentServiceInput: {
+            /** Format: uuid */
+            deployment_revision_id: string;
+            /** @enum {string} */
+            desired_state: "running" | "stopped";
+            policy: components["schemas"]["ModelDeploymentServicePolicy"];
+        };
+        ModelDeploymentInfrastructureCost: {
+            /** Format: date-time */
+            period_start: string | null;
+            /** Format: date-time */
+            period_end: string | null;
+            estimated_micro_usd: string | null;
+            provider_reported_micro_usd: string | null;
+            /** @enum {string} */
+            status: "estimated" | "provider_reported" | "external_unknown" | "uncertain";
+            /** Format: date-time */
+            as_of: string | null;
+            unresolved_liability: boolean;
+        };
+        ModelDeployment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            deployment_id: string;
+            name: string;
+            can_manage: boolean;
+            /** @enum {string} */
+            desired_state: "running" | "stopped";
+            /** Format: uuid */
+            desired_revision_id: string;
+            /** Format: uuid */
+            serving_revision_id: string | null;
+            /** @enum {string} */
+            state: "stopped" | "starting" | "ready" | "degraded" | "stopping" | "failed" | "cleanup_pending";
+            admission_open: boolean;
+            capabilities: components["schemas"]["ModelDeploymentCapabilities"] | null;
+            policy: components["schemas"]["ModelDeploymentServicePolicy"] | null;
+            ready_replicas: number | null;
+            /** Format: date-time */
+            observed_at: string | null;
+            cost_policy: {
+                /** @enum {string} */
+                basis: "deployment";
+                /** @enum {string} */
+                request_charge_micro_usd: "0";
+                /** @constant */
+                infrastructure_cost_included: false;
+            };
+            infrastructure_cost: components["schemas"]["ModelDeploymentInfrastructureCost"];
+            failure_code: string | null;
+            retired: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ModelDeploymentInspectionInput: {
+            source: components["schemas"]["ModelDeploymentHuggingFaceSource"];
+            /** @enum {string} */
+            task: "text_generation";
+            /** Format: uuid */
+            compute_connection_id?: string;
+            runtime_preferences?: {
+                /** @enum {string} */
+                profile_id?: "vllm-0.32.0-text";
+                parameters?: components["schemas"]["ModelDeploymentRuntimeParameters"];
+            };
+        };
+        ModelDeploymentInspection: {
+            supported: boolean;
+            findings: {
+                code: string;
+                message: string;
+            }[];
+            source: components["schemas"]["ModelDeploymentHuggingFaceSource"] | null;
+            runtime_profiles: {
+                profile_id: string;
+                image: string;
+                parameters: components["schemas"]["ModelDeploymentRuntimeParameters"];
+                capabilities: components["schemas"]["ModelDeploymentCapabilities"];
+            }[];
+            hosting_options: {
+                gpu_pool_id: string;
+                name: string;
+                memory_bytes: string | null;
+                hourly_cost_micro_usd: string | null;
+                region_ids: string[];
+            }[];
+            memory_estimate_bytes: string | null;
+            license: string | null;
+            license_acknowledgement_required: boolean;
+        };
+        ModelDeploymentPage: {
+            data: components["schemas"]["ModelDeployment"][];
+            /** Format: uuid */
+            next_cursor: string | null;
+        };
+        ModelDeploymentRevisionPage: {
+            data: components["schemas"]["ModelDeploymentRevision"][];
+            /** Format: uuid */
+            next_cursor: string | null;
+        };
+        ModelDeploymentGrantPage: {
+            data: components["schemas"]["ModelDeploymentGrant"][];
+            /** Format: uuid */
+            next_cursor: string | null;
+        };
+        DeploymentBinding: components["schemas"]["ModelDeploymentBinding"];
     };
     responses: never;
     parameters: {
@@ -11559,6 +12004,450 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContextArtifact"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    inspectModelDeployment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelDeploymentInspectionInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentInspection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listModelDeployments: {
+        parameters: {
+            query?: {
+                workspace_id?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createModelDeployment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelDeploymentCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeployment"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getModelDeployment: {
+        parameters: {
+            query?: {
+                workspace_id?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeployment"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteModelDeployment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeployment"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listModelDeploymentRevisions: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentRevisionPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createModelDeploymentRevision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelDeploymentRevisionCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentRevision"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getModelDeploymentRevision: {
+        parameters: {
+            query?: {
+                workspace_id?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                deployment_id: string;
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentRevision"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listModelDeploymentGrants: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentGrantPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createModelDeploymentGrant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelDeploymentGrantInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentGrant"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeModelDeploymentGrant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                deployment_id: string;
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeploymentGrant"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    setModelDeploymentService: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                deployment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelDeploymentServiceInput"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDeployment"];
                 };
             };
             /** @description Error */

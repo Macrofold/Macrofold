@@ -477,3 +477,4 @@ Worker reconciliation spent most of its time rediscovering failures that were al
 
 - [x] Implement and locally verify the approved [native turn reliability plan](../projects/native-turn-reliability.md): async OpenCode turns, all-harness permission mappings, separate reported cost metadata and copied SQLite checkpoints. Native fixtures, isolated accounting tests and real synthetic Langfuse readback pass; verified image activated locally.
 - [ ] Roll out the rebuilt runtime and application to hosted environments, then repeat a budgeted native run/continuation and verify cost metadata. Original caller draft/approval acceptance remains tracked under [native home persistence](#native-home-persistence).
+

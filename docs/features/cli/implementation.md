@@ -15,7 +15,7 @@ The npm package targets macOS and Linux with Node 24, pinned dependencies and ge
 ## Core commands
 
 | Command                                                               | Behavior                                                                                                  |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | macrofold login [--profile NAME] [--host URL]                             | Browser/device authorization against a selected trusted service                                           |
 | macrofold logout / whoami                                                 | Revoke local authorization where supported; inspect identity/organization                                 |
 | macrofold workspace list / create / show                                    | Discover and manage authorized hosted workspaces                                                            |
@@ -127,6 +127,16 @@ Acceptance uses real CLI subprocesses and Python's POSIX PTY module. It covers c
 ## API security and machine reference
 
 The [machine-readable command contract](../../api/cli.json) maps every command to public operation IDs or explicitly local/OAuth protocol behavior. Its scopes, queues, stream rotation, transfer limits and exits must agree with [OpenAPI](../../api/openapi.json). Object-transfer/download requests never inherit the API Authorization header. GET /operations authorizes the underlying stored operation resource; possessing its ID does not grant content access.
+
+## Model deployment management
+
+`packages/cli/src/model-deployments.ts` uses the generated public operations for source inspection, metadata creation, immutable revision listing/creation, service policy, application grants, status/cost retrieval and retirement. The `model-deployment` topic has local help without an account or network call. It targets deployment UUIDs; read operations pass an explicitly selected or linked workspace to the authorization boundary. `revision` takes `--revision ID`; `revise` creates a new revision.
+
+Full create/revision/grant request bodies use `--config-file FILE`; operating policy uses `--policy-file FILE`. Both accept `-` for bounded stdin and share the protected JSON reader with `connection add`. Provider tokens are never argv flags. The API validates the authored request contract. Normal machine output preserves the API result, including accepted, starting, failed and cleanup-pending states. The human list includes the observed `state`; neither mode reports optimistic readiness.
+
+Start/update/rollback select a revision and send an explicit policy. When omitted on the command line, the CLI reads their persisted values. Stop uses those same stored values and performs no HF, offer or provider inventory lookup. `--idempotency-key` preserves a chosen mutation identity across CLI processes; uncertain errors retain the identity through the SDK. Current grants and upstream hosting authority remain server-owned. External stop/retirement copy explicitly leaves host shutdown and billing with its operator.
+
+The built subprocess fixture in `tests/cli/model-deployments.test.ts` verifies actual HTTP methods, paths, body preservation, explicit mutation identity, stop/rollback policy, grants and rejected unsafe input against a loopback transport. Browser and application acceptance separately exercise the real domain boundary; protocol fixtures do not establish live hosting.
 
 ## Queue and execution controls
 

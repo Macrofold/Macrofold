@@ -71,10 +71,68 @@ UpdateWorkspaceGithubParams = TypedDict('UpdateWorkspaceGithubParams', {"install
 
 DefinitionReferenceParams = TypedDict('DefinitionReferenceParams', {"definition_id": "str | UUID", "revision": "str"})
 
-InferenceCreateParams = TypedDict('InferenceCreateParams', {"workspace_id": "NotRequired[str | UUID]", "definition": "NotRequired[InferenceDefinitionParams | DefinitionReferenceParams]", "input": "object", "context": "NotRequired[ExplicitContextParams | ContextReferenceParams]", "model_binding": "DecisionBindingParams", "limits": "NotRequired[InferenceLimitsParams]", "model_parameters": "NotRequired[ModelParametersParams]", "stream": "NotRequired[bool]"})
+InferenceCreateParams = TypedDict('InferenceCreateParams', {"workspace_id": "NotRequired[str | UUID]", "definition": "NotRequired[InferenceDefinitionParams | DefinitionReferenceParams]", "input": "object", "context": "NotRequired[ExplicitContextParams | ContextReferenceParams]", "model_binding": "InferenceBindingParams", "limits": "NotRequired[InferenceLimitsParams]", "model_parameters": "NotRequired[ModelParametersParams]", "stream": "NotRequired[bool]"})
+
+ModelDeploymentBindingParams = TypedDict('ModelDeploymentBindingParams', {"deployment_id": "str | UUID", "deployment_revision_id": "NotRequired[str | UUID]"})
+
+ModelDeploymentHuggingFaceSourceParams = TypedDict('ModelDeploymentHuggingFaceSourceParams', {"kind": "Literal[\"hugging_face\"]", "repository": "str", "revision": "NotRequired[str]", "source_connection_id": "NotRequired[str | UUID]", "weight_files": "NotRequired[list[str]]", "tokenizer": "NotRequired[ModelDeploymentHuggingFaceSourceTokenizerParams]", "chat_template": "NotRequired[Literal[\"tokenizer\"]]", "license_acknowledged": "NotRequired[bool]"})
+
+ModelDeploymentHuggingFaceSourceTokenizerParams = TypedDict('ModelDeploymentHuggingFaceSourceTokenizerParams', {"repository": "str", "revision": "NotRequired[str]"})
+
+ModelDeploymentExternalSourceParams = TypedDict('ModelDeploymentExternalSourceParams', {"kind": "Literal[\"external\"]", "repository": "NotRequired[str | None]", "revision": "NotRequired[str | None]", "capabilities": "ModelDeploymentCapabilitiesParams"})
+
+ModelDeploymentCapabilitiesParams = TypedDict('ModelDeploymentCapabilitiesParams', {"protocol": "Literal[\"openai_chat\"]", "input_modalities": "list[Literal[\"text\"]]", "chat_completions": "bool", "json_object": "bool", "json_schema": "bool", "tools": "bool", "streaming": "bool", "stream_usage": "bool", "schema_keywords": "list[str]", "accepted_parameters": "list[str]", "schema_dialect": "str | None", "context_window_tokens": "int", "max_output_tokens": "int", "max_concurrent_requests": "int"})
+
+ModelDeploymentRuntimeParametersParams = TypedDict('ModelDeploymentRuntimeParametersParams', {"context_window_tokens": "int", "max_output_tokens": "int", "max_concurrent_requests": "int", "dtype": "NotRequired[Literal[\"auto\", \"half\", \"bfloat16\", \"float\"]]", "quantization": "NotRequired[Literal[\"awq\", \"gptq\", \"fp8\", \"compressed-tensors\"]]", "tensor_parallel_size": "NotRequired[int]", "gpu_memory_utilization": "NotRequired[float]", "tool_call_parser": "NotRequired[Literal[\"hermes\", \"llama3_json\", \"mistral\"]]", "reasoning_parser": "NotRequired[Literal[\"deepseek_r1\", \"qwen3\"]]"})
+
+ModelDeploymentRuntimeChoice1Params = TypedDict('ModelDeploymentRuntimeChoice1Params', {"profile_id": "Literal[\"vllm-0.32.0-text\"]", "parameters": "ModelDeploymentRuntimeParametersParams"})
+
+ModelDeploymentRuntimeChoice2Params = TypedDict('ModelDeploymentRuntimeChoice2Params', {"kind": "Literal[\"external\"]", "engine": "NotRequired[str | None]", "version": "NotRequired[str | None]"})
+
+ModelDeploymentHostingChoice1PlacementParams = TypedDict('ModelDeploymentHostingChoice1PlacementParams', {"region_ids": "list[str]", "gpu_pool_ids": "list[str]", "gpu_count": "int"})
+
+ModelDeploymentHostingChoice1Params = TypedDict('ModelDeploymentHostingChoice1Params', {"kind": "Literal[\"runpod_serverless\"]", "compute_connection_id": "str | UUID", "placement": "ModelDeploymentHostingChoice1PlacementParams"})
+
+ModelDeploymentHostingChoice2Params = TypedDict('ModelDeploymentHostingChoice2Params', {"kind": "Literal[\"external_openai\"]", "endpoint_connection_id": "str | UUID", "model_alias": "str", "lifecycle": "Literal[\"external\"]", "external_hosting_acknowledged": "Literal[True]"})
+
+ModelDeploymentGrantInputParams = TypedDict('ModelDeploymentGrantInputParams', {"subject": "ModelDeploymentGrantInputSubjectChoice1Params | ModelDeploymentGrantInputSubjectChoice2Params", "workspace_scope": "ModelDeploymentGrantInputWorkspaceScopeChoice1Params | ModelDeploymentGrantInputWorkspaceScopeChoice2Params"})
+
+ModelDeploymentGrantInputSubjectChoice1Params = TypedDict('ModelDeploymentGrantInputSubjectChoice1Params', {"kind": "Literal[\"subject\"]", "subject_id": "str | UUID"})
+
+ModelDeploymentGrantInputSubjectChoice2Params = TypedDict('ModelDeploymentGrantInputSubjectChoice2Params', {"kind": "Literal[\"api_key\"]", "api_key_id": "str | UUID"})
+
+ModelDeploymentGrantInputWorkspaceScopeChoice1Params = TypedDict('ModelDeploymentGrantInputWorkspaceScopeChoice1Params', {"kind": "Literal[\"all\"]"})
+
+ModelDeploymentGrantInputWorkspaceScopeChoice2Params = TypedDict('ModelDeploymentGrantInputWorkspaceScopeChoice2Params', {"kind": "Literal[\"selected\"]", "workspace_ids": "list[str | UUID]"})
+
+CreateModelDeploymentAccessParams = TypedDict('CreateModelDeploymentAccessParams', {"grants": "list[ModelDeploymentGrantInputParams]"})
+
+CreateModelDeploymentGrantSubjectChoice1Params = TypedDict('CreateModelDeploymentGrantSubjectChoice1Params', {"kind": "Literal[\"subject\"]", "subject_id": "str | UUID"})
+
+CreateModelDeploymentGrantSubjectChoice2Params = TypedDict('CreateModelDeploymentGrantSubjectChoice2Params', {"kind": "Literal[\"api_key\"]", "api_key_id": "str | UUID"})
+
+CreateModelDeploymentGrantWorkspaceScopeChoice1Params = TypedDict('CreateModelDeploymentGrantWorkspaceScopeChoice1Params', {"kind": "Literal[\"all\"]"})
+
+CreateModelDeploymentGrantWorkspaceScopeChoice2Params = TypedDict('CreateModelDeploymentGrantWorkspaceScopeChoice2Params', {"kind": "Literal[\"selected\"]", "workspace_ids": "list[str | UUID]"})
+
+InspectModelDeploymentRuntimePreferencesParams = TypedDict('InspectModelDeploymentRuntimePreferencesParams', {"profile_id": "NotRequired[Literal[\"vllm-0.32.0-text\"]]", "parameters": "NotRequired[ModelDeploymentRuntimeParametersParams]"})
+
+ModelDeploymentServicePolicyChoice1Params = TypedDict('ModelDeploymentServicePolicyChoice1Params', {"min_replicas": "int", "max_replicas": "int", "max_concurrent_requests": "int", "max_hourly_cost_micro_usd": "str", "stop_at": "NotRequired[str | datetime | None]"})
+
+ModelDeploymentServicePolicyChoice2Params = TypedDict('ModelDeploymentServicePolicyChoice2Params', {"max_concurrent_requests": "int", "stop_at": "NotRequired[str | datetime | None]"})
 
 DecisionQuestionParams = DecisionQuestionChoice1Params | DecisionQuestionChoice2Params | DecisionQuestionChoice3Params | DecisionQuestionChoice4Params
 
 ConnectionAccessRuleInputParams = ConnectionAccessRuleInputChoice1Params | ConnectionAccessRuleInputChoice2Params | ConnectionAccessRuleInputChoice3Params
 
 WorktreeSourceParams = WorktreeSourceChoice1Params | WorktreeSourceChoice2Params
+
+InferenceBindingParams = DecisionBindingParams | ModelDeploymentBindingParams
+
+ModelDeploymentSourceParams = ModelDeploymentHuggingFaceSourceParams | ModelDeploymentExternalSourceParams
+
+ModelDeploymentRuntimeParams = ModelDeploymentRuntimeChoice1Params | ModelDeploymentRuntimeChoice2Params
+
+ModelDeploymentHostingParams = ModelDeploymentHostingChoice1Params | ModelDeploymentHostingChoice2Params
+
+ModelDeploymentServicePolicyParams = ModelDeploymentServicePolicyChoice1Params | ModelDeploymentServicePolicyChoice2Params

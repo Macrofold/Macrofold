@@ -41,3 +41,4 @@ Project documents retain proposal-specific context. Current feature behavior sta
 - [Native home persistence](native-home-persistence.md): explicit durable state per harness, disposable runtime home, and verified cold continuation.
 
 - [Native turn reliability](native-turn-reliability.md): asynchronous OpenCode turns, reported costs, copied SQLite normalization and permission-driven file tools.
+

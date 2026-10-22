@@ -17,6 +17,158 @@ async fn application_immediate_json_and_sse() {
         &std::fs::read(std::env::var("MACROFOLD_FIXTURE_INFERENCE_INPUT").unwrap()).unwrap(),
     )
     .unwrap();
+    let deployment_id = std::env::var("MACROFOLD_FIXTURE_DEPLOYMENT").unwrap();
+    let deployment = client
+        .model_deployments()
+        .get(&deployment_id, Default::default())
+        .await
+        .unwrap();
+    assert_eq!(deployment.state, models::model_deployment::State::Stopped);
+    assert!(deployment.serving_revision_id.is_none());
+    assert!(deployment.infrastructure_cost.estimated_micro_usd.is_none());
+    assert_eq!(
+        deployment.cost_policy.request_charge_micro_usd.to_string(),
+        "0"
+    );
+    let selected = client
+        .model_deployments()
+        .get_revision(
+            &deployment_id,
+            &std::env::var("MACROFOLD_FIXTURE_DEPLOYMENT_REVISION").unwrap(),
+            Default::default(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&selected.source).unwrap()["kind"],
+        "external"
+    );
+    assert_eq!(
+        serde_json::to_value(&selected.hosting).unwrap()["kind"],
+        "external_openai"
+    );
+    assert_eq!(
+        client
+            .model_deployments()
+            .list_grants(&deployment_id, Default::default())
+            .await
+            .unwrap()
+            .data
+            .len(),
+        1
+    );
+    let stopped_input: models::InferenceCreate = serde_json::from_slice(
+        &std::fs::read(std::env::var("MACROFOLD_FIXTURE_DEPLOYMENT_INFERENCE_INPUT").unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    let stopped = client.inferences().create(stopped_input).await.unwrap_err();
+    let request = stopped.downcast_ref::<RequestError>().unwrap();
+    let api = request.source.downcast_ref::<macrofold::apis::Error<macrofold::apis::inferences_api::CreateInferenceError>>().unwrap();
+    match api {
+        macrofold::apis::Error::ResponseError(response) => {
+            assert_eq!(response.status.as_u16(), 409);
+            assert!(response.content.contains("deployment_not_ready"));
+        }
+        _ => panic!("stopped deployment must reject before dispatch"),
+    }
+    let ready_id = std::env::var("MACROFOLD_FIXTURE_READY_DEPLOYMENT_RUST").unwrap();
+    let ready_revision = std::env::var("MACROFOLD_FIXTURE_READY_DEPLOYMENT_REVISION_RUST").unwrap();
+    let ready_input: models::InferenceCreate = serde_json::from_slice(
+        &std::fs::read(std::env::var("MACROFOLD_FIXTURE_READY_DEPLOYMENT_INPUT_RUST").unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    let deployed_receipt = |result: &models::RunResult, native_extra: bool| {
+        assert!(result.r#final);
+        let value = serde_json::to_value(result.inference.as_ref().unwrap()).unwrap();
+        assert_eq!(value["outcome"], "value");
+        assert_eq!(value["deployment"]["deployment_id"], ready_id);
+        assert_eq!(
+            value["deployment"]["deployment_revision_id"],
+            ready_revision
+        );
+        assert_eq!(value["cost_attribution"]["basis"], "deployment");
+        assert_eq!(
+            value["cost_attribution"]["infrastructure_cost_included"],
+            false
+        );
+        assert_eq!(value["billing"]["billing_mode"], "byok");
+        for field in [
+            "charged_micro_usd",
+            "budget_cost_micro_usd",
+            "reported_micro_usd",
+        ] {
+            assert_eq!(value["billing"][field], "0");
+        }
+        for field in [
+            "provider_cost_micro_usd",
+            "provider_reported_cost_usd",
+            "upstream_inference_cost_usd",
+        ] {
+            assert!(value["billing"][field].is_null());
+        }
+        assert_eq!(value["usage"]["input_tokens"], "11");
+        assert_eq!(value["usage"]["output_tokens"], "4");
+        assert_eq!(
+            value["value"]["choices"][0]["message"]["content"],
+            "Hello from the deployment SDK fixture."
+        );
+        if native_extra {
+            assert_eq!(value["value"]["provider_native_extra"]["retained"], true);
+            assert_eq!(
+                value["value"]["choices"][0]["message"]["annotations"],
+                serde_json::json!([])
+            );
+        }
+    };
+    let ready_options = RequestOptions {
+        idempotency_key: Some(uuid::Uuid::new_v4().to_string()),
+        ..Default::default()
+    };
+    let ready_response = client
+        .inferences()
+        .with_options(ready_options.clone())
+        .create(ready_input.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        ready_response.status,
+        models::inference_response::Status::Succeeded
+    );
+    deployed_receipt(ready_response.result.as_ref().unwrap(), true);
+    let mut deployed_text = String::new();
+    let mut deployed_terminal = false;
+    client
+        .inferences()
+        .stream(ready_input.clone(), |event| {
+            if event.r#type == models::inference_stream_event::Type::OutputDelta {
+                deployed_text.push_str(event.data.text.as_deref().unwrap());
+            }
+            if event.r#type == models::inference_stream_event::Type::RunSucceeded {
+                deployed_receipt(event.data.result.as_ref().unwrap(), false);
+                deployed_terminal = true;
+            }
+            Ok(())
+        })
+        .await
+        .unwrap();
+    assert_eq!(deployed_text, "Hello from the deployment SDK fixture.");
+    assert!(deployed_terminal);
+    let stop: models::ModelDeploymentServiceInput = serde_json::from_value(serde_json::json!({ "deployment_revision_id": ready_revision, "desired_state": "stopped", "policy": { "max_concurrent_requests": 2, "stop_at": null } })).unwrap();
+    client
+        .model_deployments()
+        .set_service(&ready_id, stop)
+        .await
+        .unwrap();
+    let recovered = client
+        .inferences()
+        .with_options(ready_options)
+        .create(ready_input)
+        .await
+        .unwrap();
+    assert_eq!(recovered.run_id, ready_response.run_id);
+    deployed_receipt(recovered.result.as_ref().unwrap(), true);
     let receipt = |result: &models::RunResult| {
         assert!(result.r#final);
         assert_eq!(result.persistence_status, "not_required");

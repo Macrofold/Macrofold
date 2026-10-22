@@ -52,17 +52,17 @@ class ModelConfig:
 
     @classmethod
     def parse(cls, raw: str) -> ModelConfig:
-        if len(raw.encode()) > 256 * 1024:
+        if len(raw.encode()) > 8 * 1024 * 1024:
             raise ValueError("Model configuration is too large")
         value = object_fields(json.loads(raw), {"source", "parameters", "served_alias"}, {"source", "parameters", "served_alias"})
         source = object_fields(value["source"], {"repository", "revision", "weight_files", "tokenizer", "chat_template"}, {"repository", "revision", "weight_files"})
         repository(source["repository"])
         commit(source["revision"])
         files = source["weight_files"]
-        if not isinstance(files, list) or not 1 <= len(files) <= 1000 or not all(isinstance(name, str) for name in files) or len(files) != len(set(files)):
+        if not isinstance(files, list) or not 1 <= len(files) <= 10000 or not all(isinstance(name, str) for name in files) or len(files) != len(set(files)):
             raise ValueError("Select exact safetensors weight files")
         for name in files:
-            if not isinstance(name, str) or len(name) > 512 or "\\" in name or any(c in name for c in "*?[]"):
+            if not isinstance(name, str) or len(name) > 1024 or "\\" in name or any(c in name for c in "*?[]"):
                 raise ValueError("Invalid weight filename")
             path = PurePosixPath(name)
             if path.is_absolute() or ".." in path.parts or str(path) != name or not name.endswith(".safetensors"):
@@ -76,11 +76,11 @@ class ModelConfig:
             raise ValueError("Invalid immutable chat template")
         parameters = object_fields(value["parameters"], {"context_window_tokens", "max_output_tokens", "max_concurrent_requests", "dtype", "quantization", "tensor_parallel_size", "gpu_memory_utilization", "tool_call_parser", "reasoning_parser"}, {"context_window_tokens", "max_output_tokens", "max_concurrent_requests"})
         context = positive_integer(parameters["context_window_tokens"], 2_097_152)
-        if positive_integer(parameters["max_output_tokens"], 131_072) > context:
+        if positive_integer(parameters["max_output_tokens"], 1_048_576) > context:
             raise ValueError("Output limit exceeds model context")
-        positive_integer(parameters["max_concurrent_requests"], 256)
-        positive_integer(parameters.get("tensor_parallel_size", 1), 8)
-        if parameters.get("dtype", "auto") not in {"auto", "float16", "bfloat16", "float32"}:
+        positive_integer(parameters["max_concurrent_requests"], 65536)
+        positive_integer(parameters.get("tensor_parallel_size", 1), 16)
+        if parameters.get("dtype", "auto") not in {"auto", "half", "float", "float16", "bfloat16", "float32"}:
             raise ValueError("Unsupported dtype")
         if parameters.get("quantization") not in {None, "awq", "gptq", "gptq_marlin", "fp8", "compressed-tensors", "bitsandbytes"}:
             raise ValueError("Unsupported managed quantization")

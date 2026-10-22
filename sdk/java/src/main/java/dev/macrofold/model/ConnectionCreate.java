@@ -72,7 +72,13 @@ public class ConnectionCreate {
 
     SEARCH(String.valueOf("search")),
 
-    CLAUDE_SUBSCRIPTION(String.valueOf("claude_subscription"));
+    CLAUDE_SUBSCRIPTION(String.valueOf("claude_subscription")),
+
+    HUGGING_FACE(String.valueOf("hugging_face")),
+
+    RUNPOD(String.valueOf("runpod")),
+
+    EXTERNAL_MODEL(String.valueOf("external_model"));
 
     private String value;
 

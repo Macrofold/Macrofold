@@ -3,6 +3,7 @@ import { lock } from '../../db';
 import * as workers from './workers';
 import * as modelDeployments from './model-deployments';
 import * as modelDeploymentService from './model-deployment-service';
+import { prepareConnectionSave } from './model-hosting-connections';
 import { workerOfferings, workerPolicyLimits, publicOffering } from './worker-catalog';
 import * as decisionTasks from './decision-tasks';
 import { prepareInference } from './inferences';
@@ -78,12 +79,17 @@ export const capabilities = {
 };
 const primitiveHandlers = {
   listModelDeployments: (c) => modelDeployments.list(c.tx, c.p, c.query),
-  getModelDeployment: (c) => modelDeployments.get(c.tx, c.p, c.params.deployment_id, c.query.get('workspace_id') ?? undefined),
-  getModelDeploymentRevision: (c) => modelDeployments.getRevision(c.tx, c.p, c.params.deployment_id, c.params.revision_id),
-  listModelDeploymentRevisions: (c) => modelDeployments.listRevisions(c.tx, c.p, c.params.deployment_id, c.query),
+  getModelDeployment: (c) =>
+    modelDeployments.get(c.tx, c.p, c.params.deployment_id, c.query.get('workspace_id') ?? undefined),
+  getModelDeploymentRevision: (c) =>
+    modelDeployments.getRevision(c.tx, c.p, c.params.deployment_id, c.params.revision_id),
+  listModelDeploymentRevisions: (c) =>
+    modelDeployments.listRevisions(c.tx, c.p, c.params.deployment_id, c.query),
   listModelDeploymentGrants: (c) => modelDeployments.listGrants(c.tx, c.p, c.params.deployment_id, c.query),
-  createModelDeploymentGrant: (c) => modelDeployments.createGrant(c.tx, c.p, c.params.deployment_id, input<'ModelDeploymentGrantInput'>(c)),
-  revokeModelDeploymentGrant: (c) => modelDeployments.revokeGrant(c.tx, c.p, c.params.deployment_id, c.params.grant_id),
+  createModelDeploymentGrant: (c) =>
+    modelDeployments.createGrant(c.tx, c.p, c.params.deployment_id, input<'ModelDeploymentGrantInput'>(c)),
+  revokeModelDeploymentGrant: (c) =>
+    modelDeployments.revokeGrant(c.tx, c.p, c.params.deployment_id, c.params.grant_id),
   deleteModelDeployment: (c) => modelDeploymentService.retire(c.tx, c.p, c.params.deployment_id),
   createDecisionTask: (c) => decisionTasks.createTask(c.tx, c.p, input<'DecisionTaskCreate'>(c)),
   getDecisionTask: (c) => decisionTasks.getTask(c.tx, c.p, c.params.task_id),
@@ -849,6 +855,8 @@ const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
   );
 /** Expensive immutable preparation is separate from the final idempotent SQL commit. */
 export const preparations: PreparationMap = {
+  createConnection: (c) => prepareConnectionSave(c),
+  updateConnection: (c) => prepareConnectionSave(c),
   inspectModelDeployment: modelDeploymentService.prepareInspect,
   createModelDeployment: modelDeploymentService.prepareCreate,
   createModelDeploymentRevision: modelDeploymentService.prepareAddRevision,

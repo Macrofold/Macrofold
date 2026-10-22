@@ -174,3 +174,4 @@ The [existing Neon database](../operations/neon.md) is migrated through 034 afte
 - Rehearse production database/object/key recovery, complete bounded live vendor smoke tests, and invite a small pilot. Provider quota/invoice/CPU readers, enterprise SSO/SCIM, a browser desktop/raw terminal, cross-vendor memory migration and autonomous infrastructure mutations remain outside the launch scope.
 
 Detailed live run history retains its plan policy. The new refresh channel does not change stored output, notifications or accounting retention. macOS/Linux are the initial CLI targets; Windows acceptance and public package provenance remain release steps.
+

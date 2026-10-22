@@ -106,7 +106,8 @@ export type InferenceConfig = Pick<
   transformation_version: string;
   admission_ms: number;
   context_resolution_ms?: number;
-  provider_cost_rate_card: Model;
+  provider_cost_rate_card?: Model;
+  deployment_target?: import('./model-deployment-types').DeploymentTarget;
   model: string;
   model_parameters?: ModelParameters;
   billing_mode: 'managed' | 'byok';

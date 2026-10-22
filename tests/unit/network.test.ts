@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LookupAddress } from 'node:dns';
 import * as undici from 'undici';
 import { config } from '../../packages/core/src/config';
-import { safeFetch, mcpFetch, validateMcpURL } from '../../packages/providers/src/network';
+import {
+  safeFetch,
+  mcpFetch,
+  validateMcpURL,
+  validateModelEndpointURL,
+  modelEndpointFetch,
+  huggingFaceMetadataFetch,
+} from '../../packages/providers/src/network';
 
 const originalConfig = { mode: config.mode, origin: config.origin };
 const { lookup } = vi.hoisted(() => ({ lookup: vi.fn<() => Promise<LookupAddress[]>>() }));
@@ -18,6 +25,28 @@ beforeEach(() => {
 afterEach(() => vi.resetAllMocks());
 
 describe('public network transport', () => {
+  it('exposes HF redirect metadata only to its fixed-origin source adapter', async () => {
+    const fetch = vi
+      .mocked(undici.fetch)
+      .mockResolvedValue(
+        new undici.Response(null, {
+          status: 307,
+          headers: { location: '/api/resolve-cache/models/fixture/model/commit/config.json' },
+        }),
+      );
+    const response = await huggingFaceMetadataFetch(
+      'https://huggingface.co/fixture/model/resolve/commit/config.json',
+    );
+    expect(response.status).toBe(307);
+    await response.body?.cancel();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(() => huggingFaceMetadataFetch('https://example.test/file')).toThrow(
+      expect.objectContaining({ code: 'unsafe_url' }),
+    );
+    await expect(
+      safeFetch('https://huggingface.co/fixture/model/resolve/commit/config.json'),
+    ).rejects.toMatchObject({ code: 'redirect_not_allowed' });
+  });
   it('preserves conditional metadata responses without treating 304 as a redirect', async () => {
     const fetch = vi
       .mocked(undici.fetch)
@@ -154,5 +183,46 @@ describe('local MCP destination policy', () => {
       code: 'redirect_not_allowed',
     });
     expect(undici.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('local model destination policy', () => {
+  beforeEach(() => {
+    vi.stubEnv('LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS', 'http://localhost:59621');
+    vi.stubEnv('LOCAL_MCP_ALLOWED_ORIGINS', 'http://localhost:59620');
+    vi.stubEnv('VERCEL_ENV', '');
+    config.mode = 'local';
+    config.origin = 'http://localhost:3210';
+    lookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    config.mode = originalConfig.mode;
+    config.origin = originalConfig.origin;
+  });
+  it('uses a separate exact-origin exception and never extends it to MCP or webhooks', async () => {
+    await expect(validateModelEndpointURL('http://localhost:59621/v1')).resolves.toBeDefined();
+    await expect(validateModelEndpointURL('http://localhost:59620/v1')).rejects.toMatchObject({
+      code: 'unsafe_url',
+    });
+    await expect(validateMcpURL('http://localhost:59621/mcp')).rejects.toMatchObject({ code: 'unsafe_url' });
+    await expect(safeFetch('http://localhost:59621/v1')).rejects.toMatchObject({ code: 'unsafe_url' });
+    config.mode = 'production';
+    await expect(validateModelEndpointURL('http://localhost:59621/v1')).rejects.toMatchObject({
+      code: 'unsafe_url',
+    });
+  });
+  it('supports the accepted model deadline and bounded response without relaxing ordinary consumers', async () => {
+    const fetch = vi.mocked(undici.fetch).mockResolvedValue(new undici.Response('hello'));
+    const response = await modelEndpointFetch(
+      'http://localhost:59621/v1/chat/completions',
+      { method: 'POST', body: '{}' },
+      { timeoutMs: 120000, maximumResponseBytes: 4 },
+    );
+    await expect(response.text()).rejects.toMatchObject({ code: 'response_too_large' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(() =>
+      modelEndpointFetch('http://localhost:59621/v1', {}, { timeoutMs: 240001, maximumResponseBytes: 4 }),
+    ).toThrow(expect.objectContaining({ code: 'invalid_model_transport_limits' }));
   });
 });

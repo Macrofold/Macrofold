@@ -1,6 +1,7 @@
 import type { Tx } from '../../db';
 import { lock, queryGroup } from '../../db';
 import type { components } from '../../contracts/api';
+import { validate as validUuid } from 'uuid';
 import { requireScopes, requireWorkspace, type Principal } from './auth';
 import { assert } from './errors';
 import { id, unseal } from './crypto';
@@ -79,14 +80,21 @@ export async function assertManagementTx(tx: Tx, p: Principal, row?: DeploymentR
     organization_id: p.organizationId,
     workspace_id: null,
     config: {
-      principal_id: p.id, principal_kind: p.kind, user_id: p.userId ?? p.id,
-      oauth_token_id: p.oauthTokenId, oauth_audience: p.oauthAudience,
+      principal_id: p.id,
+      principal_kind: p.kind,
+      user_id: p.userId ?? p.id,
+      oauth_token_id: p.oauthTokenId,
+      oauth_audience: p.oauthAudience,
     },
   };
   const facts = await queryGroup(tx, actorAuthorizationQueries(actor, ['model-deployments:write']));
   const role = facts[0]?.rows[0]?.member_role ?? facts[0]?.rows[0]?.role;
-  assert(actorAuthorizationFromResults(actor, facts) && (role === 'owner' || role === 'admin'),
-    403, 'permission_denied', 'Current owner membership and unrestricted deployment-management authority are required.');
+  assert(
+    actorAuthorizationFromResults(actor, facts) && (role === 'owner' || role === 'admin'),
+    403,
+    'permission_denied',
+    'Current owner membership and unrestricted deployment-management authority are required.',
+  );
 }
 function canManage(p: Principal, row: DeploymentRow) {
   return (
@@ -136,10 +144,15 @@ async function applicationAccess(
 export async function authorizeDeploymentInvocationTx(
   tx: Tx,
   p: Principal,
-  target: Pick<DeploymentTarget, 'deployment_id'>,
+  target: Pick<DeploymentTarget, 'deployment_id'> & Partial<DeploymentTarget>,
   workspaceId?: string,
 ) {
   await applicationAccess(tx, p, target.deployment_id, workspaceId, 'model-deployments:use');
+  if (target.deployment_revision_id && (target.endpoint_connection_id || target.credential_connection_id))
+    await selectedDeploymentConnectionTx(tx, p, {
+      ...target,
+      deployment_revision_id: target.deployment_revision_id,
+    });
 }
 
 /** One current service resolution under the deployment lock, inside the normal
@@ -174,9 +187,17 @@ export async function resolveDeploymentTargetTx(
     'deployment_not_ready',
     'The requested execution window does not fit before the scheduled stop.',
   );
-  const revision = await revisionRow(tx, row.id, row.serving_revision_id);
+  const revision = (
+    await tx.query<
+      Pick<DeploymentRevisionRow, 'id' | 'hosting' | 'capabilities'> & { endpoint_url: string | null }
+    >(
+      "SELECT id,hosting,capabilities,source_evidence->>'endpoint_url' AS endpoint_url FROM model_deployment_revisions WHERE deployment_id=$1 AND id=$2",
+      [row.id, row.serving_revision_id],
+    )
+  ).rows[0];
+  assert(revision, 503, 'deployment_unavailable', 'The serving revision metadata is unavailable.');
   if (revision.hosting.kind === 'external_openai') {
-    const endpoint = revision.source_evidence.endpoint_url;
+    const endpoint = revision.endpoint_url;
     assert(
       typeof endpoint === 'string',
       503,
@@ -231,11 +252,9 @@ export async function deploymentCapacityTx(tx: Tx, deploymentId: string) {
     'This deployment’s concurrent request capacity is occupied.',
   );
 }
-export async function deploymentCredentialTx(
-  tx: Tx,
-  p: Principal,
-  target: DeploymentTarget,
-): Promise<Record<string, string>> {
+type CredentialTarget = Pick<DeploymentTarget, 'deployment_id' | 'deployment_revision_id'> &
+  Partial<DeploymentTarget>;
+async function selectedDeploymentConnectionTx(tx: Tx, p: Principal, target: CredentialTarget) {
   const connectionId = target.endpoint_connection_id ?? target.credential_connection_id;
   assert(connectionId, 503, 'deployment_unavailable', 'The deployment has no credential binding.');
   const selected = (
@@ -245,6 +264,8 @@ export async function deploymentCredentialTx(
     }>(
       `SELECT c.data,r.secret_ciphertext AS resource_secret
     FROM model_deployments d JOIN model_deployment_connections g ON g.deployment_id=d.id AND g.revision_id=$2 AND g.connection_id=$3 AND g.approved_by=d.owner_subject_id
+    JOIN memberships owner_member ON owner_member.organization_id=d.organization_id AND owner_member.user_id=d.owner_subject_id AND owner_member.role IN ('owner','admin')
+    JOIN auth."user" owner_user ON owner_user.id=owner_member.user_id AND owner_user."emailVerified"=true
     JOIN connections c ON c.id=g.connection_id AND c.organization_id=d.organization_id
     LEFT JOIN model_deployment_resources r ON r.id=$4 AND r.deployment_id=d.id AND r.revision_id=$2
     WHERE d.id=$1 AND d.organization_id=$5 AND c.data->>'owner_subject_id'=d.owner_subject_id`,
@@ -276,6 +297,14 @@ export async function deploymentCredentialTx(
       'deployment_binding_stale',
       'The endpoint connection changed; create and select a new revision.',
     );
+  return { selected, connection };
+}
+export async function deploymentCredentialTx(
+  tx: Tx,
+  p: Principal,
+  target: DeploymentTarget,
+): Promise<Record<string, string>> {
+  const { selected, connection } = await selectedDeploymentConnectionTx(tx, p, target);
   const headers = connection.headers_ciphertext
     ? unseal<Record<string, string>>(connection.headers_ciphertext)
     : {};
@@ -417,10 +446,17 @@ export async function getRevision(
   return presentRevision(await revisionRow(tx, deploymentId, revisionId));
 }
 function page(query: URLSearchParams) {
-  const limit = Math.min(100, Math.max(1, Number(query.get('limit') ?? 25)));
+  const requested = Number(query.get('limit') ?? 25);
+  assert(
+    Number.isSafeInteger(requested) && requested >= 1 && requested <= 100,
+    400,
+    'invalid_request',
+    'Use a page limit between one and 100.',
+  );
+  const limit = requested;
   const cursor = query.get('cursor');
   assert(
-    !cursor || /^[a-f0-9-]{36}$/i.test(cursor),
+    !cursor || validUuid(cursor),
     400,
     'invalid_request',
     'Use the cursor supplied by the previous page.',

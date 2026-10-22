@@ -1,4 +1,4 @@
-import { readFile, writeFile, lstat } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import type { Schema } from '../../../sdk/typescript/src/client';
 import { Client, serviceOrigin } from '../../../sdk/typescript/src/client';
@@ -21,6 +21,8 @@ import { transferFiles } from './transfers';
 import { checkout } from './checkout';
 import { chat } from './chat';
 import { workerCommands, workerRunOptions } from './workers';
+import { modelDeploymentCommands } from './model-deployments';
+import { protectedJSON } from './json-input';
 
 export type CommandResult = { data: unknown; exitCode?: number; printed?: boolean };
 export type Invocation = { args: string[]; flags: Options; context: () => Promise<Context> };
@@ -48,15 +50,6 @@ async function promptText(args: string[], flags: Options) {
   if (text.length > 100000) throw new CliError('Prompt exceeds 100,000 characters.');
   return text;
 }
-async function protectedJSON(file: string) {
-  if (file === '-') return JSON.parse(await readStdin()) as unknown;
-  const stat = await lstat(file);
-  if (stat.isSymbolicLink() || !stat.isFile()) throw new CliError('Use an ordinary protected JSON file.');
-  if (process.platform !== 'win32' && stat.mode & 0o077)
-    throw new CliError('Secret input files must have private permissions (chmod 600 FILE).');
-  if (stat.size > 4 * 1024 * 1024) throw new CliError('Input file exceeds 4 MiB.');
-  return JSON.parse(await readFile(file, 'utf8')) as unknown;
-}
 function openBrowser(url: string) {
   const command =
     process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'rundll32' : 'xdg-open';
@@ -68,6 +61,7 @@ function openBrowser(url: string) {
 
 export const handlers: Record<string, Handler> = {
   ...workerCommands,
+  ...modelDeploymentCommands,
   version: async () =>
     result({ version: release.version, executable: release.executable, node: process.versions.node }),
   config: async () => result(await profileSummaries()),

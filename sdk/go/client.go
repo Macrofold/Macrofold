@@ -72,6 +72,8 @@ type APIClient struct {
 
 	MeAPI *MeAPIService
 
+	ModelDeploymentsAPI *ModelDeploymentsAPIService
+
 	ModelsAPI *ModelsAPIService
 
 	OperationsAPI *OperationsAPIService
@@ -134,6 +136,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.InferencesAPI = (*InferencesAPIService)(&c.common)
 	c.IntegrationsAPI = (*IntegrationsAPIService)(&c.common)
 	c.MeAPI = (*MeAPIService)(&c.common)
+	c.ModelDeploymentsAPI = (*ModelDeploymentsAPIService)(&c.common)
 	c.ModelsAPI = (*ModelsAPIService)(&c.common)
 	c.OperationsAPI = (*OperationsAPIService)(&c.common)
 	c.OperatorAPI = (*OperatorAPIService)(&c.common)

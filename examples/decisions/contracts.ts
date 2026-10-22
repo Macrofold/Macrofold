@@ -5,6 +5,7 @@ export function decisionExample(
   workspaceId: string,
   scenario: 'triage' | 'actor',
 ): Schema['InferenceCreate'] & {
+  model_binding: Schema['DecisionBinding'];
   definition: Schema['InferenceDefinition'];
   context: Schema['ExplicitContext'];
 } {

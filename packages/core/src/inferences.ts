@@ -10,6 +10,10 @@ import { config } from './config';
 import { validateContext, digest } from './explicit-context';
 import { createJsonPreparation, type JsonPreparation } from './prepared-json';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
+import { inferenceProtocol } from './inference-protocol';
+import { deploymentBinding } from './decision';
+import { resolveDeploymentTargetTx, deploymentCredentialTx, deploymentCapacityTx } from './model-deployments';
+import type { DeploymentTarget } from './model-deployment-types';
 import { decisionModel, decisionOnlyModel } from './decision-models';
 import {
   prepareOpenRouterModel,
@@ -66,6 +70,7 @@ async function admitInferenceState(
   organizationLocked = false,
 ) {
   const admissionStarted = performance.now();
+  const target = prepared?.configuration.deployment_target;
   assert(
     process.env.RUN_ADMISSION_ENABLED !== 'false',
     503,
@@ -85,8 +90,8 @@ async function admitInferenceState(
   );
   if (kind === 'bounded_agent') {
     assert(
-      decisionProtocol(input.model_binding.provider, input.model_binding.model).capabilities.brokeredTools &&
-        input.definition.question.kind === 'json',
+      decisionProtocol(catalogBinding(input).provider, catalogBinding(input).model).capabilities
+        .brokeredTools && input.definition.question.kind === 'json',
       400,
       'unsupported_bounded_model',
       'The bounded executor requires a generative JSON model.',
@@ -103,21 +108,26 @@ async function admitInferenceState(
   }
   let selected: Model | undefined;
   if (
+    !deploymentBinding(input.model_binding) &&
     input.model_binding.provider === 'openrouter' &&
     !decisionOnlyModel('openrouter', input.model_binding.model)
   )
     selected = prepared?.modelSelection
       ? prepared.modelSelection.model
       : (await selectedModel(tx, input.model_binding.model, 'openrouter'))?.model;
-  const model = decisionModel(input.model_binding, selected ? [selected] : []),
-    protocol = decisionProtocol(input.model_binding.provider, input.model_binding.model);
+  const model = target
+      ? deploymentModel(target)
+      : decisionModel(catalogBinding(input), selected ? [selected] : []),
+    protocol = prepared
+      ? inferenceProtocol(prepared.configuration)
+      : decisionProtocol(catalogBinding(input).provider, catalogBinding(input).model);
   assert(
     !input.stream || protocol.capabilities.streaming,
     400,
     'streaming_not_supported',
     'This model protocol does not support incremental output. Omit stream for a completed response.',
   );
-  if (input.definition.question.kind !== 'provider')
+  if (!target && input.definition.question.kind !== 'provider')
     validateModelParameters(input.model_parameters, model.provider, model.id);
   assert(
     protocol.kinds.includes(input.definition.question.kind),
@@ -126,9 +136,10 @@ async function admitInferenceState(
     'This provider cannot execute the definition’s decision kind.',
   );
   assert(
-    input.definition.allowed_models.some(
-      (entry) => entry.provider === model.provider && entry.model === model.id,
-    ),
+    target ||
+      input.definition.allowed_models.some(
+        (entry) => entry.provider === model.provider && entry.model === model.id,
+      ),
     403,
     'model_not_authorized',
     'Choose a model permitted by the definition.',
@@ -142,7 +153,8 @@ async function admitInferenceState(
     'definition_limit_exceeded',
     'Request limits may only narrow the definition’s ceilings.',
   );
-  const reservation = input.model_binding.billing_mode === 'byok' ? '0' : limits.max_cost_micro_usd;
+  const reservation =
+    target || catalogBinding(input).billing_mode === 'byok' ? '0' : limits.max_cost_micro_usd;
   // Stateless immediate admission can share organization and wallet acquisition.
   // Reference paths retain their earlier organization guard before reference authorization.
   const financial = prepared
@@ -168,7 +180,8 @@ async function admitInferenceState(
     'execution_limit_exceeded',
     'The timeout exceeds the account execution policy.',
   );
-  const secret = await modelCredential(tx, p.userId, input.model_binding);
+  const secret = target ? '' : await modelCredential(tx, p.userId, catalogBinding(input));
+  const deploymentHeaders = target ? await deploymentCredentialTx(tx, p, target) : undefined;
   const configuration = prepared?.configuration ?? { ...inferenceConfiguration(p, input, model), ...source };
   assert(
     !prepared || digest(prepared.configuration.rate_card) === digest(model),
@@ -231,9 +244,10 @@ async function admitInferenceState(
       'The initiating credential is no longer authorized.',
     );
     if (prepared.modelSelection)
-      decisionModel(input.model_binding, [
+      decisionModel(catalogBinding(input), [
         currentSelectedModelFromResult(prepared.modelSelection, guards[3 + actorQueries.length]),
       ]);
+    if (target) await deploymentCapacityTx(tx, target.deployment_id);
     assert(
       Date.now() +
         limits.timeout_seconds * 1000 +
@@ -333,7 +347,15 @@ async function admitInferenceState(
     ...(prepared ? {} : { queue_expires_at: row.queue_expires_at.toISOString() }),
     urls: runUrls(runId),
   };
-  return { receipt, run: row, call, secret, providerDeadlineMonotonicMs, actorCheckedAtMonotonicMs };
+  return {
+    receipt,
+    run: row,
+    call,
+    secret,
+    deploymentHeaders,
+    providerDeadlineMonotonicMs,
+    actorCheckedAtMonotonicMs,
+  };
 }
 
 export async function admitInference(
@@ -443,10 +465,11 @@ export async function prepareInference(
     'Saved references and bounded agents require a workspace. Supply inline data for a stateless inference.',
   );
   const modelSelection =
+    !deploymentBinding(input.model_binding) &&
     input.model_binding.provider === 'openrouter' &&
     !decisionOnlyModel('openrouter', input.model_binding.model)
       ? await readPrepared(() =>
-          prepareOpenRouterModel(input.model_binding.model, providerModelCatalog(), preparation),
+          prepareOpenRouterModel(catalogBinding(input).model, providerModelCatalog(), preparation),
         )
       : undefined;
   const definition =
@@ -475,7 +498,7 @@ export async function prepareInference(
   };
   let prepared: PreparedImmediateInference | undefined;
   let permit: InvocationPermit | undefined;
-  if (direct) {
+  if (direct && !deploymentBinding(input.model_binding)) {
     // The encoding memo lives only in this synchronous segment, after reference
     // reads and before admission; waiting requests retain no extra fragments.
     const json = createJsonPreparation();
@@ -523,6 +546,35 @@ export async function prepareInference(
       if ('definition_id' in input.definition) await resolveDefinition(tx, principal, input);
       if ('artifact_id' in input.context)
         await authorizeContext(tx, principal, input.workspace_id, input.context);
+      if (direct && deploymentBinding(input.model_binding)) {
+        const limits = resolved.limits ?? resolved.definition.limits;
+        const target = await resolveDeploymentTargetTx(
+          tx,
+          principal,
+          input.model_binding,
+          input.workspace_id,
+          limits.timeout_seconds,
+        );
+        const json = createJsonPreparation();
+        try {
+          validateContext(resolved.definition, resolved.input, resolved.context, json);
+          const configuration = inferenceConfiguration(
+            principal,
+            resolved,
+            deploymentModel(target),
+            json,
+            target,
+          );
+          configuration.execution_owner = 'request';
+          prepared = {
+            configuration,
+            invocation: prepareInvocation(configuration, 0, [], limits.max_output_tokens, json),
+            hostDeadline,
+          };
+        } finally {
+          json.dispose();
+        }
+      }
       const admitted = await admitInferenceState(
         tx,
         principal,
@@ -542,6 +594,7 @@ export async function prepareInference(
           bodyBytes: prepared.invocation.bytes,
           bodyJSON: prepared.invocation.serialized,
           secret: admitted.secret,
+          deploymentHeaders: admitted.deploymentHeaders,
           hostDeadline,
           providerDeadlineMonotonicMs: admitted.providerDeadlineMonotonicMs,
           actorCheckedAtMonotonicMs: admitted.actorCheckedAtMonotonicMs,
@@ -577,9 +630,12 @@ export function inferenceConfiguration(
   input: ResolvedInferenceCreate,
   model: import('./catalog').Model,
   preparation?: JsonPreparation,
+  target?: DeploymentTarget,
 ): InferenceConfig {
-  const protocol = decisionProtocol(model.provider, model.id);
   const limits = input.limits || input.definition.limits;
+  const protocol = target
+    ? inferenceProtocol({ deployment_target: target, rate_card: model, model: model.id, limits })
+    : decisionProtocol(model.provider, model.id);
   const context = {
     ...input.context,
     organization_id: p.organizationId,
@@ -598,10 +654,11 @@ export function inferenceConfiguration(
     workspace_ids: p.workspaceIds,
     model: model.id,
     model_parameters: input.model_parameters,
-    billing_mode: input.model_binding.billing_mode,
-    provider_connection_id: input.model_binding.provider_connection_id,
+    billing_mode: target ? 'byok' : catalogBinding(input).billing_mode,
+    ...(!target ? { provider_connection_id: catalogBinding(input).provider_connection_id } : {}),
+    ...(target ? { deployment_target: target } : {}),
     rate_card: model,
-    provider_cost_rate_card: { ...model },
+    ...(!target ? { provider_cost_rate_card: { ...model } } : {}),
     admission_ms: 0,
     context_resolution_ms: input.context_resolution_ms,
     limits,
@@ -614,6 +671,28 @@ export function inferenceConfiguration(
     definition_reference: input.definition_reference,
     client_type: 'api',
     scheduling_class: 'interactive',
+  };
+}
+
+function catalogBinding(input: Pick<InferenceCreate, 'model_binding'>) {
+  assert(
+    !deploymentBinding(input.model_binding),
+    422,
+    'unsupported_model_capability',
+    'Use native direct inference for a custom model deployment.',
+  );
+  return input.model_binding;
+}
+
+function deploymentModel(target: DeploymentTarget): Model {
+  return {
+    id: target.model_alias,
+    name: target.model_alias,
+    provider: 'deployment',
+    harnesses: [],
+    input_micro_usd_per_million: '0',
+    output_micro_usd_per_million: '0',
+    enabled: true,
   };
 }
 

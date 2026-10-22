@@ -94,3 +94,4 @@ See [runtime](../features/execution/runtime.md), [worktree design](../features/w
 ## Connector access
 
 [Connector access rules](../features/identity-integrations/connection-access.md) separate tool selection from authority. Persisted workspace/preset context drives eligibility; admission freezes a bounded tool/account snapshot and dispatch intersects it with current rules or an authorized one-run exception. Explicit access columns and tenant-scoped rules replace connection JSON grants. Tools and Access share one compare-and-swap revision. [Ownership and coordinated migration](../engineering/testing/connection-access.md).
+

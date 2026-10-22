@@ -4,6 +4,7 @@ import { immediateInferenceLimits } from './capacity';
 import { AppError } from './errors';
 
 export type InferenceControlRow = ApiKeyActorFacts & {
+  deployment_allowed?: boolean;
   id: string;
   organization_id: string;
   lease_generation: string;
@@ -147,6 +148,7 @@ export class InferenceControlObserver {
                 row.lease_generation === registration.generation &&
                 ['provisioning', 'running', 'waiting_for_input', 'persisting'].includes(row.status) &&
                 !row.cancel_requested &&
+                row.deployment_allowed !== false &&
                 apiKeyActorAuthorized(row);
               if (!authorized)
                 this.abort(

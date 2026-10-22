@@ -79,3 +79,4 @@ the design branch, and report actual evidence and material remaining gaps.
 ## Coordinated implementation boundary
 
 A later explicit implementation request follows the production delivery stages and current repository instructions. Macrofold's API/runtime/client release precedes OpenLegend's consumer integration. Record the actual tested server, client and runtime revisions; branch names do not establish compatibility. Optional benchmark work is independent of production feature completion. This brief does not authorize deployment or paid execution.
+

@@ -255,3 +255,4 @@ Verify the same native request and full terminal receipt through Macrofold REST/
 Ship actual Macrofold API/client support before enabling its consumer. OpenLegend operator configuration selects the target for production NPC generation; an absent feature fails visibly without hidden OpenRouter fallback. Record tested client/server revisions and runtime image in release evidence. Source/runtime upgrades are deliberate operations, while routine healthy replacement is ordinary service maintenance.
 
 Experiments may pin a revision and record inputs, output strategy, outcomes, timing and cost observations through the same API. No experiment ID, study manifest, qualification certificate, boot pin, finite activation or owner invoice attestation is a prerequisite of production inference.
+

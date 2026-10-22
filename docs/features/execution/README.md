@@ -54,6 +54,7 @@ Use `questions: "allow"` instead when your application can present and answer na
 - [Warm sandboxes and long-running servers](workers.md): reuse compute independently of durable files and sessions.
 - [Choose a harness](harnesses.md): native tools, models, streaming, and continuation.
 - [Unified Harness Interface](unified-harness-interface.md): how native adapters connect and how to contribute a harness.
+- [Custom model deployments](model-deployments.md): host Hugging Face models or use compatible external chat endpoints.
 - [Model catalog](models.md): built-in choices, discovery, and accepted prices.
 - [Streaming and webhooks](../api/events.md).
 - [Plans and limits](../billing/README.md).

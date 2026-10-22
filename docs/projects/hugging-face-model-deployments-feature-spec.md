@@ -115,3 +115,4 @@ Implementation and live acceptance remain tracked separately from the completed 
 The production architecture is selected. Initial limits are managed vLLM text serving, BYOK infrastructure, imported compatible endpoints and graceful revision changes with a visible loading interruption. No custom scheduler, model marketplace, fine-tuning system, GPU resale or automatic cross-model fallback is needed. Additional runtimes/providers fit behind the existing serving/provider boundaries when required by an actual model or operating workload.
 
 Concrete model choice, account access, pinned image, capacity/rate policy and workload tuning are operator inputs. RunPod ingress authentication, actual GPU/model fit, restart behavior, cancellation and billing observations require implementation/live evidence before the backend is enabled. These checks establish normal service reliability; they do not require a permanent experimental approval system.
+

@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import configuration from './config.json';
 import { metadata } from './metadata';
 import { preserveGoNullableArrays } from './nullable-arrays';
+import { preservePythonBooleanConstants } from './python-boolean-constants';
 import { generatePythonResources } from './python';
 import { generateGoResources } from './go';
 import { generateRustResources } from './rust';
@@ -110,6 +111,7 @@ try {
     } catch (error) {
       throw new Error(`Could not generate ${language}. Install JDK 21 and set JAVA_HOME.`, { cause: error });
     }
+    if (language === 'python') await preservePythonBooleanConstants(output);
     if (language === 'go') {
       await preserveGoNullableArrays(output);
       // A successful zero-byte download still owns a usable temporary file.

@@ -94,6 +94,12 @@ pub enum Kind {
     Search,
     #[serde(rename = "claude_subscription")]
     ClaudeSubscription,
+    #[serde(rename = "hugging_face")]
+    HuggingFace,
+    #[serde(rename = "runpod")]
+    Runpod,
+    #[serde(rename = "external_model")]
+    ExternalModel,
 }
 
 impl Default for Kind {

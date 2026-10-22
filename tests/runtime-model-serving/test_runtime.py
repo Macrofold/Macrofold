@@ -68,6 +68,7 @@ class ConfigurationTests(unittest.TestCase):
             lambda x: x["source"].update(revision="main"),
             lambda x: x["source"].update(weight_files=["../model.safetensors"]),
             lambda x: x["source"].update(weight_files=["*.safetensors"]),
+            lambda x: x["source"].update(weight_files=["model[1].safetensors"]),
             lambda x: x["source"].update(weight_files=[{}]),
             lambda x: x["parameters"].update(trust_remote_code=True),
             lambda x: x["parameters"].update(tool_call_parser="/tmp/plugin.py"),

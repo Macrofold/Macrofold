@@ -277,7 +277,10 @@ export function maintenanceTasks(host?: RepositoryHost): MaintenanceTask[] {
       async () => ({ workers_checked: await (await import('./worker-reconciler')).dispatchWorkers() }),
     ],
     ['runs', async () => (await import('./engine')).maintainRuns()],
-    ['model_deployments', async () => (await import('./model-deployment-reconciler')).dispatchModelDeployments()],
+    [
+      'model_deployments',
+      async () => (await import('./model-deployment-reconciler')).dispatchModelDeployments(),
+    ],
     ['decision_tasks', async () => (await import('./decision-task-engine')).dispatchDecisionTasks()],
     ['trigger_admission', async () => (await import('./trigger-dispatch')).dispatchTriggerAdmissions()],
     ['trigger_replies', async () => (await import('./trigger-dispatch')).dispatchTriggerReplies()],

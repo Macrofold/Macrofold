@@ -224,6 +224,13 @@ func (o *ModelDeploymentExternalSource) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
+	for property := range allProperties {
+		switch property {
+		case "kind", "repository", "revision", "capabilities":
+		default:
+			return fmt.Errorf("unexpected source property %v", property)
+		}
+	}
 	if kind, ok := allProperties["kind"].(string); !ok || kind != "external" {
 		return fmt.Errorf("expected source kind external")
 	}

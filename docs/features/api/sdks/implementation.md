@@ -10,7 +10,7 @@
 
 Python and Rust generation preserve authored boolean constants as booleans, retaining rejection of the opposite value and string values. Python also rejects unknown fields in the closed deployment-policy variants. These assertion-checked adaptations correct generator output without relaxing the public schema. Python response decoding validates required fields first, then uses the generated `from_dict` reader to retain nested `oneOf` instances; malformed successful responses keep the original mutation identity for recovery.
 
-Go generation retains each deployment source's literal kind. Without that check, the open Hugging Face source also accepts an external source with declared repository provenance, and the generated union rejects the valid response as ambiguous.
+Go generation retains each deployment source's literal kind and closed property set. Without those checks, the generated Hugging Face source also accepts external provenance, and the union rejects a valid response as ambiguous. Java's deployment and inference-binding unions retain canonical required and closed property constraints before typed decoding; Jackson alone does not enforce these constraints when counting matching branches.
 
 Generated clients are committed. Ordinary application builds do not need Java, Go, Rust, or network access for generation. Build manifests, tests, README files, and `Client`/stream helpers are maintained separately. CI regenerates from the contract and checks drift, then tests each client. Generated endpoint documentation and placeholder tests are deliberately omitted; the shared OpenAPI reference is authoritative.
 

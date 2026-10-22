@@ -94,7 +94,7 @@ public class ModelDeploymentRuntime extends AbstractOpenApiSchema {
             JsonToken token = tree.traverse(jp.getCodec()).nextToken();
             // deserialize ModelDeploymentRuntimeOneOf
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("profile_id") && tree.hasNonNull("parameters") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("profile_id", "parameters")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentRuntimeOneOf.class.equals(Integer.class) || ModelDeploymentRuntimeOneOf.class.equals(Long.class) || ModelDeploymentRuntimeOneOf.class.equals(Float.class) || ModelDeploymentRuntimeOneOf.class.equals(Double.class) || ModelDeploymentRuntimeOneOf.class.equals(Boolean.class) || ModelDeploymentRuntimeOneOf.class.equals(String.class)) {
                     attemptParsing = typeCoercion;
@@ -120,7 +120,7 @@ public class ModelDeploymentRuntime extends AbstractOpenApiSchema {
 
             // deserialize ModelDeploymentRuntimeOneOf1
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("kind") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("kind", "engine", "version")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentRuntimeOneOf1.class.equals(Integer.class) || ModelDeploymentRuntimeOneOf1.class.equals(Long.class) || ModelDeploymentRuntimeOneOf1.class.equals(Float.class) || ModelDeploymentRuntimeOneOf1.class.equals(Double.class) || ModelDeploymentRuntimeOneOf1.class.equals(Boolean.class) || ModelDeploymentRuntimeOneOf1.class.equals(String.class)) {
                     attemptParsing = typeCoercion;

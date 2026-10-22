@@ -94,7 +94,7 @@ public class InferenceBinding extends AbstractOpenApiSchema {
             JsonToken token = tree.traverse(jp.getCodec()).nextToken();
             // deserialize DecisionBinding
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("provider") && tree.hasNonNull("model") && tree.hasNonNull("billing_mode") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("provider", "model", "billing_mode", "provider_connection_id")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (DecisionBinding.class.equals(Integer.class) || DecisionBinding.class.equals(Long.class) || DecisionBinding.class.equals(Float.class) || DecisionBinding.class.equals(Double.class) || DecisionBinding.class.equals(Boolean.class) || DecisionBinding.class.equals(String.class)) {
                     attemptParsing = typeCoercion;
@@ -120,7 +120,7 @@ public class InferenceBinding extends AbstractOpenApiSchema {
 
             // deserialize ModelDeploymentBinding
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("deployment_id") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("deployment_id", "deployment_revision_id")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentBinding.class.equals(Integer.class) || ModelDeploymentBinding.class.equals(Long.class) || ModelDeploymentBinding.class.equals(Float.class) || ModelDeploymentBinding.class.equals(Double.class) || ModelDeploymentBinding.class.equals(Boolean.class) || ModelDeploymentBinding.class.equals(String.class)) {
                     attemptParsing = typeCoercion;

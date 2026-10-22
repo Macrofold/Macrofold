@@ -353,6 +353,13 @@ func (o *ModelDeploymentHuggingFaceSource) UnmarshalJSON(data []byte) (err error
 		}
 	}
 
+	for property := range allProperties {
+		switch property {
+		case "kind", "repository", "revision", "source_connection_id", "weight_files", "tokenizer", "chat_template", "license_acknowledged":
+		default:
+			return fmt.Errorf("unexpected source property %v", property)
+		}
+	}
 	if kind, ok := allProperties["kind"].(string); !ok || kind != "hugging_face" {
 		return fmt.Errorf("expected source kind hugging_face")
 	}

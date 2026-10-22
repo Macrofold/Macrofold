@@ -94,7 +94,7 @@ public class ModelDeploymentServicePolicy extends AbstractOpenApiSchema {
             JsonToken token = tree.traverse(jp.getCodec()).nextToken();
             // deserialize ModelDeploymentServicePolicyOneOf
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("min_replicas") && tree.hasNonNull("max_replicas") && tree.hasNonNull("max_concurrent_requests") && tree.hasNonNull("max_hourly_cost_micro_usd") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("min_replicas", "max_replicas", "max_concurrent_requests", "max_hourly_cost_micro_usd", "stop_at")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentServicePolicyOneOf.class.equals(Integer.class) || ModelDeploymentServicePolicyOneOf.class.equals(Long.class) || ModelDeploymentServicePolicyOneOf.class.equals(Float.class) || ModelDeploymentServicePolicyOneOf.class.equals(Double.class) || ModelDeploymentServicePolicyOneOf.class.equals(Boolean.class) || ModelDeploymentServicePolicyOneOf.class.equals(String.class)) {
                     attemptParsing = typeCoercion;
@@ -120,7 +120,7 @@ public class ModelDeploymentServicePolicy extends AbstractOpenApiSchema {
 
             // deserialize ModelDeploymentServicePolicyOneOf1
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("max_concurrent_requests") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("max_concurrent_requests", "stop_at")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentServicePolicyOneOf1.class.equals(Integer.class) || ModelDeploymentServicePolicyOneOf1.class.equals(Long.class) || ModelDeploymentServicePolicyOneOf1.class.equals(Float.class) || ModelDeploymentServicePolicyOneOf1.class.equals(Double.class) || ModelDeploymentServicePolicyOneOf1.class.equals(Boolean.class) || ModelDeploymentServicePolicyOneOf1.class.equals(String.class)) {
                     attemptParsing = typeCoercion;

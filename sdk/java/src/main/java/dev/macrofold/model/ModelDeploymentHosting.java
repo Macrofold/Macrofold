@@ -95,7 +95,7 @@ public class ModelDeploymentHosting extends AbstractOpenApiSchema {
             JsonToken token = tree.traverse(jp.getCodec()).nextToken();
             // deserialize ModelDeploymentHostingOneOf
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("kind") && tree.hasNonNull("compute_connection_id") && tree.hasNonNull("placement") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("kind", "compute_connection_id", "placement")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentHostingOneOf.class.equals(Integer.class) || ModelDeploymentHostingOneOf.class.equals(Long.class) || ModelDeploymentHostingOneOf.class.equals(Float.class) || ModelDeploymentHostingOneOf.class.equals(Double.class) || ModelDeploymentHostingOneOf.class.equals(Boolean.class) || ModelDeploymentHostingOneOf.class.equals(String.class)) {
                     attemptParsing = typeCoercion;
@@ -121,7 +121,7 @@ public class ModelDeploymentHosting extends AbstractOpenApiSchema {
 
             // deserialize ModelDeploymentHostingOneOf1
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("kind") && tree.hasNonNull("endpoint_connection_id") && tree.hasNonNull("model_alias") && tree.hasNonNull("lifecycle") && tree.hasNonNull("external_hosting_acknowledged") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("kind", "endpoint_connection_id", "model_alias", "lifecycle", "external_hosting_acknowledged")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentHostingOneOf1.class.equals(Integer.class) || ModelDeploymentHostingOneOf1.class.equals(Long.class) || ModelDeploymentHostingOneOf1.class.equals(Float.class) || ModelDeploymentHostingOneOf1.class.equals(Double.class) || ModelDeploymentHostingOneOf1.class.equals(Boolean.class) || ModelDeploymentHostingOneOf1.class.equals(String.class)) {
                     attemptParsing = typeCoercion;

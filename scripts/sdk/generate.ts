@@ -10,6 +10,7 @@ import { preserveGoNullableArrays } from './nullable-arrays';
 import { preserveGoSourceKinds } from './go-source-kinds';
 import { preservePythonBooleanConstants } from './python-boolean-constants';
 import { preserveRustBooleanConstants } from './rust-boolean-constants';
+import { preserveJavaDeploymentUnions } from './java-deployment-unions';
 import { generatePythonResources } from './python';
 import { generateGoResources } from './go';
 import { generateRustResources } from './rust';
@@ -138,6 +139,7 @@ try {
       );
     }
     if (language === 'java') {
+      await preserveJavaDeploymentUnions(output);
       await replaceOnce(
         path.join(output, 'src/main/java/dev/macrofold/api/WorktreesApi.java'),
         'byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(body);\n      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));',

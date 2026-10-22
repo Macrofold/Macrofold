@@ -874,7 +874,7 @@ export function ModelDeploymentsView() {
   const [create, setCreate] = useState(false),
     [created, setCreated] = useState('');
   return (
-    <div className="page">
+    <div className="page model-deployments">
       <PageHeading
         title="Model deployments"
         description="Host a chosen model, control its service and grant applications a stable inference target."
@@ -1376,7 +1376,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
     await refreshDeployments(client);
   }
   return (
-    <div className="page">
+    <div className="page model-deployments">
       <PageHeading
         title={current.name}
         description="Persistent model service, current health and infrastructure costs."

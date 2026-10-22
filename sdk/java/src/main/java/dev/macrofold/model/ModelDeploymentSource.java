@@ -98,7 +98,7 @@ public class ModelDeploymentSource extends AbstractOpenApiSchema {
             JsonToken token = tree.traverse(jp.getCodec()).nextToken();
             // deserialize ModelDeploymentExternalSource
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("kind") && tree.hasNonNull("capabilities") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("kind", "repository", "revision", "capabilities")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentExternalSource.class.equals(Integer.class) || ModelDeploymentExternalSource.class.equals(Long.class) || ModelDeploymentExternalSource.class.equals(Float.class) || ModelDeploymentExternalSource.class.equals(Double.class) || ModelDeploymentExternalSource.class.equals(Boolean.class) || ModelDeploymentExternalSource.class.equals(String.class)) {
                     attemptParsing = typeCoercion;
@@ -124,7 +124,7 @@ public class ModelDeploymentSource extends AbstractOpenApiSchema {
 
             // deserialize ModelDeploymentHuggingFaceSource
             try {
-                boolean attemptParsing = true;
+                boolean attemptParsing = tree.isObject() && tree.hasNonNull("kind") && tree.hasNonNull("repository") && java.util.stream.StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(tree.fieldNames(), java.util.Spliterator.ORDERED), false).allMatch(java.util.Set.of("kind", "repository", "revision", "source_connection_id", "weight_files", "tokenizer", "chat_template", "license_acknowledged")::contains);
                 // ensure that we respect type coercion as set on the client ObjectMapper
                 if (ModelDeploymentHuggingFaceSource.class.equals(Integer.class) || ModelDeploymentHuggingFaceSource.class.equals(Long.class) || ModelDeploymentHuggingFaceSource.class.equals(Float.class) || ModelDeploymentHuggingFaceSource.class.equals(Double.class) || ModelDeploymentHuggingFaceSource.class.equals(Boolean.class) || ModelDeploymentHuggingFaceSource.class.equals(String.class)) {
                     attemptParsing = typeCoercion;

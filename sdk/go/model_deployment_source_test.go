@@ -15,8 +15,11 @@ func TestModelDeploymentSourceKeepsLiteralKinds(t *testing.T) {
 		}
 	}
 	var source ModelDeploymentSource
-	if err := json.Unmarshal([]byte(`{"kind":"hugging_face","repository":"owner/model",`+capabilities+`}`), &source); err != nil || source.ModelDeploymentHuggingFaceSource == nil || source.ModelDeploymentExternalSource != nil {
-		t.Fatalf("open HF source must retain exactly its branch: %#v %v", source, err)
+	if err := json.Unmarshal([]byte(`{"kind":"hugging_face","repository":"owner/model"}`), &source); err != nil || source.ModelDeploymentHuggingFaceSource == nil || source.ModelDeploymentExternalSource != nil {
+		t.Fatalf("HF source must retain exactly its branch: %#v %v", source, err)
+	}
+	if err := json.Unmarshal([]byte(`{"kind":"hugging_face","repository":"owner/model",`+capabilities+`}`), &source); err == nil {
+		t.Fatal("HF source must reject properties belonging to the external branch")
 	}
 	if err := json.Unmarshal([]byte(`{"kind":"unknown","repository":"owner/model",`+capabilities+`}`), &source); err == nil {
 		t.Fatal("unknown source kind must not match a branch")

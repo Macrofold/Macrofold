@@ -543,6 +543,12 @@ pre,
   gap: 9px;
   align-items: center;
 }
+.model-deployments {
+  overflow-wrap: anywhere;
+}
+.model-deployments .button-row {
+  flex-wrap: wrap;
+}
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2969,7 +2975,6 @@ pre,
     font-size: 19px;
   }
 }
-
 
 .git-revision,
 .git-actions,

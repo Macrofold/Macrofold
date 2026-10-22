@@ -159,6 +159,7 @@ test('shows loading, empty and denied states with retry and prevents creating wi
   }
   await expect(page.getByRole('heading', { name: 'No model deployments', exact: true })).toBeVisible();
   const create = page.getByRole('button', { name: 'Create deployment', exact: true });
+  await expect(create).toBeEnabled();
   await create.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog', { name: 'Create model deployment', exact: true })).toBeVisible();

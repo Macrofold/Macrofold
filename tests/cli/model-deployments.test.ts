@@ -89,6 +89,19 @@ afterAll(async () => {
 });
 
 describe('built model deployment CLI public transport', () => {
+  it.each(['file', 'stdin'])('omits malformed protected %s contents from errors', async (input) => {
+    const secret = 'synthetic-protected-account-token';
+    const file = path.join(directory, 'malformed-protected.json');
+    await writeFile(file, secret, { mode: 0o600 });
+    const result = await command(
+      ['connection', 'update', apiKeyId, '--config-file', input === 'file' ? file : '-'],
+      input === 'stdin' ? secret : undefined,
+    );
+    expect(result.code).toBe(2);
+    expect(result.stdout + result.stderr).not.toContain('synthetic');
+    expect(result.stdout).toContain('valid JSON');
+    expect(calls).toEqual([]);
+  });
   it('includes deployment read and use in normal consent while management remains explicit', () => {
     expect(defaultScopes).toContain('model-deployments:read');
     expect(defaultScopes).toContain('model-deployments:use');

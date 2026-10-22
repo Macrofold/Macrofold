@@ -48,4 +48,16 @@ class ModelDeploymentModelsTest {
     assertTrue(mapper.valueToTree(cost).path("infrastructure_cost_included").isBoolean());
     assertFalse(mapper.valueToTree(cost).path("infrastructure_cost_included").asBoolean());
   }
+
+  @Test
+  void onlyTheNullableResponsePolicyAcceptsNull() throws Exception {
+    var mapper = new Client("https://example.test", "fixture").getObjectMapper();
+    var policy = mapper.readValue("{\"max_concurrent_requests\":2}", ModelDeploymentServicePolicy.class);
+    var deployment = new ModelDeployment().policy(policy);
+    mapper.readerForUpdating(deployment).readValue("{\"policy\":null}");
+    assertNull(deployment.getPolicy());
+    mapper.readerForUpdating(deployment).readValue("{\"policy\":{\"max_concurrent_requests\":2}}");
+    assertInstanceOf(ModelDeploymentServicePolicyOneOf1.class, deployment.getPolicy().getActualInstance());
+    assertThrows(Exception.class, () -> mapper.readValue("{\"deployment_revision_id\":\"01900000-0000-7000-8000-000000000001\",\"desired_state\":\"running\",\"policy\":null}", ModelDeploymentServiceInput.class));
+  }
 }

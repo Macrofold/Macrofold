@@ -70,4 +70,49 @@ export async function preserveJavaDeploymentUnions(output: string) {
     const target = path.join(output, 'src/main/java/dev/macrofold/model', name + '.java');
     await writeFile(target, javaUnionConstraints(await readFile(target, 'utf8'), variants));
   }
+  const deploymentDefinition = specification.components?.schemas?.ModelDeployment;
+  if (!deploymentDefinition) throw new Error('Missing Java deployment schema');
+  const deploymentSchema = resolve<SchemaObject>(deploymentDefinition);
+  if (!('properties' in deploymentSchema) || !deploymentSchema.properties?.policy)
+    throw new Error('Recheck Java nullable deployment policy schema');
+  const policy = resolve<SchemaObject>(deploymentSchema.properties.policy);
+  if (
+    policy.oneOf?.length !== 2 ||
+    !policy.oneOf.some((branch) => 'type' in branch && branch.type === 'null') ||
+    !policy.oneOf.some(
+      (branch) => '$ref' in branch && branch.$ref === '#/components/schemas/ModelDeploymentServicePolicy',
+    )
+  )
+    throw new Error('Recheck Java nullable deployment policy schema');
+  const parent = path.join(output, 'src/main/java/dev/macrofold/model/ModelDeployment.java');
+  let source = (await readFile(parent, 'utf8')).trimEnd();
+  const setter = `  @JsonProperty(value = JSON_PROPERTY_POLICY, required = false)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setPolicy`;
+  if (source.split(setter).length !== 2 || !source.endsWith('}'))
+    throw new Error('Recheck Java nullable deployment policy generation');
+  source = source.replace(
+    setter,
+    `  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = NullablePolicyDeserializer.class)
+${setter}`,
+  );
+  // Null is allowed on this response property, while service mutations retain
+  // the non-null policy union and its existing strict decoder.
+  source =
+    source.slice(0, -1) +
+    `
+  public static class NullablePolicyDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<ModelDeploymentServicePolicy> {
+    @Override
+    public ModelDeploymentServicePolicy deserialize(com.fasterxml.jackson.core.JsonParser parser, com.fasterxml.jackson.databind.DeserializationContext context) throws java.io.IOException {
+      return context.readValue(parser, ModelDeploymentServicePolicy.class);
+    }
+
+    @Override
+    public ModelDeploymentServicePolicy getNullValue(com.fasterxml.jackson.databind.DeserializationContext context) {
+      return null;
+    }
+  }
+}
+`;
+  await writeFile(parent, source);
 }

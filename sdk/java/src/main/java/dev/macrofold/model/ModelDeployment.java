@@ -485,6 +485,7 @@ public class ModelDeployment {
   }
 
 
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = NullablePolicyDeserializer.class)
   @JsonProperty(value = JSON_PROPERTY_POLICY, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public void setPolicy(@javax.annotation.Nullable ModelDeploymentServicePolicy policy) {
@@ -931,5 +932,16 @@ public class ModelDeployment {
 
     return joiner.toString();
   }
-}
 
+  public static class NullablePolicyDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<ModelDeploymentServicePolicy> {
+    @Override
+    public ModelDeploymentServicePolicy deserialize(com.fasterxml.jackson.core.JsonParser parser, com.fasterxml.jackson.databind.DeserializationContext context) throws java.io.IOException {
+      return context.readValue(parser, ModelDeploymentServicePolicy.class);
+    }
+
+    @Override
+    public ModelDeploymentServicePolicy getNullValue(com.fasterxml.jackson.databind.DeserializationContext context) {
+      return null;
+    }
+  }
+}

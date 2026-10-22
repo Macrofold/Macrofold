@@ -4,7 +4,7 @@ The five SDKs expose generated resource methods over the existing transports. [S
 
 ## Custom model deployment acceptance
 
-On October 22, 2026, the full `pnpm test:sdks` passes with clients and actual backend/API source at review candidate `b43334c3f5f372df873a2abad277c125c24f73fa`. All 1,638 inventoried API/client input files have identical hashes before and after SDK and installable-package verification. The fixture owns disposable PostgreSQL, a real loopback API handler, an OpenAI-compatible synthetic upstream and a simulator worker; it preserves the separate running preview.
+At review candidate `17845e0842b7252f3c94f59ec25213e35a0e7f4d`, [CI run 39860302680](https://github.com/Macrofold/Macrofold/actions/runs/39860302680) passes the full `pnpm test:sdks` with the actual backend/API source, canonical all-language regeneration and the generation-drift gate. Local installable-package verification also passes. The latest fixes change private reconciliation/source validation and shared CLI input; generated interfaces remain unchanged. The fixture owns disposable PostgreSQL, a real loopback API handler, an OpenAI-compatible synthetic upstream and a simulator worker; it preserves the separate running preview.
 
 Every language reads stopped deployment metadata, an immutable revision and application grants, and rejects generation while stopped. Each then completes custom-model JSON and SSE calls, retaining native response attributes, deployment/revision attribution, token usage, a zero separate request charge and null unknown provider costs. Reusing the original mutation key after stopping the service returns the original result. The upstream observes exactly two custom calls per language: one JSON and one SSE; recovery adds none.
 

@@ -215,6 +215,7 @@ function DeploymentForm({
   const initialExternal = initial?.hosting.kind === 'external_openai' ? initial.hosting : undefined;
   const initialParameters =
     initial?.runtime && 'profile_id' in initial.runtime ? initial.runtime.parameters : undefined;
+  const initialCapabilities = initial?.source.kind === 'external' ? initial.source.capabilities : undefined;
   const [kind, setKind] = useState(initialExternal ? 'external' : 'managed');
   const [name, setName] = useState(''),
     [repository, setRepository] = useState(initialHf?.repository ?? ''),
@@ -225,9 +226,15 @@ function DeploymentForm({
   const [profile, setProfile] = useState<typeof runtimeProfile | ''>(
     initial?.runtime && 'profile_id' in initial.runtime ? initial.runtime.profile_id : '',
   );
-  const [context, setContext] = useState(String(initialParameters?.context_window_tokens ?? 8192)),
-    [output, setOutput] = useState(String(initialParameters?.max_output_tokens ?? 2048)),
-    [concurrency, setConcurrency] = useState(String(initialParameters?.max_concurrent_requests ?? 1));
+  const [context, setContext] = useState(
+      String(initialParameters?.context_window_tokens ?? initialCapabilities?.context_window_tokens ?? 8192),
+    ),
+    [output, setOutput] = useState(
+      String(initialParameters?.max_output_tokens ?? initialCapabilities?.max_output_tokens ?? 2048),
+    ),
+    [concurrency, setConcurrency] = useState(
+      String(initialParameters?.max_concurrent_requests ?? initialCapabilities?.max_concurrent_requests ?? 1),
+    );
   const [dtype, setDtype] = useState<NonNullable<typeof initialParameters>['dtype']>(
       initialParameters?.dtype ?? 'auto',
     ),
@@ -264,7 +271,6 @@ function DeploymentForm({
   );
   const [license, setLicense] = useState(false),
     [responsibility, setResponsibility] = useState(false);
-  const initialCapabilities = initial?.source.kind === 'external' ? initial.source.capabilities : undefined;
   const [jsonObject, setJsonObject] = useState(initialCapabilities?.json_object ?? false),
     [jsonSchema, setJsonSchema] = useState(initialCapabilities?.json_schema ?? false),
     [tools, setTools] = useState(initialCapabilities?.tools ?? false),
@@ -1348,6 +1354,20 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
         }
       : undefined,
   );
+  const desiredRevisionId = deployment.data?.desired_revision_id;
+  const listedRevision = revisions.data?.data.find(
+    (item) => item.deployment_revision_id === desiredRevisionId,
+  );
+  // A rollback may select a revision outside the current history page. Fetch
+  // that immutable record directly instead of walking all intervening pages.
+  const desiredRevision = useData(
+    deployment.data?.can_manage && desiredRevisionId && revisions.data && !listedRevision
+      ? {
+          operation: 'getModelDeploymentRevision',
+          params: { path: { deployment_id: deploymentId, revision_id: desiredRevisionId } },
+        }
+      : undefined,
+  );
   const [dialog, setDialog] = useState<'service' | 'revision' | 'stop' | 'delete'>(),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -1366,9 +1386,9 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
     );
   const current = deployment.data;
   if (!current) return null;
-  const initial = revisions.data?.data.find(
-    (item) => item.deployment_revision_id === current.desired_revision_id,
-  );
+  const initial = listedRevision ?? desiredRevision.data;
+  const availableRevisions =
+    initial && !listedRevision ? [initial, ...(revisions.data?.data ?? [])] : (revisions.data?.data ?? []);
   const external = initial?.hosting.kind === 'external_openai';
   const cost = current.infrastructure_cost;
   async function saved(message: string) {
@@ -1430,7 +1450,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
                 setError('');
                 setDialog('service');
               }}
-              disabled={!revisions.data?.data.length}
+              disabled={!availableRevisions.length || (!!desiredRevisionId && !initial)}
             >
               {current.desired_state === 'running' ? 'Operating policy and rollback' : 'Start service'}
             </Button>
@@ -1591,6 +1611,9 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
               </details>
             ))
           )}
+          {desiredRevision.error && (
+            <ErrorState error={desiredRevision.error} retry={() => void desiredRevision.refetch()} />
+          )}
           <More query={revisions} label="Load more revisions" />
         </section>
       )}
@@ -1608,7 +1631,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
         {dialog === 'service' && revisions.data && (
           <ServiceForm
             deployment={current}
-            revisions={revisions.data.data}
+            revisions={availableRevisions}
             onSaved={() => void saved('Service update accepted.')}
           />
         )}

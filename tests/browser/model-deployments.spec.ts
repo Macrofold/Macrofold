@@ -327,6 +327,54 @@ test('applies revision rollback, preserves pending readiness, grants/revokes acc
   });
 });
 
+test('loads an older desired revision directly without scanning paginated history', async ({ page }) => {
+  await signIn(page);
+  const current = { ...deployment(), desired_revision_id: priorRevisionId };
+  const recent = Array.from({ length: 25 }, (_, index) =>
+    revision(`019e1700-0000-7000-8000-${String(index + 100).padStart(12, '0')}`),
+  );
+  const revisionReads: string[] = [];
+  const serviceInputs: Schema['ModelDeploymentServiceInput'][] = [];
+  await page.route('**/v1/model-deployments/**', (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/revisions')) {
+      revisionReads.push(url.pathname + url.search);
+      return route.fulfill({ json: { data: recent, next_cursor: revisionId } });
+    }
+    if (url.pathname.endsWith(`/revisions/${priorRevisionId}`)) {
+      revisionReads.push(url.pathname);
+      return route.fulfill({ json: revision(priorRevisionId) });
+    }
+    if (url.pathname.endsWith('/service')) {
+      serviceInputs.push(route.request().postDataJSON() as Schema['ModelDeploymentServiceInput']);
+      return route.fulfill({ status: 202, json: current });
+    }
+    if (url.pathname.endsWith('/grants')) return route.fulfill({ json: { data: [], next_cursor: null } });
+    return route.fulfill({ json: current });
+  });
+  await page.goto(`/model-deployments/${deploymentId}`);
+  await expect(page.getByRole('button', { name: 'Create revision', exact: true })).toBeEnabled();
+  expect(revisionReads).toEqual([
+    `/v1/model-deployments/${deploymentId}/revisions?limit=25`,
+    `/v1/model-deployments/${deploymentId}/revisions/${priorRevisionId}`,
+  ]);
+  await page.getByRole('button', { name: 'Start service', exact: true }).click();
+  const service = page.getByRole('dialog', { name: 'Operating policy and revision' });
+  await expect(service.getByRole('combobox', { name: 'Serving revision', exact: true })).toContainText(
+    priorRevisionId,
+  );
+  await service.getByRole('checkbox').check();
+  await service.getByRole('button', { name: 'Apply and start service' }).click();
+  await expect(service).toHaveCount(0);
+  expect(serviceInputs).toEqual([
+    {
+      deployment_revision_id: priorRevisionId,
+      desired_state: 'running',
+      policy: current.policy,
+    },
+  ]);
+});
+
 test('creates a stopped external deployment and a revision through the actual application API', async ({
   page,
 }) => {
@@ -380,6 +428,9 @@ test('creates a stopped external deployment and a revision through the actual ap
     await form.getByRole('combobox', { name: 'External endpoint', exact: true }).click();
     await page.getByRole('option', { name: new RegExp(`^${connection.name} ·`) }).click();
     await form.getByLabel('Served model alias', { exact: true }).fill('fixture-model');
+    await form.getByLabel('Context capacity (tokens)', { exact: true }).fill('16384');
+    await form.getByLabel('Maximum output (tokens)', { exact: true }).fill('1024');
+    await form.getByLabel('Runtime concurrency', { exact: true }).fill('3');
     await form.getByRole('checkbox', { name: /I operate and pay for this host separately/ }).check();
     const created = page.waitForResponse(
       (response) =>
@@ -399,9 +450,25 @@ test('creates a stopped external deployment and a revision through the actual ap
     );
     await page.getByRole('button', { name: 'Create revision', exact: true }).click();
     const change = page.getByRole('dialog', { name: 'Create model revision', exact: true });
+    await expect(change.getByLabel('Context capacity (tokens)', { exact: true })).toHaveValue('16384');
+    await expect(change.getByLabel('Maximum output (tokens)', { exact: true })).toHaveValue('1024');
+    await expect(change.getByLabel('Runtime concurrency', { exact: true })).toHaveValue('3');
     await change.getByLabel('Served model alias', { exact: true }).fill('fixture-model-updated');
     await change.getByRole('checkbox', { name: /I operate and pay for this host separately/ }).check();
+    const revised = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/v1/model-deployments/${createdId}/revisions`) &&
+        response.request().method() === 'POST',
+    );
     await change.getByRole('button', { name: 'Create revision', exact: true }).click();
+    const revisionResponse = await revised;
+    expect(revisionResponse.status()).toBe(201);
+    const savedRevision = (await revisionResponse.json()) as Schema['ModelDeploymentRevision'];
+    expect(savedRevision.capabilities).toMatchObject({
+      context_window_tokens: 16384,
+      max_output_tokens: 1024,
+      max_concurrent_requests: 3,
+    });
     await expect(change).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Model revisions' })).toContainText(
       'fixture-model-updated',

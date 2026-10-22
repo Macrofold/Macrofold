@@ -208,6 +208,12 @@ Implement MD02–MD07 on `feat/production-model-deployments`, incorporating the 
 
 Contracts/storage and inference integration are owned in their existing domain/API modules; serving runtime and user surfaces can proceed independently against the canonical contract. No application request performs hosting administration or grants new spending. Missing live credentials/budget block only the affected live checks. The OpenLegend real-game joint acceptance awaits its subsequent consumer implementation.
 
+### Implementation review plan
+
+Review the complete 342-file feature change against `07ba0ee1bb5c76aeb4d0d3553339dc274854335a`, separating authored domain/provider/runtime/API/UI/CLI code from generated-client consistency and documentation. Trace admission, accepted target/credentials, native streaming, settlement/publication and recovery; audit service transitions, indexed discovery, historical work, source loading and management drafts. Preserve existing tools and semantic owners; fix demonstrated defects without adding compatibility layers or speculative infrastructure.
+
+Confirmed repair scope includes explicit restart timing, unnecessary stopped-service polling, batched grant workspace validation, external revision defaults and paginated revision selection, native stream fidelity, and alignment of inspected source files/templates with the pinned engine loader. Keep public contracts stable unless a concrete defect requires a coordinated change. Add focused regressions at the owning boundary, measure bounded query/candidate work for performance changes, then run affected integration, browser/CLI, generated-client and actual-image checks. Reconcile this plan, current implementation status and MD02–MD07 with actual results; retain live provider and consumer gaps.
+
 ## 12. Verification, rollout and rollback
 
 | Boundary             | Required evidence                                                                                                                                                                                               |

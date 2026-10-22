@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { defaultScopes } from '../../packages/cli/src/settings';
 
 const deploymentId = '019e1700-0000-7000-8000-000000000001';
 const revisionId = '019e1700-0000-7000-8000-000000000002';
@@ -88,6 +89,26 @@ afterAll(async () => {
 });
 
 describe('built model deployment CLI public transport', () => {
+  it('includes deployment read and use in normal consent while management remains explicit', () => {
+    expect(defaultScopes).toContain('model-deployments:read');
+    expect(defaultScopes).toContain('model-deployments:use');
+    expect(defaultScopes).not.toContain('model-deployments:write');
+    expect(defaultScopes).not.toContain('connections:write');
+  });
+
+  it('rotates a connection through protected input and preserves the explicit mutation identity', async () => {
+    const input = { secret: 'synthetic-replacement-token' };
+    const result = await command(
+      ['connection', 'update', apiKeyId, '--config-file', '-', '--idempotency-key', 'rotate-same-account'],
+      JSON.stringify(input),
+    );
+    expect(result.code, result.stderr || result.stdout).toBe(0);
+    expect(calls).toEqual([
+      { method: 'PATCH', path: `/v1/connections/${apiKeyId}`, body: input, key: 'rotate-same-account' },
+    ]);
+    expect(result.stdout).not.toContain(input.secret);
+  });
+
   it('inspects a repository without creating infrastructure and emits one JSON result', async () => {
     const result = await command(['model-deployment', 'inspect', 'Qwen/Qwen3-0.6B', '--revision', 'main']);
     expect(result.code, result.stderr || result.stdout).toBe(0);

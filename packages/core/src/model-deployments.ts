@@ -605,6 +605,40 @@ async function projections(
   rows: DeploymentRow[],
 ): Promise<Schema['ModelDeployment'][]> {
   if (!rows.length) return [];
+  const managedIds = rows.filter((row) => canManage(p, row)).map((row) => row.id);
+  if (managedIds.length) await assertManagementTx(tx, p);
+  // A bounded management-only projection preserves exact cleanup identities
+  // without returning endpoint addresses, credentials or immutable manifests.
+  const ownedResources = managedIds.length
+    ? (
+        await tx.query<{
+          deployment_id: string;
+          resource_id: string;
+          provider_id: string | null;
+          attempt_id: string;
+          deployment_revision_id: string;
+          state: Schema['ModelDeploymentResource']['state'];
+          created_at: Date;
+          deleted_at: Date | null;
+        }>(
+          `SELECT r.* FROM unnest($1::uuid[]) AS d(id) CROSS JOIN LATERAL (
+          SELECT deployment_id,id AS resource_id,provider_id,attempt_id,revision_id AS deployment_revision_id,state,created_at,deleted_at
+          FROM model_deployment_resources WHERE deployment_id=d.id
+          ORDER BY (deleted_at IS NULL) DESC,created_at DESC,id DESC LIMIT 25) r`,
+          [managedIds],
+        )
+      ).rows
+    : [];
+  const resourcesByDeployment = new Map<string, Schema['ModelDeploymentResource'][]>();
+  for (const { deployment_id, created_at, deleted_at, ...resource } of ownedResources) {
+    const items = resourcesByDeployment.get(deployment_id) ?? [];
+    items.push({
+      ...resource,
+      created_at: created_at.toISOString(),
+      deleted_at: deleted_at?.toISOString() ?? null,
+    });
+    resourcesByDeployment.set(deployment_id, items);
+  }
   const revisions = (
     await tx.query<{
       id: string;
@@ -645,6 +679,7 @@ async function projections(
       deployment_id: row.id,
       name: row.name,
       can_manage: canManage(p, row),
+      ...(managedIds.includes(row.id) ? { resources: resourcesByDeployment.get(row.id) ?? [] } : {}),
       desired_state: row.desired_state,
       desired_revision_id: row.desired_revision_id,
       serving_revision_id: row.serving_revision_id,

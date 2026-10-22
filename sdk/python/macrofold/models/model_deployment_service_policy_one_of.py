@@ -98,6 +98,9 @@ class ModelDeploymentServicePolicyOneOf(BaseModel):
         if not isinstance(obj, dict):
             return cls.model_validate(obj)
 
+        if set(obj) - set(cls.__properties):
+            raise ValueError('Unexpected model deployment policy fields.')
+
         _obj = cls.model_validate({
             "min_replicas": obj.get("min_replicas"),
             "max_replicas": obj.get("max_replicas"),

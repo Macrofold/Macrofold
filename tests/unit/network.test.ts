@@ -26,14 +26,12 @@ afterEach(() => vi.resetAllMocks());
 
 describe('public network transport', () => {
   it('exposes HF redirect metadata only to its fixed-origin source adapter', async () => {
-    const fetch = vi
-      .mocked(undici.fetch)
-      .mockResolvedValue(
-        new undici.Response(null, {
-          status: 307,
-          headers: { location: '/api/resolve-cache/models/fixture/model/commit/config.json' },
-        }),
-      );
+    const fetch = vi.mocked(undici.fetch).mockResolvedValue(
+      new undici.Response(null, {
+        status: 307,
+        headers: { location: '/api/resolve-cache/models/fixture/model/commit/config.json' },
+      }),
+    );
     const response = await huggingFaceMetadataFetch(
       'https://huggingface.co/fixture/model/resolve/commit/config.json',
     );

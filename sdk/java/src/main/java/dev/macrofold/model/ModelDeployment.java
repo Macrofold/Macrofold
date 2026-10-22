@@ -27,9 +27,12 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.ModelDeploymentCapabilities;
 import dev.macrofold.model.ModelDeploymentCostPolicy;
 import dev.macrofold.model.ModelDeploymentInfrastructureCost;
+import dev.macrofold.model.ModelDeploymentResource;
 import dev.macrofold.model.ModelDeploymentServicePolicy;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -57,7 +60,8 @@ import dev.macrofold.ApiClient;
   ModelDeployment.JSON_PROPERTY_FAILURE_CODE,
   ModelDeployment.JSON_PROPERTY_RETIRED,
   ModelDeployment.JSON_PROPERTY_CREATED_AT,
-  ModelDeployment.JSON_PROPERTY_UPDATED_AT
+  ModelDeployment.JSON_PROPERTY_UPDATED_AT,
+  ModelDeployment.JSON_PROPERTY_RESOURCES
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class ModelDeployment {
@@ -216,6 +220,10 @@ public class ModelDeployment {
   public static final String JSON_PROPERTY_UPDATED_AT = "updated_at";
   @javax.annotation.Nonnull
   private OffsetDateTime updatedAt;
+
+  public static final String JSON_PROPERTY_RESOURCES = "resources";
+  @javax.annotation.Nullable
+  private List<ModelDeploymentResource> resources = new ArrayList<>();
 
   public ModelDeployment() { 
   }
@@ -677,6 +685,38 @@ public class ModelDeployment {
   }
 
 
+  public ModelDeployment resources(@javax.annotation.Nullable List<ModelDeploymentResource> resources) {
+    this.resources = resources;
+    return this;
+  }
+
+  public ModelDeployment addResourcesItem(ModelDeploymentResource resourcesItem) {
+    if (this.resources == null) {
+      this.resources = new ArrayList<>();
+    }
+    this.resources.add(resourcesItem);
+    return this;
+  }
+
+  /**
+   * Present only with current owner management authority (can_manage&#x3D;true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field.
+   * @return resources
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_RESOURCES, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public List<ModelDeploymentResource> getResources() {
+    return resources;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_RESOURCES, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setResources(@javax.annotation.Nullable List<ModelDeploymentResource> resources) {
+    this.resources = resources;
+  }
+
+
   /**
    * Return true if this ModelDeployment object is equal to o.
    */
@@ -707,12 +747,13 @@ public class ModelDeployment {
         Objects.equals(this.failureCode, modelDeployment.failureCode) &&
         Objects.equals(this.retired, modelDeployment.retired) &&
         Objects.equals(this.createdAt, modelDeployment.createdAt) &&
-        Objects.equals(this.updatedAt, modelDeployment.updatedAt);
+        Objects.equals(this.updatedAt, modelDeployment.updatedAt) &&
+        Objects.equals(this.resources, modelDeployment.resources);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, deploymentId, name, canManage, desiredState, desiredRevisionId, servingRevisionId, state, admissionOpen, capabilities, policy, readyReplicas, observedAt, costPolicy, infrastructureCost, failureCode, retired, createdAt, updatedAt);
+    return Objects.hash(id, deploymentId, name, canManage, desiredState, desiredRevisionId, servingRevisionId, state, admissionOpen, capabilities, policy, readyReplicas, observedAt, costPolicy, infrastructureCost, failureCode, retired, createdAt, updatedAt, resources);
   }
 
   @Override
@@ -738,6 +779,7 @@ public class ModelDeployment {
     sb.append("    retired: ").append(toIndentedString(retired)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    updatedAt: ").append(toIndentedString(updatedAt)).append("\n");
+    sb.append("    resources: ").append(toIndentedString(resources)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -875,6 +917,16 @@ public class ModelDeployment {
     // add `updated_at` to the URL query string
     if (getUpdatedAt() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%supdated_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getUpdatedAt()))));
+    }
+
+    // add `resources` to the URL query string
+    if (getResources() != null) {
+      for (int i = 0; i < getResources().size(); i++) {
+        if (getResources().get(i) != null) {
+          joiner.add(getResources().get(i).toUrlQueryString(String.format(java.util.Locale.ROOT, "%sresources%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix))));
+        }
+      }
     }
 
     return joiner.toString();

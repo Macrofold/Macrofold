@@ -26446,6 +26446,14 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "resources": {
+            "type": "array",
+            "maxItems": 25,
+            "description": "Present only with current owner management authority (can_manage=true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field.",
+            "items": {
+              "$ref": "#/components/schemas/ModelDeploymentResource"
+            }
           }
         },
         "required": [
@@ -26733,6 +26741,63 @@
       },
       "DeploymentBinding": {
         "$ref": "#/components/schemas/ModelDeploymentBinding"
+      },
+      "ModelDeploymentResource": {
+        "type": "object",
+        "description": "Owner-only provider resource identities for diagnosing and manually resolving incomplete cleanup. Contains no endpoint URL, credentials or source content.",
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deployment_revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "creating",
+              "ambiguous",
+              "starting",
+              "ready",
+              "stopping",
+              "deleted",
+              "cleanup_pending"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "resource_id",
+          "provider_id",
+          "attempt_id",
+          "deployment_revision_id",
+          "state",
+          "created_at",
+          "deleted_at"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {

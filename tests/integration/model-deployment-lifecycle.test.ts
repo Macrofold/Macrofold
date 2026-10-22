@@ -71,7 +71,7 @@ class FixtureProvider implements ModelHostingProvider {
           stopped_at: null,
         },
       ],
-      config: payload,
+      config: { ...payload, observed_workers: [{ gpuTypeId: 'gpu', gpuCount: 1 }] },
     });
     if (this.lostCreate) throw new Error('Synthetic lost create acknowledgment');
     return { id: providerId, endpoint_url: endpoint };
@@ -357,6 +357,83 @@ describe('persistent model service reconciliation', () => {
     ];
     await advance();
     expect((await row()).serving_revision_id).toBe(revisionId);
+    expect(provider.creates).toBe(1);
+  });
+
+  it('closes admission and cleans up unaccepted actual GPUs without trusting intended pools', async () => {
+    await advance();
+    await advance();
+    const entry = provider.entries.get('endpoint-1');
+    if (!entry) throw new Error('Expected the created fixture endpoint.');
+    entry.config.observed_workers = [{ gpuTypeId: 'unaccepted-expensive-gpu', gpuCount: 1 }];
+    await advance();
+    expect((await row()).state).toBe('failed');
+    expect((await row()).serving_revision_id).toBeNull();
+    await advance();
+    expect(provider.deletes).toBe(1);
+    expect((await resource()).deleted_at).not.toBeNull();
+    expect(provider.creates).toBe(1);
+  });
+
+  it('accepts an equivalent current pool alternative without requiring the preferred region', async () => {
+    const offers = await provider.catalog();
+    provider.catalog = async () => [
+      ...offers,
+      { ...offers[0], id: 'equivalent-gpu', region_ids: ['OTHER-REGION'] },
+    ];
+    await advance();
+    const entry = provider.entries.get('endpoint-1');
+    if (!entry) throw new Error('Expected the created fixture endpoint.');
+    entry.config.observed_workers = [
+      { gpuTypeId: 'equivalent-gpu', gpuCount: 1, dataCenterId: 'OTHER-REGION' },
+    ];
+    await advance();
+    expect((await row()).state).toBe('ready');
+    expect((await row()).serving_revision_id).toBe(revisionId);
+    expect(provider.creates).toBe(1);
+    expect(provider.deletes).toBe(0);
+  });
+
+  it.each(['price', 'memory', 'count'])(
+    'closes admission when current %s evidence violates accepted policy',
+    async (changed) => {
+      await advance();
+      await advance();
+      const offers = await provider.catalog();
+      if (changed === 'price')
+        provider.catalog = async () => offers.map((offer) => ({ ...offer, hourly_micro_usd: '10000000' }));
+      if (changed === 'memory')
+        provider.catalog = async () => offers.map((offer) => ({ ...offer, memory_bytes: '1' }));
+      if (changed === 'count') {
+        const entry = provider.entries.get('endpoint-1');
+        if (!entry) throw new Error('Expected the created fixture endpoint.');
+        entry.config.observed_workers = [{ gpuTypeId: 'gpu', gpuCount: 2 }];
+      }
+      await advance();
+      expect((await row()).state).toBe('failed');
+      expect((await row()).serving_revision_id).toBeNull();
+      await advance();
+      expect(provider.deletes).toBe(1);
+      expect((await resource()).deleted_at).not.toBeNull();
+    },
+  );
+
+  it('reconciles request capacity without changing the immutable model or worker count', async () => {
+    await advance();
+    await advance();
+    await transaction(org(), async (tx) => {
+      await tx.query(
+        "UPDATE model_deployments SET policy=jsonb_set(policy,'{max_concurrent_requests}','2'::jsonb),generation=generation+1 WHERE id=$1",
+        [deploymentId],
+      );
+    });
+    await advance();
+    expect(provider.updates.at(-1)).toMatchObject({
+      workers: { min: 1, max: 2 },
+      scaling: { type: 'REQUEST_COUNT', requestCount: 2 },
+      timeout: 240_000,
+    });
+    expect((await row()).state).toBe('ready');
     expect(provider.creates).toBe(1);
   });
 

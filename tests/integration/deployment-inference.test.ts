@@ -318,24 +318,42 @@ it('denies current grant revocation at publication without erasing incurred usag
   expect(calls).toBe(1);
 });
 
-it.each(['rotation', 'disconnect'] as const)('preserves current credential authority for an accepted response: %s', async (change) => {
-  const { deploymentId, connectionId } = await deployment();
-  hold = true;
-  const providerEntered = new Promise<void>((resolve) => { entered = resolve; });
-  const pending = api(body(deploymentId));
-  await providerEntered;
-  await transaction(owner.organizationId, (tx) => resources.update(tx, 'connections', connectionId,
-    change === 'rotation' ? { secret_ciphertext: seal('rotated-fixture-secret') } : { status: 'expired' }));
-  if (!held) throw new Error('Missing held provider response');
-  finish(held);
-  const completed = await pending;
-  expect(completed.status).toBe(200);
-  const result = await completed.json();
-  expect(result.result.inference.billing.charged_micro_usd).toBe('0');
-  if (change === 'rotation') expect(result.result.inference).toMatchObject({ outcome: 'value', value: { provider_native_extra: 'preserved' } });
-  else {
-    expect(result.result.inference).toMatchObject({ outcome: 'failed', reason_code: 'authorization_revoked' });
-    expect(result.result.inference).not.toHaveProperty('value');
-  }
-  expect(calls).toBe(1);
-});
+it.each(['rotation', 'disconnect'] as const)(
+  'preserves current credential authority for an accepted response: %s',
+  async (change) => {
+    const { deploymentId, connectionId } = await deployment();
+    hold = true;
+    const providerEntered = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const pending = api(body(deploymentId));
+    await providerEntered;
+    await transaction(owner.organizationId, (tx) =>
+      resources.update(
+        tx,
+        'connections',
+        connectionId,
+        change === 'rotation' ? { secret_ciphertext: seal('rotated-fixture-secret') } : { status: 'expired' },
+      ),
+    );
+    if (!held) throw new Error('Missing held provider response');
+    finish(held);
+    const completed = await pending;
+    expect(completed.status).toBe(200);
+    const result = await completed.json();
+    expect(result.result.inference.billing.charged_micro_usd).toBe('0');
+    if (change === 'rotation')
+      expect(result.result.inference).toMatchObject({
+        outcome: 'value',
+        value: { provider_native_extra: 'preserved' },
+      });
+    else {
+      expect(result.result.inference).toMatchObject({
+        outcome: 'failed',
+        reason_code: 'authorization_revoked',
+      });
+      expect(result.result.inference).not.toHaveProperty('value');
+    }
+    expect(calls).toBe(1);
+  },
+);

@@ -27,15 +27,15 @@
       "runs:read",
       "runs:write",
       "connections:read",
-      "usage:read"
+      "usage:read",
+      "model-deployments:read",
+      "model-deployments:use"
     ],
     "additional_consent_scopes": [
       "connections:write",
       "workers:read",
       "workers:use",
       "workers:write",
-      "model-deployments:read",
-      "model-deployments:use",
       "model-deployments:write"
     ],
     "ci_mode": "environment API key or --api-key-stdin",
@@ -426,6 +426,12 @@
       "command": "version",
       "operation_ids": [],
       "local_only": true,
+      "protocol_only": false
+    },
+    {
+      "command": "connection update",
+      "operation_ids": ["updateConnection"],
+      "local_only": false,
       "protocol_only": false
     }
   ],

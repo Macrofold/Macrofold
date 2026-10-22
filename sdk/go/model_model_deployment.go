@@ -40,6 +40,8 @@ type ModelDeployment struct {
 	Retired bool `json:"retired"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	// Present only with current owner management authority (can_manage=true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field.
+	Resources []ModelDeploymentResource `json:"resources,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -549,6 +551,38 @@ func (o *ModelDeployment) SetUpdatedAt(v time.Time) {
 	o.UpdatedAt = v
 }
 
+// GetResources returns the Resources field value if set, zero value otherwise.
+func (o *ModelDeployment) GetResources() []ModelDeploymentResource {
+	if o == nil || IsNil(o.Resources) {
+		var ret []ModelDeploymentResource
+		return ret
+	}
+	return o.Resources
+}
+
+// GetResourcesOk returns a tuple with the Resources field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ModelDeployment) GetResourcesOk() ([]ModelDeploymentResource, bool) {
+	if o == nil || IsNil(o.Resources) {
+		return nil, false
+	}
+	return o.Resources, true
+}
+
+// HasResources returns a boolean if a field has been set.
+func (o *ModelDeployment) HasResources() bool {
+	if o != nil && !IsNil(o.Resources) {
+		return true
+	}
+
+	return false
+}
+
+// SetResources gets a reference to the given []ModelDeploymentResource and assigns it to the Resources field.
+func (o *ModelDeployment) SetResources(v []ModelDeploymentResource) {
+	o.Resources = v
+}
+
 func (o ModelDeployment) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -578,6 +612,9 @@ func (o ModelDeployment) ToMap() (map[string]interface{}, error) {
 	toSerialize["retired"] = o.Retired
 	toSerialize["created_at"] = o.CreatedAt
 	toSerialize["updated_at"] = o.UpdatedAt
+	if !IsNil(o.Resources) {
+		toSerialize["resources"] = o.Resources
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -658,6 +695,7 @@ func (o *ModelDeployment) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "retired")
 		delete(additionalProperties, "created_at")
 		delete(additionalProperties, "updated_at")
+		delete(additionalProperties, "resources")
 		o.AdditionalProperties = additionalProperties
 	}
 

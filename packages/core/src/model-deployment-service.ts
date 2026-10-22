@@ -14,6 +14,7 @@ import type {
   DeploymentPolicy,
   DeploymentRevisionRow,
   DeploymentRates,
+  GpuOffer,
   ModelHostingProvider,
 } from './model-deployment-types';
 import { inspectHuggingFace } from '../../providers/src/model-deployment-source';
@@ -283,6 +284,7 @@ export async function quoteManagedService(
   policy: DeploymentPolicy,
   secret: string,
   provider: ModelHostingProvider = runpodModelHosting(),
+  currentOffers?: GpuOffer[],
 ): Promise<DeploymentRates> {
   assert(
     revision.hosting.kind === 'runpod_serverless' && 'min_replicas' in policy,
@@ -290,7 +292,7 @@ export async function quoteManagedService(
     'invalid_hosting_policy',
     'Managed hosting requires replica and hourly limits.',
   );
-  const offers = await provider.catalog(secret);
+  const offers = currentOffers ?? (await provider.catalog(secret));
   const pools = revision.hosting.placement.gpu_pool_ids;
   const selected = offers.filter((o) => pools.includes(o.pool));
   assert(

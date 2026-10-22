@@ -165,6 +165,65 @@ it('requires current scoped grants and hides privileged revision and connection 
   ).rejects.toMatchObject({ code: 'permission_denied' });
 });
 
+it('exposes bounded exact cleanup identities only to the current owner with management authority', async () => {
+  const { created, connection } = await fixture();
+  const activeId = id();
+  const attempts = Array.from({ length: 27 }, (_, index) => ({
+    id: index === 0 ? activeId : id(),
+    attempt_id: id(),
+    provider_id: index === 0 ? 'provider-unresolved' : `provider-history-${index}`,
+    created_at: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
+    deleted_at: index === 0 ? null : new Date(Date.UTC(2026, 1, index + 1)).toISOString(),
+  }));
+  await transaction(owner.organizationId, async (tx) => {
+    await deployments.createGrant(tx, owner, created.id, grant());
+    await tx.query(
+      `INSERT INTO model_deployment_resources(id,organization_id,deployment_id,revision_id,connection_id,attempt_id,provider_id,endpoint_url,secret_ciphertext,config,accepted_rates,state,created_at,deleted_at)
+      SELECT a.id,$1,$2,$3,$4,a.attempt_id,a.provider_id,'https://private-endpoint.example.test',$5,'{}','{}',
+        CASE WHEN a.deleted_at IS NULL THEN 'cleanup_pending' ELSE 'deleted' END,a.created_at,a.deleted_at
+      FROM jsonb_to_recordset($6::jsonb) AS a(id uuid,attempt_id uuid,provider_id text,created_at timestamptz,deleted_at timestamptz)`,
+      [
+        owner.organizationId,
+        created.id,
+        created.desired_revision_id,
+        connection.id,
+        seal('fixture-private-resource-secret'),
+        JSON.stringify(attempts),
+      ],
+    );
+  });
+  const [managed, recipient, listed] = await Promise.all([
+    transaction(owner.organizationId, (tx) => deployments.get(tx, owner, created.id)),
+    transaction(owner.organizationId, (tx) => deployments.get(tx, application, created.id, workspace)),
+    transaction(owner.organizationId, (tx) =>
+      deployments.list(tx, owner, new URLSearchParams({ limit: '100' })),
+    ),
+  ]);
+  expect(managed.resources).toHaveLength(25);
+  expect(managed.resources?.[0]).toMatchObject({
+    resource_id: activeId,
+    provider_id: 'provider-unresolved',
+    attempt_id: attempts[0].attempt_id,
+    deployment_revision_id: created.desired_revision_id,
+    state: 'cleanup_pending',
+    deleted_at: null,
+  });
+  expect(managed.resources?.map((item) => item.resource_id)).not.toContain(attempts[1].id);
+  expect(managed.resources?.map((item) => item.resource_id)).toContain(attempts[26].id);
+  expect(Object.keys(managed.resources![0]).sort()).toEqual([
+    'attempt_id',
+    'created_at',
+    'deleted_at',
+    'deployment_revision_id',
+    'provider_id',
+    'resource_id',
+    'state',
+  ]);
+  expect(JSON.stringify(managed.resources)).not.toContain('private');
+  expect(listed.data.find((item) => item.id === created.id)?.resources).toEqual(managed.resources);
+  expect(recipient).not.toHaveProperty('resources');
+});
+
 it('enforces tenant isolation on confirmed existing deployments', async () => {
   const { created } = await fixture();
   expect(
@@ -218,7 +277,9 @@ it('uses rotated credentials in the same immutable endpoint revision and rejects
   await expect(
     transaction(owner.organizationId, (tx) => deployments.deploymentCredentialTx(tx, application, target)),
   ).rejects.toMatchObject({ code: 'deployment_binding_stale' });
-  await transaction(owner.organizationId, (tx) => resources.update(tx, 'connections', connection.id, { url: target.endpoint_url }));
+  await transaction(owner.organizationId, (tx) =>
+    resources.update(tx, 'connections', connection.id, { url: target.endpoint_url }),
+  );
   // Hosting observations do not revoke publication of an already accepted answer.
   await transaction(owner.organizationId, (tx) =>
     tx.query(
@@ -237,12 +298,28 @@ it('fences accepted credential delegation when its approving owner loses managem
   const { created } = await fixture();
   await transaction(owner.organizationId, (tx) => deployments.createGrant(tx, owner, created.id, grant()));
   await ready(created.id);
-  const target = await transaction(owner.organizationId, (tx) => deployments.resolveDeploymentTargetTx(tx, application, { deployment_id: created.id }, workspace, 30));
-  await transaction(owner.organizationId, (tx) => tx.query("UPDATE memberships SET role='member' WHERE organization_id=$1 AND user_id=$2", [owner.organizationId, owner.userId]));
+  const target = await transaction(owner.organizationId, (tx) =>
+    deployments.resolveDeploymentTargetTx(tx, application, { deployment_id: created.id }, workspace, 30),
+  );
+  await transaction(owner.organizationId, (tx) =>
+    tx.query("UPDATE memberships SET role='member' WHERE organization_id=$1 AND user_id=$2", [
+      owner.organizationId,
+      owner.userId,
+    ]),
+  );
   try {
-    await expect(transaction(owner.organizationId, (tx) => deployments.authorizeDeploymentInvocationTx(tx, application, target, workspace))).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(
+      transaction(owner.organizationId, (tx) =>
+        deployments.authorizeDeploymentInvocationTx(tx, application, target, workspace),
+      ),
+    ).rejects.toMatchObject({ code: 'permission_denied' });
   } finally {
-    await transaction(owner.organizationId, (tx) => tx.query("UPDATE memberships SET role='owner' WHERE organization_id=$1 AND user_id=$2", [owner.organizationId, owner.userId]));
+    await transaction(owner.organizationId, (tx) =>
+      tx.query("UPDATE memberships SET role='owner' WHERE organization_id=$1 AND user_id=$2", [
+        owner.organizationId,
+        owner.userId,
+      ]),
+    );
   }
 });
 

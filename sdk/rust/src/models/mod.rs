@@ -398,6 +398,8 @@ pub mod model_deployment_inspection_runtime_profiles_inner;
 pub use self::model_deployment_inspection_runtime_profiles_inner::ModelDeploymentInspectionRuntimeProfilesInner;
 pub mod model_deployment_page;
 pub use self::model_deployment_page::ModelDeploymentPage;
+pub mod model_deployment_resource;
+pub use self::model_deployment_resource::ModelDeploymentResource;
 pub mod model_deployment_revision;
 pub use self::model_deployment_revision::ModelDeploymentRevision;
 pub mod model_deployment_revision_create;

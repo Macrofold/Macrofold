@@ -13,9 +13,9 @@ import type {
   DeploymentRow,
   DeploymentRevisionRow,
   DeploymentResourceRow,
-  DeploymentRates,
   ModelHostingProvider,
   ServingObservation,
+  GpuOffer,
 } from './model-deployment-types';
 
 const LEASE_MS = 120_000;
@@ -141,6 +141,42 @@ function sameRecipe(resource: DeploymentResourceRow, observation: ServingObserva
     'MF_MODEL_CONFIG' in actualEnv &&
     'MF_MODEL_CONFIG' in desiredEnv &&
     actualEnv.MF_MODEL_CONFIG === desiredEnv.MF_MODEL_CONFIG
+  );
+}
+
+function validateObservedHardware(
+  revision: DeploymentRevisionRow,
+  resource: DeploymentResourceRow,
+  observation: ServingObservation,
+  offers: GpuOffer[],
+) {
+  assert(
+    revision.hosting.kind === 'runpod_serverless',
+    422,
+    'invalid_hosting_policy',
+    'Managed hosting is required.',
+  );
+  const placement = revision.hosting.placement;
+  const gpu = z.object({ pools: z.array(z.string()), count: z.number().int() }).parse(observation.config.gpu);
+  const workers = z
+    .array(z.object({ gpuTypeId: z.string().nullable(), gpuCount: z.number().int() }))
+    .parse(observation.config.observed_workers);
+  const eligible = offers.filter((offer) => placement.gpu_pool_ids.includes(offer.pool));
+  // Pool names describe allowed alternatives; the provider's actual GPU IDs
+  // must still resolve into that current catalog. Regions remain preferences.
+  assert(
+    gpu.count === placement.gpu_count &&
+      canonical([...gpu.pools].sort()) === canonical([...placement.gpu_pool_ids].sort()) &&
+      workers.every(
+        (worker) =>
+          worker.gpuCount === 0 ||
+          (worker.gpuCount === placement.gpu_count &&
+            eligible.some((offer) => offer.id === worker.gpuTypeId)),
+      ) &&
+      (observation.config.disk === undefined || observation.config.disk === resource.config.disk),
+    422,
+    'invalid_hosting_policy',
+    'Observed hosting hardware or disk differs from the accepted placement.',
   );
 }
 
@@ -278,6 +314,10 @@ async function historicalCosts(org: string, row: DeploymentRow, provider: ModelH
         await tx.query<DeploymentResourceRow & { credential: string }>(
           `SELECT r.*,c.data->>'secret_ciphertext' AS credential
     FROM model_deployment_resources r JOIN connections c ON c.id=r.connection_id AND c.organization_id=r.organization_id
+    JOIN model_deployment_connections g ON g.deployment_id=r.deployment_id AND g.revision_id=r.revision_id
+      AND g.connection_id=r.connection_id AND g.organization_id=r.organization_id AND g.approved_by=$2
+    JOIN memberships m ON m.organization_id=r.organization_id AND m.user_id=$2 AND m.role IN ('owner','admin')
+    JOIN auth."user" u ON u.id=m.user_id AND u."emailVerified"=true
     WHERE r.deployment_id=$1 AND r.deleted_at IS NOT NULL AND r.provider_id IS NOT NULL
       AND c.data->>'owner_subject_id'=$2 AND c.data->>'kind'='runpod' AND c.data->>'status'='healthy'
       AND coalesce((c.data->>'deleted')::boolean,false)=false AND c.data->>'secret_ciphertext' IS NOT NULL
@@ -412,7 +452,10 @@ async function external(
     { headers: selected.headers, method: 'GET' },
     { timeoutMs: 10_000, maximumResponseBytes: 1024 * 1024 },
   );
-  assert(response.ok, 503, 'deployment_unavailable', 'The external model endpoint is not ready.');
+  if (!response.ok) {
+    await response.body?.cancel();
+    assert(false, 503, 'deployment_unavailable', 'The external model endpoint is not ready.');
+  }
   const models = z
     .object({ data: z.array(z.object({ id: z.string() })).max(1000) })
     .parse(await boundedJSON(response, 1024 * 1024));
@@ -656,9 +699,9 @@ async function observeManaged(
     'invalid_hosting_policy',
     'Managed standing policy is missing.',
   );
-  let rates: DeploymentRates | undefined;
-  if (Date.now() - Date.parse(known.accepted_rates.observed_at) >= 5 * 60_000)
-    rates = await quoteManagedService(revision, policy, key, provider);
+  const offers = await provider.catalog(key);
+  validateObservedHardware(revision, known, observation, offers);
+  const rates = await quoteManagedService(revision, policy, key, provider, offers);
   if (revision.source.kind === 'hugging_face' && revision.source.source_connection_id) {
     const rotation = await mutate(org, current, async (tx, row) => {
       const sourceConnection = await connection(
@@ -700,7 +743,15 @@ async function observeManaged(
     }
   }
   const expected = { min: policy.min_replicas, max: policy.max_replicas, idleTimeout: 10 };
-  if (canonical(observation.config.workers) !== canonical(expected)) {
+  const scaling = {
+    type: 'REQUEST_COUNT',
+    requestCount: Math.min(policy.max_concurrent_requests, revision.capabilities.max_concurrent_requests),
+  };
+  if (
+    canonical(observation.config.workers) !== canonical(expected) ||
+    canonical(observation.config.scaling) !== canonical(scaling) ||
+    observation.config.timeout !== 240_000
+  ) {
     const allowed = await mutate(org, current, async (tx, row) => {
       assert(
         row.desired_state === 'running' && !row.retired && row.desired_revision_id === known.revision_id,
@@ -714,10 +765,7 @@ async function observeManaged(
     if (!allowed) return;
     await provider.update(key, known.provider_id, {
       workers: expected,
-      scaling: {
-        type: 'REQUEST_COUNT',
-        requestCount: Math.min(policy.max_concurrent_requests, revision.capabilities.max_concurrent_requests),
-      },
+      scaling,
       timeout: 240_000,
     });
   }

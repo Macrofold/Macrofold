@@ -88,6 +88,9 @@ class ModelDeploymentServicePolicyOneOf1(BaseModel):
         if not isinstance(obj, dict):
             return cls.model_validate(obj)
 
+        if set(obj) - set(cls.__properties):
+            raise ValueError('Unexpected model deployment policy fields.')
+
         _obj = cls.model_validate({
             "max_concurrent_requests": obj.get("max_concurrent_requests"),
             "stop_at": obj.get("stop_at")

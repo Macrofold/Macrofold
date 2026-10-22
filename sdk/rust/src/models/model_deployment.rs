@@ -51,6 +51,9 @@ pub struct ModelDeployment {
     pub created_at: chrono::DateTime<chrono::FixedOffset>,
     #[serde(rename = "updated_at")]
     pub updated_at: chrono::DateTime<chrono::FixedOffset>,
+    /// Present only with current owner management authority (can_manage=true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field.
+    #[serde(rename = "resources", skip_serializing_if = "Option::is_none")]
+    pub resources: Option<Vec<models::ModelDeploymentResource>>,
 }
 
 impl ModelDeployment {
@@ -75,6 +78,7 @@ impl ModelDeployment {
             retired,
             created_at,
             updated_at,
+            resources: None,
         }
     }
 }

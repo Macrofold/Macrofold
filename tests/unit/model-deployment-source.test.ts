@@ -78,6 +78,7 @@ it('normalizes model URLs and resolves slash-containing references only through 
   ).toHaveProperty('revision', 'feature/model');
 });
 it.each([
+  'https://',
   'https://user:secret@huggingface.co/fixture/model',
   'https://example.test/fixture/model',
   'https://huggingface.co/datasets/fixture/model',
@@ -95,6 +96,9 @@ it.each([
   expect(huggingFaceMetadataFetch).not.toHaveBeenCalled();
 });
 it('rejects conflicting URL/explicit revisions and unsafe selected weight paths', () => {
+  expect(() =>
+    normalizeHuggingFaceSource({ kind: 'hugging_face', repository: 'fixture/model', revision: '.' }),
+  ).toThrow(expect.objectContaining({ code: 'unsupported_model_source' }));
   expect(() =>
     normalizeHuggingFaceSource({
       kind: 'hugging_face',

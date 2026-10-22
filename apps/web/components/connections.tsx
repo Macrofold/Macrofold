@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useData, useDataPages } from '../lib/dashboard-data';
+import { request, useData, useDataPages } from '../lib/dashboard-data';
 import { useConnectionAccess } from '../lib/connection-access';
 import { ConnectionAccess } from './connection-access';
 import { AccessResourceSelect } from './access-resource-select';
@@ -36,6 +36,7 @@ import {
 import { AddConnectionDialog } from './add-connection';
 import { ProviderLogo, ProviderLabel, providerName } from './provider-logo';
 import { connectionLogoProvider } from '../lib/provider-branding';
+const credentialKinds = ['model', 'claude_subscription', 'hugging_face', 'runpod', 'external_model'];
 export function ConnectionsView() {
   const filters = useSearchParams(),
     router = useRouter();
@@ -43,7 +44,9 @@ export function ConnectionsView() {
     agent = filters.get('agent_id') || '';
   const query = useDataPages({
     operation: 'listConnections',
-    params: { query: { ...(workspace ? { workspace_id: workspace } : {}), ...(agent ? { agent_id: agent } : {}) } },
+    params: {
+      query: { ...(workspace ? { workspace_id: workspace } : {}), ...(agent ? { agent_id: agent } : {}) },
+    },
   });
   const identity = useData({ operation: 'getIdentity' });
   const [accessConnection, setAccessConnection] = useState<Schema['Connection']>();
@@ -161,15 +164,21 @@ export function ConnectionsView() {
               <p>
                 {c.kind === 'claude_subscription'
                   ? 'Claude subscription · Authentication not yet available'
-                  : c.kind === 'model'
-                    ? `${providerName(c.provider || '')} · Your API key`
-                    : c.kind === 'composio'
-                      ? `${providerName(c.provider || '')} · Connected app`
-                      : c.kind === 'search'
-                        ? `${providerName(c.provider || '')} · ${c.auth_method === 'api_key' ? 'Your API key' : 'Managed usage'}`
-                        : c.kind === 'mcp_stdio'
-                          ? `${c.package} · ${c.package_version}`
-                          : c.url || c.kind}
+                  : c.kind === 'hugging_face'
+                    ? 'Hugging Face source access'
+                    : c.kind === 'runpod'
+                      ? 'RunPod hosting account'
+                      : c.kind === 'external_model'
+                        ? `External model endpoint · ${c.url}`
+                        : c.kind === 'model'
+                          ? `${providerName(c.provider || '')} · Your API key`
+                          : c.kind === 'composio'
+                            ? `${providerName(c.provider || '')} · Connected app`
+                            : c.kind === 'search'
+                              ? `${providerName(c.provider || '')} · ${c.auth_method === 'api_key' ? 'Your API key' : 'Managed usage'}`
+                              : c.kind === 'mcp_stdio'
+                                ? `${c.package} · ${c.package_version}`
+                                : c.url || c.kind}
               </p>
               {c.account_identity && <p>Account: {c.account_identity}</p>}
               {c.access_match?.scopes.length ? (
@@ -193,9 +202,7 @@ export function ConnectionsView() {
                   {c.access_match.matching_rules_truncated && ' · examples shown'}
                 </p>
               ) : (
-                !['model', 'claude_subscription'].includes(c.kind) && (
-                  <p className="form-hint">No matching access</p>
-                )
+                !credentialKinds.includes(c.kind) && <p className="form-hint">No matching access</p>
               )}
               {c.approved_tools?.length === 0 && <p className="form-hint">No tools enabled</p>}
               {c.owner_subject_id === identity.data?.user_id && (
@@ -237,13 +244,13 @@ export function ConnectionsView() {
                     >
                       Connect <ArrowUpRight size={13} />
                     </Button>
-                  ) : !['model', 'claude_subscription'].includes(c.kind) ? (
+                  ) : !credentialKinds.includes(c.kind) ? (
                     <Button variant="secondary" onClick={() => setSelected(c)}>
                       <SlidersHorizontal size={14} />
                       Tools
                     </Button>
                   ) : null}
-                  {!['model', 'claude_subscription'].includes(c.kind) && (
+                  {!credentialKinds.includes(c.kind) && (
                     <Button variant="secondary" onClick={() => setAccessConnection(c)}>
                       Access
                     </Button>
@@ -313,11 +320,13 @@ function ConnectionSettings({
     ? String(Number(connection.api_fallback.max_cost_micro_usd) / 1_000_000)
     : '';
   const [name, setName] = useState(connection.name),
+    [replacementSecret, setReplacementSecret] = useState(''),
     [backup, setBackup] = useState(originalBackup),
     [budget, setBudget] = useState(originalBudget),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const subscription = connection.kind === 'claude_subscription';
+  const hostingCredential = ['hugging_face', 'runpod', 'external_model'].includes(connection.kind);
   const identity = useApi<Schema['Identity']>(subscription ? '/v1/me' : undefined);
   const connections = usePages<Schema['Connection']>(subscription ? '/v1/connections' : undefined);
   const client = useQueryClient();
@@ -336,20 +345,25 @@ function ConnectionSettings({
           setBusy(true);
           setError('');
           try {
-            await api(`/v1/connections/${connection.id}`, 'PATCH', {
-              name,
-              ...(subscription && (backup !== originalBackup || budget !== originalBudget)
-                ? {
-                    api_fallback: backup
-                      ? {
-                          enabled: true,
-                          connection_id: backup,
-                          max_cost_micro_usd: String(Math.round(Number(budget) * 1_000_000)),
-                        }
-                      : { enabled: false },
-                  }
-                : {}),
+            await request('updateConnection', {
+              params: { path: { connection_id: connection.id } },
+              body: {
+                name,
+                ...(hostingCredential && replacementSecret ? { secret: replacementSecret } : {}),
+                ...(subscription && (backup !== originalBackup || budget !== originalBudget)
+                  ? {
+                      api_fallback: backup
+                        ? {
+                            enabled: true,
+                            connection_id: backup,
+                            max_cost_micro_usd: String(Math.round(Number(budget) * 1_000_000)),
+                          }
+                        : { enabled: false },
+                    }
+                  : {}),
+              },
             });
+            setReplacementSecret('');
             await client.invalidateQueries();
             onClose();
             toast.success('Connection saved');
@@ -366,6 +380,19 @@ function ConnectionSettings({
         <Field label="Connection ID">
           <input readOnly value={connection.id} />
         </Field>
+        {hostingCredential && connection.auth_method !== 'none' && (
+          <Field
+            label="Replacement account or endpoint token (optional)"
+            hint="Leave empty to keep the current token. Use the same authorized upstream account. Active owned resources are checked before RunPod account-key rotation; uncertain ownership blocks the change."
+          >
+            <input
+              type="password"
+              value={replacementSecret}
+              onChange={(event) => setReplacementSecret(event.target.value)}
+              autoComplete="new-password"
+            />
+          </Field>
+        )}
         {subscription && (
           <>
             <p className="form-hint">

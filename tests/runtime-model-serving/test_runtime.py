@@ -6,6 +6,7 @@ import asyncio
 import copy
 import importlib
 import json
+import os
 import socket
 import sys
 import tempfile
@@ -22,7 +23,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
-RUNTIME = Path(__file__).resolve().parents[2] / "infra" / "model-serving"
+RUNTIME = Path(os.environ.get("MF_MODEL_RUNTIME_PATH", str(Path(__file__).resolve().parents[2] / "infra" / "model-serving")))
 sys.path.insert(0, str(RUNTIME))
 config_module = importlib.import_module("config")
 runtime = importlib.import_module("server")
@@ -257,7 +258,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_absolute_deadline_bounds_waiting_for_engine_output(self):
         self.mode = "held"
-        headers = {config_module.ENDPOINT_SECRET_HEADER: SECRET, config_module.DEADLINE_HEADER: str(int(time.time() * 1000) + 150)}
+        headers = {config_module.ENDPOINT_SECRET_HEADER: SECRET, config_module.DEADLINE_HEADER: str(int(time.time() * 1000) + 1000)}
         response = await self.post(headers=headers)
         self.assertEqual(response.status_code, 504)
         await asyncio.wait_for(self.cancelled.wait(), 2)

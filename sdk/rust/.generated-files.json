@@ -231,6 +231,7 @@
   "src/models/model_deployment_inspection_input_runtime_preferences.rs",
   "src/models/model_deployment_inspection_runtime_profiles_inner.rs",
   "src/models/model_deployment_page.rs",
+  "src/models/model_deployment_resource.rs",
   "src/models/model_deployment_revision.rs",
   "src/models/model_deployment_revision_create.rs",
   "src/models/model_deployment_revision_page.rs",

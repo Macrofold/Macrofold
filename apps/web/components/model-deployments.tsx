@@ -94,6 +94,12 @@ function ConnectionPicker({
       {connections.error && <ErrorState error={connections.error} retry={() => void connections.refetch()} />}
       {identity.error && <ErrorState error={identity.error} retry={() => void identity.refetch()} />}
       <More query={connections} label="Load more connections" />
+      {value && (
+        <p className="form-hint">
+          <Link href="/connections">Manage connection or rotate its token</Link>. Keep the same authorized
+          provider account; changing accounts requires a new connection.
+        </p>
+      )}
       <Button
         type="button"
         variant="ghost"
@@ -1303,7 +1309,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
     5000,
   );
   const revisions = useDataPages(
-    deployment.data
+    deployment.data?.can_manage
       ? {
           operation: 'listModelDeploymentRevisions',
           params: { path: { deployment_id: deploymentId }, query: { limit: 25 } },
@@ -1454,6 +1460,48 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
           </p>
         )}
       </section>
+      {current.can_manage && current.resources && (
+        <section className="panel" aria-label="Owned hosting resources">
+          <h2>Owned hosting resources</h2>
+          {current.state === 'cleanup_pending' && (
+            <p className="form-error">
+              Check these exact resources in the authorized provider account. If automatic cleanup cannot
+              confirm shutdown, stop or delete the identified resource there and retain its attempt ID for
+              recovery. An unknown provider ID requires account inventory inspection; do not create a
+              replacement while the original resource is unresolved.
+            </p>
+          )}
+          {!current.resources.length && <p>No managed provider resources have been recorded.</p>}
+          {current.resources.map((resource) => (
+            <details key={resource.resource_id}>
+              <summary>
+                {resource.provider_id ?? 'Provider ID unconfirmed'} · {resource.state}
+              </summary>
+              <p>
+                Provider resource: <code>{resource.provider_id ?? 'Unknown'}</code>{' '}
+                {resource.provider_id && (
+                  <CopyButton text={resource.provider_id} label="Copy provider resource ID" variant="ghost" />
+                )}
+              </p>
+              <p>
+                Attempt: <code>{resource.attempt_id}</code>{' '}
+                <CopyButton text={resource.attempt_id} label="Copy hosting attempt ID" variant="ghost" />
+              </p>
+              <p>
+                Record: <code>{resource.resource_id}</code> · Revision:{' '}
+                <code>{resource.deployment_revision_id}</code>
+              </p>
+              <p>
+                Created: {resource.created_at} · Deletion confirmed: {resource.deleted_at ?? 'Unconfirmed'}
+              </p>
+            </details>
+          ))}
+          <p className="form-hint">
+            Shows the active resource and recent history, up to 25 records. Credentials and endpoint addresses
+            remain private.
+          </p>
+        </section>
+      )}
       {current.capabilities && (
         <section className="panel" aria-label="Serving capabilities">
           <h2>Serving capabilities</h2>
@@ -1470,48 +1518,50 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
           </p>
         </section>
       )}
-      <section className="panel" aria-label="Model revisions">
-        <h2>Model revisions</h2>
-        {revisions.isPending ? (
-          <Loading />
-        ) : revisions.error ? (
-          <ErrorState error={revisions.error} retry={() => void revisions.refetch()} />
-        ) : (
-          revisions.data?.data.map((item) => (
-            <details key={item.deployment_revision_id}>
-              <summary>
-                {item.deployment_revision_id} · {item.created_at}
-              </summary>
-              <p>
-                Source:{' '}
-                {item.source.kind === 'hugging_face'
-                  ? `${item.source.repository} @ ${item.source.revision}`
-                  : 'Operator-declared external source'}
-              </p>
-              <p>
-                Runtime:{' '}
-                {'profile_id' in item.runtime
-                  ? item.runtime.profile_id
-                  : (item.runtime.engine ?? 'Unknown external engine')}{' '}
-                · Hosting: {item.hosting.kind}
-              </p>
-              <pre className="code-block">
-                {JSON.stringify(
-                  {
-                    source: item.source,
-                    runtime: item.runtime,
-                    hosting: item.hosting,
-                    capabilities: item.capabilities,
-                  },
-                  null,
-                  2,
-                )}
-              </pre>
-            </details>
-          ))
-        )}
-        <More query={revisions} label="Load more revisions" />
-      </section>
+      {current.can_manage && (
+        <section className="panel" aria-label="Model revisions">
+          <h2>Model revisions</h2>
+          {revisions.isPending ? (
+            <Loading />
+          ) : revisions.error ? (
+            <ErrorState error={revisions.error} retry={() => void revisions.refetch()} />
+          ) : (
+            revisions.data?.data.map((item) => (
+              <details key={item.deployment_revision_id}>
+                <summary>
+                  {item.deployment_revision_id} · {item.created_at}
+                </summary>
+                <p>
+                  Source:{' '}
+                  {item.source.kind === 'hugging_face'
+                    ? `${item.source.repository} @ ${item.source.revision}`
+                    : 'Operator-declared external source'}
+                </p>
+                <p>
+                  Runtime:{' '}
+                  {'profile_id' in item.runtime
+                    ? item.runtime.profile_id
+                    : (item.runtime.engine ?? 'Unknown external engine')}{' '}
+                  · Hosting: {item.hosting.kind}
+                </p>
+                <pre className="code-block">
+                  {JSON.stringify(
+                    {
+                      source: item.source,
+                      runtime: item.runtime,
+                      hosting: item.hosting,
+                      capabilities: item.capabilities,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </details>
+            ))
+          )}
+          <More query={revisions} label="Load more revisions" />
+        </section>
+      )}
       {current.can_manage && !current.retired && <DeploymentAccess deploymentId={deploymentId} />}
       <Modal
         open={dialog === 'service'}

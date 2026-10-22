@@ -167,6 +167,7 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
   'checkpoint create': { pin: Flags.boolean() },
   'checkpoint restore': { yes: Flags.boolean() },
   'connection add': { 'config-file': Flags.string() },
+  'connection update': { 'config-file': Flags.string(), 'idempotency-key': Flags.string() },
   usage: { from: Flags.string(), to: Flags.string() },
 };
 const listCommands = new Set([
@@ -239,6 +240,8 @@ const examples: Record<string, string> = {
   'files push': 'macrofold files push src --dry-run\nmacrofold files push src --yes',
   'files pull': 'macrofold files pull notes --dry-run\nmacrofold files pull notes --yes',
   'connection add': 'macrofold connection add --config-file private-connection.json',
+  'connection update':
+    'macrofold connection update CONNECTION_ID --config-file private-connection-update.json',
   'run input': 'macrofold run input RUN_ID --request REQUEST_ID --answer-file answer.json',
 };
 const subcommands = (command: string) =>

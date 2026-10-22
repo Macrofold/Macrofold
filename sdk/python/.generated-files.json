@@ -200,6 +200,7 @@
   "macrofold/models/model_deployment_inspection_input_runtime_preferences.py",
   "macrofold/models/model_deployment_inspection_runtime_profiles_inner.py",
   "macrofold/models/model_deployment_page.py",
+  "macrofold/models/model_deployment_resource.py",
   "macrofold/models/model_deployment_revision.py",
   "macrofold/models/model_deployment_revision_create.py",
   "macrofold/models/model_deployment_revision_page.py",

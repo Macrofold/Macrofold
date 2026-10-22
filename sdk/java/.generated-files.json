@@ -241,6 +241,7 @@
   "src/main/java/dev/macrofold/model/ModelDeploymentInspectionInputRuntimePreferences.java",
   "src/main/java/dev/macrofold/model/ModelDeploymentInspectionRuntimeProfilesInner.java",
   "src/main/java/dev/macrofold/model/ModelDeploymentPage.java",
+  "src/main/java/dev/macrofold/model/ModelDeploymentResource.java",
   "src/main/java/dev/macrofold/model/ModelDeploymentRevision.java",
   "src/main/java/dev/macrofold/model/ModelDeploymentRevisionCreate.java",
   "src/main/java/dev/macrofold/model/ModelDeploymentRevisionPage.java",

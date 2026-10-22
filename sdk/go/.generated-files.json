@@ -233,6 +233,7 @@
   "model_model_deployment_inspection_input_runtime_preferences.go",
   "model_model_deployment_inspection_runtime_profiles_inner.go",
   "model_model_deployment_page.go",
+  "model_model_deployment_resource.go",
   "model_model_deployment_revision.go",
   "model_model_deployment_revision_create.go",
   "model_model_deployment_revision_page.go",

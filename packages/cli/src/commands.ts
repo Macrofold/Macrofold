@@ -454,6 +454,22 @@ export const handlers: Record<string, Handler> = {
         body: {},
       }),
     ),
+  'connection update': async ({ context, args, flags }) => {
+    const input = await protectedJSON(
+      required(stringOption(flags, 'config-file'), '--config-file FILE (or - for stdin)'),
+    );
+    if (!input || typeof input !== 'object' || Array.isArray(input))
+      throw new CliError('Connection updates require a JSON object.');
+    return result(
+      await (
+        await context()
+      ).client.request('updateConnection', {
+        params: { path: { connection_id: required(args[0], 'Connection ID') } },
+        body: input as Schema['ConnectionPatch'],
+        idempotencyKey: stringOption(flags, 'idempotency-key'),
+      }),
+    );
+  },
   'connection tools': async ({ context, args, flags }) =>
     result(
       await (

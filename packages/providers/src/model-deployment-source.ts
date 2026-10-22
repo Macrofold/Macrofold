@@ -61,7 +61,12 @@ export function normalizeHuggingFaceSource(input: Source): Source {
         'Use a model URL without path traversal; references containing slashes belong in the explicit revision field.',
       );
     }
-    const url = new URL(repository);
+    let url: URL;
+    try {
+      url = new URL(repository);
+    } catch {
+      throw new AppError(400, 'unsupported_model_source', 'Use a valid Hugging Face model URL.');
+    }
     assert(
       url.origin === 'https://huggingface.co' && !url.username && !url.password && !url.search && !url.hash,
       400,
@@ -96,7 +101,8 @@ export function normalizeHuggingFaceSource(input: Source): Source {
     'Use owner/model for a model repository.',
   );
   assert(
-    !revision || (!revision.includes('..') && !/[\x00-\x20\\]/.test(revision)),
+    !revision ||
+      (!revision.includes('..') && !revision.split('/').includes('.') && !/[\x00-\x20\\]/.test(revision)),
     400,
     'unsupported_model_source',
     'Choose a valid explicit model revision.',

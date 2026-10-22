@@ -1,1 +1,0 @@
-cat: infra/model-serving/image-overrides.txt: No such file or directory

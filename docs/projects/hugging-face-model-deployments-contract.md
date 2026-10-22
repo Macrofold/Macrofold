@@ -124,6 +124,9 @@ The hourly ceiling is a rate/capacity guard, **not a lifetime or provider-guaran
 | `cost_policy` | `{basis:"deployment",request_charge_micro_usd:"0",infrastructure_cost_included:false}` |
 | `infrastructure_cost` | `{period_start,period_end,estimated_micro_usd,provider_reported_micro_usd,status,as_of,unresolved_liability}` |
 | `failure_code` | Redacted operational reason or null |
+| `resources` | Owner-management only: active resource plus newest historical resources, at most 25; each exposes `resource_id`, nullable `provider_id`, `attempt_id`, `deployment_revision_id`, `state`, `created_at` and nullable `deleted_at` for manual cleanup |
+
+`resources` is absent for use/read grantees and for callers without current unrestricted owner management authority. It contains no endpoint addresses, credentials or source content. Resource state is `creating|ambiguous|starting|ready|stopping|deleted|cleanup_pending`; known provider identities remain visible when automatic cleanup fails.
 
 Cost period boundaries and observations use UTC timestamps; unavailable values are null. Cost status is `estimated|provider_reported|external_unknown|uncertain`. Estimated and reported amounts can overlap and are never added together. Background observations are not an invoice-finality guarantee. Unknown costs and incomplete shutdown do not invalidate completed model answers.
 

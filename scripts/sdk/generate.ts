@@ -111,7 +111,20 @@ try {
     } catch (error) {
       throw new Error(`Could not generate ${language}. Install JDK 21 and set JAVA_HOME.`, { cause: error });
     }
-    if (language === 'python') await preservePythonBooleanConstants(output);
+    if (language === 'python') {
+      await preservePythonBooleanConstants(output);
+      // The vendor's from_dict drops unknown keys before validation, causing
+      // the closed external policy to also match a managed policy's fields.
+      for (const file of [
+        'model_deployment_service_policy_one_of.py',
+        'model_deployment_service_policy_one_of1.py',
+      ])
+        await replaceOnce(
+          path.join(output, 'macrofold/models', file),
+          '        _obj = cls.model_validate({',
+          "        if set(obj) - set(cls.__properties):\n            raise ValueError('Unexpected model deployment policy fields.')\n\n        _obj = cls.model_validate({",
+        );
+    }
     if (language === 'go') {
       await preserveGoNullableArrays(output);
       // A successful zero-byte download still owns a usable temporary file.

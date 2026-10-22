@@ -5651,6 +5651,8 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            /** @description Present only with current owner management authority (can_manage=true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field. */
+            resources?: components["schemas"]["ModelDeploymentResource"][];
         };
         ModelDeploymentInspectionInput: {
             source: components["schemas"]["ModelDeploymentHuggingFaceSource"];
@@ -5704,6 +5706,22 @@ export interface components {
             next_cursor: string | null;
         };
         DeploymentBinding: components["schemas"]["ModelDeploymentBinding"];
+        /** @description Owner-only provider resource identities for diagnosing and manually resolving incomplete cleanup. Contains no endpoint URL, credentials or source content. */
+        ModelDeploymentResource: {
+            /** Format: uuid */
+            resource_id: string;
+            provider_id: string | null;
+            /** Format: uuid */
+            attempt_id: string;
+            /** Format: uuid */
+            deployment_revision_id: string;
+            /** @enum {string} */
+            state: "creating" | "ambiguous" | "starting" | "ready" | "stopping" | "deleted" | "cleanup_pending";
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            deleted_at: string | null;
+        };
     };
     responses: never;
     parameters: {

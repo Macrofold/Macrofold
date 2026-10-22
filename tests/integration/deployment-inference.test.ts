@@ -249,6 +249,23 @@ it('rejects mixed deployment bindings with the canonical error before admitting 
   expect(count.rows[0].count).toBe('0');
 });
 
+it.each([null, { messages: [{ role: 'user', content: 'Synthetic hello' }], response_format: [] }])(
+  'rejects malformed native request objects as nonretryable client errors before admission: %j',
+  async (input) => {
+    const { deploymentId } = await deployment();
+    const rejected = await api({ ...body(deploymentId), input });
+    expect(rejected.status).toBe(400);
+    expect(await rejected.json()).toMatchObject({
+      error: { code: 'invalid_request', retryable: false },
+    });
+    expect(calls).toBe(0);
+    const runs = await transaction(owner.organizationId, (tx) =>
+      tx.query("SELECT id FROM runs WHERE config#>>'{deployment_target,deployment_id}'=$1", [deploymentId]),
+    );
+    expect(runs.rows).toEqual([]);
+  },
+);
+
 it('rechecks delegated credentials after waiting for shared inference capacity', async () => {
   const { deploymentId, connectionId } = await deployment();
   const principal: Principal = {

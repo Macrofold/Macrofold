@@ -718,15 +718,17 @@ async function projections(
         period_end: cost?.period_end?.toISOString() ?? null,
         estimated_micro_usd: cost?.estimated ?? null,
         provider_reported_micro_usd: cost?.reported ?? null,
+        // Historical managed amounts do not establish the current external bill.
+        // See docs/projects/hugging-face-model-deployments-tech-design.md#9-capacity-cost-and-spending-policy.
         status:
           cost?.unresolved || cost?.partially_reported
             ? 'uncertain'
-            : cost?.reported !== undefined && cost.reported !== null
-              ? 'provider_reported'
-              : cost?.estimated !== undefined && cost.estimated !== null
-                ? 'estimated'
-                : revision?.hosting.kind === 'external_openai'
-                  ? 'external_unknown'
+            : revision?.hosting.kind === 'external_openai'
+              ? 'external_unknown'
+              : cost?.reported !== undefined && cost.reported !== null
+                ? 'provider_reported'
+                : cost?.estimated !== undefined && cost.estimated !== null
+                  ? 'estimated'
                   : 'uncertain',
         as_of: cost?.as_of?.toISOString() ?? null,
         unresolved_liability: !!(cost?.unresolved || cost?.partially_reported),

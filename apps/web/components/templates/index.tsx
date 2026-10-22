@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useHydrated } from '../../lib/use-hydrated';
 import { CopyButton } from '../copy-button';
 import { Button, Modal, PageHeading } from '../ui';
 import {
@@ -142,6 +143,7 @@ function TemplatePreview({
 }
 
 export function FeaturedTemplates() {
+  const hydrated = useHydrated();
   const [selected, setSelected] = useState<AgentTemplate>();
   return (
     <section className="featured-templates" aria-labelledby="featured-templates-title">
@@ -157,7 +159,12 @@ export function FeaturedTemplates() {
       </div>
       <div className="featured-template-grid">
         {featuredTemplates.map((template) => (
-          <button key={template.slug} className="featured-template" onClick={() => setSelected(template)}>
+          <button
+            key={template.slug}
+            className="featured-template"
+            disabled={!hydrated}
+            onClick={() => setSelected(template)}
+          >
             <TemplateIcon template={template} />
             <strong>{template.name}</strong>
             <span>{template.description}</span>
@@ -171,6 +178,7 @@ export function FeaturedTemplates() {
 }
 
 export function TemplatesView() {
+  const hydrated = useHydrated();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<AgentTemplate>();
   const ready = searchTemplates(agentTemplates, search);
@@ -228,7 +236,12 @@ export function TemplatesView() {
           </div>
           <div className="template-library-grid">
             {ready.map((template) => (
-              <button className="template-card" key={template.slug} onClick={() => setSelected(template)}>
+              <button
+                className="template-card"
+                key={template.slug}
+                disabled={!hydrated}
+                onClick={() => setSelected(template)}
+              >
                 <div className={`template-art template-tone-${template.tone}`} aria-hidden="true">
                   <TemplateIcon template={template} />
                   <span className="template-art-lines">

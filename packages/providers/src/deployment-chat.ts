@@ -44,6 +44,11 @@ const structural = new Set([
 function capability(allowed: unknown, message: string): asserts allowed {
   assert(allowed, 422, 'unsupported_model_capability', message);
 }
+function requestObject(value: unknown, field: string) {
+  const parsed = object.safeParse(value);
+  assert(parsed.success, 400, 'invalid_request', `${field} must be an object.`);
+  return parsed.data;
+}
 
 /** Validate the advertised recipe, without implementing the engine's tokenizer
  * or structured decoder. Native fields stay intact after these boundary checks. */
@@ -58,7 +63,7 @@ export function prepareDeploymentChat(target: DeploymentTarget, request: Decisio
     request.modelParameters === undefined,
     'Supply native chat parameters in input for a custom deployment.',
   );
-  const body = object.parse(request.input);
+  const body = requestObject(request.input, 'input');
   assert(
     body.model === undefined || body.model === target.model_alias,
     400,
@@ -87,12 +92,12 @@ export function prepareDeploymentChat(target: DeploymentTarget, request: Decisio
     );
   capability(Array.isArray(body.messages) && body.messages.length > 0, 'Supply native chat messages.');
   for (const item of body.messages) {
-    const message = object.parse(item);
+    const message = requestObject(item, 'Each chat message');
     capability(typeof message.role === 'string', 'Chat messages require a role.');
     if (message.content !== undefined && message.content !== null && typeof message.content !== 'string') {
       capability(Array.isArray(message.content), 'This deployment accepts text messages only.');
       for (const piece of message.content) {
-        const part = object.parse(piece);
+        const part = requestObject(piece, 'Each message content part');
         capability(
           part.type === 'text' && typeof part.text === 'string',
           'This deployment accepts text messages only.',
@@ -118,7 +123,7 @@ export function prepareDeploymentChat(target: DeploymentTarget, request: Decisio
   if (body.max_completion_tokens === undefined) body.max_tokens = output;
   const format = body.response_format;
   if (format !== undefined) {
-    const parsed = object.parse(format);
+    const parsed = requestObject(format, 'response_format');
     capability(
       ['text', 'json_object', 'json_schema'].includes(String(parsed.type)),
       'This response format is unsupported.',
@@ -127,7 +132,7 @@ export function prepareDeploymentChat(target: DeploymentTarget, request: Decisio
       capability(caps.json_object, 'This deployment does not support JSON-object output.');
     if (parsed.type === 'json_schema') {
       capability(caps.json_schema, 'This deployment does not support JSON-schema output.');
-      const definition = object.parse(parsed.json_schema);
+      const definition = requestObject(parsed.json_schema, 'response_format.json_schema');
       validateSchemaKeywords(definition.schema, caps.schema_keywords);
     }
   }
@@ -135,7 +140,10 @@ export function prepareDeploymentChat(target: DeploymentTarget, request: Decisio
   if (request.stream) {
     body.stream = true;
     if (caps.stream_usage)
-      body.stream_options = { ...object.parse(body.stream_options ?? {}), include_usage: true };
+      body.stream_options = {
+        ...requestObject(body.stream_options ?? {}, 'stream_options'),
+        include_usage: true,
+      };
     else
       capability(body.stream_options === undefined, 'This deployment does not support stream usage options.');
   } else capability(body.stream_options === undefined, 'Stream options require streaming.');
@@ -147,10 +155,10 @@ function validateSchemaKeywords(schema: unknown, keywords: string[]) {
   while (pending.length) {
     const node = pending.pop();
     if (typeof node === 'boolean') continue;
-    for (const [key, child] of Object.entries(object.parse(node))) {
+    for (const [key, child] of Object.entries(requestObject(node, 'Each JSON schema'))) {
       capability(keywords.includes(key), `This deployment does not support the ${key} schema keyword.`);
       if (['properties', '$defs', 'definitions', 'patternProperties', 'dependentSchemas'].includes(key))
-        pending.push(...Object.values(object.parse(child)));
+        pending.push(...Object.values(requestObject(child, 'Schema properties and definitions')));
       else if (['allOf', 'anyOf', 'oneOf', 'prefixItems'].includes(key)) {
         capability(Array.isArray(child), 'A schema composition must be an array.');
         pending.push(...child);

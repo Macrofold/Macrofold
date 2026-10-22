@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { clsx } from 'clsx';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Children, useId, useRef, isValidElement, cloneElement, type ReactElement } from 'react';
+import { useHydrated } from '../lib/use-hydrated';
 import { WaitingText } from './waiting-text';
 import { Select } from './select';
 export { Select } from './select';
@@ -17,11 +18,12 @@ export function Button({
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   busy?: boolean;
 }) {
+  const hydrated = useHydrated();
   return (
     <button
       {...props}
       aria-busy={busy || undefined}
-      disabled={props.disabled || busy}
+      disabled={props.disabled || busy || (!!props.onClick && !hydrated)}
       className={clsx('button', variant, props.className)}
     >
       {Children.map(children, (child) =>

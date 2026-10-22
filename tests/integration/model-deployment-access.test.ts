@@ -8,6 +8,7 @@ import * as deployments from '../../packages/core/src/model-deployments';
 import type { PreparedDeploymentRevision } from '../../packages/core/src/model-deployments';
 import type { Principal } from '../../packages/core/src/auth';
 import type { ModelDeploymentCapabilities } from '../../packages/core/src/model-deployment-types';
+import { runtimeCapabilities } from '../../packages/core/src/model-deployment-profiles';
 
 const capabilities: ModelDeploymentCapabilities = {
   protocol: 'openai_chat',
@@ -53,30 +54,51 @@ beforeAll(async () => {
 afterAll(async () => {
   await Promise.all([pool.end(), authPool.end()]);
 });
-async function fixture() {
+async function fixture(managed = false) {
   return transaction(owner.organizationId, async (tx) => {
     const connection = await resources.create(tx, 'connections', owner.organizationId, {
-      name: 'Synthetic external endpoint',
-      kind: 'external_model',
-      auth_method: 'bearer',
-      url: 'https://models.example.test/v1',
+      name: managed ? 'Synthetic managed hosting' : 'Synthetic external endpoint',
+      kind: managed ? 'runpod' : 'external_model',
+      auth_method: managed ? 'api_key' : 'bearer',
+      ...(managed ? { provider: 'runpod' } : { url: 'https://models.example.test/v1' }),
       owner_subject_id: owner.userId,
       secret_ciphertext: seal('fixture-secret-1'),
       status: 'healthy',
     });
-    const prepared: PreparedDeploymentRevision = {
-      source: { kind: 'external', repository: null, revision: null, capabilities },
-      runtime: { kind: 'external', engine: null, version: null },
-      hosting: {
-        kind: 'external_openai',
-        endpoint_connection_id: connection.id,
-        model_alias: 'fixture-model',
-        lifecycle: 'external',
-        external_hosting_acknowledged: true,
-      },
-      capabilities,
-      source_evidence: {},
+    const runtime = {
+      profile_id: 'vllm-0.32.0-text' as const,
+      parameters: { context_window_tokens: 2048, max_output_tokens: 256, max_concurrent_requests: 1 },
     };
+    const prepared: PreparedDeploymentRevision = managed
+      ? {
+          source: {
+            kind: 'hugging_face',
+            repository: 'fixture/model',
+            revision: 'a'.repeat(40),
+            weight_files: ['model.safetensors'],
+          },
+          runtime,
+          hosting: {
+            kind: 'runpod_serverless',
+            compute_connection_id: connection.id,
+            placement: { gpu_pool_ids: ['fixture-pool'], gpu_count: 1, region_ids: [] },
+          },
+          capabilities: runtimeCapabilities(runtime),
+          source_evidence: {},
+        }
+      : {
+          source: { kind: 'external', repository: null, revision: null, capabilities },
+          runtime: { kind: 'external', engine: null, version: null },
+          hosting: {
+            kind: 'external_openai',
+            endpoint_connection_id: connection.id,
+            model_alias: 'fixture-model',
+            lifecycle: 'external',
+            external_hosting_acknowledged: true,
+          },
+          capabilities,
+          source_evidence: {},
+        };
     const created = await deployments.create(
       tx,
       owner,
@@ -224,8 +246,8 @@ it('exposes bounded exact cleanup identities only to the current owner with mana
   expect(recipient).not.toHaveProperty('resources');
 });
 
-it('keeps partial infrastructure amounts uncertain until every owned resource has a cost observation', async () => {
-  const { created, connection } = await fixture();
+it('preserves unknown current costs and cleanup liability alongside reported managed history', async () => {
+  const { created, connection } = await fixture(true);
   const first = id(),
     second = id();
   const start = '2026-01-01T00:00:00.000Z',
@@ -286,6 +308,36 @@ it('keeps partial infrastructure amounts uncertain until every owned resource ha
     estimated_micro_usd: '200',
     status: 'provider_reported',
     unresolved_liability: false,
+  });
+  const external = await fixture();
+  const selected = await transaction(owner.organizationId, async (tx) => {
+    const revision = await deployments.addRevision(tx, owner, created.id, external.prepared);
+    await tx.query(
+      `UPDATE model_deployments SET desired_revision_id=$2,serving_revision_id=$2,
+      desired_state='running',state='ready',policy=$3 WHERE id=$1`,
+      [created.id, revision.deployment_revision_id, JSON.stringify({ max_concurrent_requests: 1 })],
+    );
+    return deployments.get(tx, owner, created.id);
+  });
+  expect(selected.infrastructure_cost).toMatchObject({
+    provider_reported_micro_usd: '100',
+    estimated_micro_usd: '200',
+    status: 'external_unknown',
+    unresolved_liability: false,
+    period_start: start,
+    period_end: end,
+  });
+  await transaction(owner.organizationId, (tx) =>
+    tx.query("UPDATE model_deployment_resources SET deleted_at=NULL,state='cleanup_pending' WHERE id=$1", [
+      second,
+    ]),
+  );
+  const unresolved = await transaction(owner.organizationId, (tx) => deployments.get(tx, owner, created.id));
+  expect(unresolved.infrastructure_cost).toMatchObject({
+    provider_reported_micro_usd: '100',
+    estimated_micro_usd: '200',
+    status: 'uncertain',
+    unresolved_liability: true,
   });
 });
 

@@ -138,6 +138,32 @@ it('rejects unsupported schema keywords without dropping them or changing output
   ).toThrow(expect.objectContaining({ code: 'unsupported_model_capability' }));
 });
 
+it.each([
+  null,
+  [],
+  { messages: [null] },
+  { messages: [{ role: 'user', content: [null] }] },
+  { response_format: [] },
+  { response_format: { type: 'json_schema', json_schema: [] } },
+  { response_format: { type: 'json_schema', json_schema: { schema: null } } },
+  { response_format: { type: 'json_schema', json_schema: { schema: { properties: [] } } } },
+] as const)('reports malformed native request objects as client errors: %j', (input) => {
+  const original = request();
+  const native = {
+    ...original,
+    input: input === null || Array.isArray(input) ? input : { ...original.input, ...input },
+  };
+  expect(() => prepareDeploymentChat(target(), native)).toThrow(
+    expect.objectContaining({ status: 400, code: 'invalid_request' }),
+  );
+});
+
+it('reports malformed stream options as a client error before transport', () => {
+  expect(() => prepareDeploymentChat(target(), { ...request({ stream_options: [] }), stream: true })).toThrow(
+    expect.objectContaining({ status: 400, code: 'invalid_request' }),
+  );
+});
+
 it('makes one authenticated request and returns the complete native payload and independent usage', async () => {
   const raw = response({
     provider_extra: { retained: true },

@@ -102,10 +102,17 @@ func TestImmediateInferenceApplication(t *testing.T) {
 	}
 	readyOptions := []RequestOption{WithIdempotencyKey(fmt.Sprintf("go-deployment-%d", time.Now().UnixNano()))}
 	readyResponse, err := client.Inferences.Create(context.Background(), &readyInput, readyOptions...)
-	if err != nil || readyResponse.Status != "succeeded" {
+	if err != nil {
 		t.Fatalf("deployment did not complete: %#v %v", readyResponse, err)
 	}
-	deployedReceipt(readyResponse.Result, true)
+	readyResult := readyResponse.Result
+	if readyResponse.Status == "running" {
+		readyResult, err = client.Runs.Wait(context.Background(), readyResponse.RunId)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	deployedReceipt(readyResult, true)
 	deployedText, deployedTerminal := "", false
 	err = client.Inferences.Stream(context.Background(), &readyInput, func(event InferenceStreamEvent) error {
 		if event.Type == "output.delta" && event.Data.Text != nil {

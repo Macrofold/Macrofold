@@ -57,8 +57,8 @@ def test_application_immediate_json_and_sse():
                 assert value.value['choices'][0]['message']['annotations'] == []
         ready_options = RequestOptions(idempotency_key='python-deployment-'+os.urandom(8).hex())
         ready_response = client.inferences.create(**ready_body, request_options=ready_options)
-        assert ready_response.status == 'succeeded'
-        deployment_receipt(ready_response.result, True)
+        ready_result = client.runs.wait(ready_response.run_id) if ready_response.status == 'running' else ready_response.result
+        deployment_receipt(ready_result, True)
         deployed_text, deployed_terminal = '', False
         for event in client.inferences.stream(ready_body):
             if event.type == 'output.delta': deployed_text += event.data.text

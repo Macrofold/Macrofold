@@ -61,7 +61,8 @@ class ImmediateInferenceTest {
     };
     var readyScoped = client.inferences().withOptions(new RequestOptions(java.util.UUID.randomUUID().toString(), null));
     var readyResponse = readyScoped.create(readyInput);
-    assertEquals("succeeded", readyResponse.getStatus().toString()); deployedReceipt.accept(readyResponse.getResult(), true);
+    var readyResult = "running".equals(readyResponse.getStatus().toString()) ? client.runs().wait(readyResponse.getRunId()) : readyResponse.getResult();
+    deployedReceipt.accept(readyResult, true);
     var deployedText = new StringBuilder(); var deployedTerminal = new java.util.concurrent.atomic.AtomicBoolean();
     client.inferences().stream(readyInput, event -> {
       if ("output.delta".equals(event.getType().toString())) deployedText.append(event.getData().getText());

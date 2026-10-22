@@ -300,6 +300,7 @@ test('applies revision rollback, preserves pending readiness, grants/revokes acc
   ).toEqual([]);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({ path: test.info().outputPath('model-deployment-status-mobile.png'), fullPage: true });
 });
 
 test('creates a stopped external deployment and a revision through the actual application API', async ({
@@ -323,6 +324,26 @@ test('creates a stopped external deployment and a revision through the actual ap
   const connection = (await connectionResponse.json()) as Schema['Connection'];
   let createdId: string | undefined;
   try {
+    await page.goto('/connections');
+    const connectionCard = page
+      .locator('.connection-card')
+      .filter({ has: page.getByRole('heading', { name: connection.name, exact: true }) });
+    await connectionCard.getByRole('button', { name: `Edit ${connection.name}`, exact: true }).click();
+    const connectionSettings = page.getByRole('dialog', { name: 'Edit connection', exact: true });
+    const replacement = connectionSettings.getByLabel('Replacement account or endpoint token (optional)', {
+      exact: true,
+    });
+    await expect(replacement).toHaveAttribute('type', 'password');
+    await replacement.fill('synthetic-rotated-endpoint-token');
+    const rotation = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/v1/connections/${connection.id}`) &&
+        response.request().method() === 'PATCH',
+    );
+    await connectionSettings.getByRole('button', { name: 'Save connection', exact: true }).click();
+    expect((await rotation).ok()).toBeTruthy();
+    await expect(connectionSettings).toHaveCount(0);
+    await expect(connectionCard).not.toContainText('synthetic-rotated-endpoint-token');
     await page.goto('/model-deployments');
     await page.getByRole('button', { name: 'Create deployment', exact: true }).click();
     const form = page.getByRole('dialog', { name: 'Create model deployment', exact: true });
@@ -476,6 +497,7 @@ test('ignores stale source inspection and saves the reviewed immutable source wi
     'Selected hardware estimate per active replica (2 GPUs): $2.00/hour · $48.00/day · $1,440.00/30 days',
   );
   await expect(form).toContainText('Storage, data transfer and other provider charges are additional');
+  await page.screenshot({ path: test.info().outputPath('model-deployment-managed-setup.png'), fullPage: true });
   await form.getByRole('checkbox', { name: /I have reviewed and accept this model/ }).check();
   await form.getByRole('button', { name: 'Create deployment', exact: true }).click();
   await expect(form).toHaveCount(0);

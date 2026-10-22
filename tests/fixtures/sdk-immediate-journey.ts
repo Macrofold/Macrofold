@@ -83,9 +83,8 @@ function deploymentReceipt(value: Schema['RunResult'], nativeExtra: boolean) {
 }
 const readyKey = crypto.randomUUID();
 const readyResult = await client.inferences.create(readyBody, { idempotencyKey: readyKey });
-const finalizedDeployment = readyResult.status === 'running'
-  ? await client.runs.wait(readyResult.run_id)
-  : readyResult.result;
+const finalizedDeployment =
+  readyResult.status === 'running' ? await client.runs.wait(readyResult.run_id) : readyResult.result;
 assert(finalizedDeployment);
 deploymentReceipt(finalizedDeployment, true);
 let deploymentText = '',

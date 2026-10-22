@@ -132,11 +132,16 @@ async fn application_immediate_json_and_sse() {
         .create(ready_input.clone())
         .await
         .unwrap();
-    assert_eq!(
-        ready_response.status,
-        models::inference_response::Status::Succeeded
-    );
-    deployed_receipt(ready_response.result.as_ref().unwrap(), true);
+    let ready_result = if ready_response.status == models::inference_response::Status::Running {
+        client
+            .runs()
+            .wait(&ready_response.run_id.to_string())
+            .await
+            .unwrap()
+    } else {
+        ready_response.result.as_ref().unwrap().as_ref().clone()
+    };
+    deployed_receipt(&ready_result, true);
     let mut deployed_text = String::new();
     let mut deployed_terminal = false;
     client

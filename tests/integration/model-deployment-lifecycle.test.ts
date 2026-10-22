@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { transaction, pool, authPool } from '../../packages/db';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { config } from '../../packages/core/src/config';
@@ -915,6 +915,94 @@ describe('persistent model service reconciliation', () => {
     expect((await resource()).deleted_at).not.toBeNull();
     expect((await resource()).cleanup_secret_ciphertext).toBeNull();
   });
+
+  it.each([false, true])(
+    'bounds account rotation inspections to four and drains them before settling (failure=%s)',
+    async (failFirst) => {
+      await advance();
+      const peers: string[] = [];
+      for (let index = 0; index < 8; index++) {
+        const peer = await transaction(org(), async (tx) => {
+          const revision = prepared();
+          const created = await deployments.create(
+            tx,
+            account.p,
+            { name: 'Shared account rotation fixture', ...revision, access: { grants: [] } },
+            revision,
+          );
+          await tx.query(
+            "UPDATE model_deployments SET desired_state='running',policy=$2,state='starting',startup_at=now(),next_check_at=now() WHERE id=$1",
+            [created.id, JSON.stringify(policy)],
+          );
+          return created.id;
+        });
+        peers.push(peer);
+        await advanceModelDeployment(org(), peer, provider);
+      }
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const inspect = provider.inspect.bind(provider);
+      let active = 0,
+        peak = 0,
+        calls = 0,
+        settled = false;
+      provider.inspect = async (key, providerId) => {
+        const call = ++calls;
+        peak = Math.max(peak, ++active);
+        try {
+          if (failFirst && call === 1) return null;
+          await held;
+          return inspect(key, providerId);
+        } finally {
+          active--;
+        }
+      };
+      const pending = prepareConnectionSave(rotationContext(), provider).finally(() => {
+        settled = true;
+      });
+      const rejected = failFirst
+        ? expect(pending).rejects.toMatchObject({ code: 'connection_identity_immutable' })
+        : undefined;
+      try {
+        await vi.waitFor(() => expect(calls).toBe(4));
+        expect(settled).toBe(false);
+      } finally {
+        release();
+      }
+      if (failFirst) {
+        await rejected;
+        expect(calls).toBe(4);
+        expect(unseal<string>((await resource()).cleanup_secret_ciphertext || '')).toBe(
+          'synthetic-compute-secret',
+        );
+      } else {
+        const prepared = await pending;
+        await transaction(org(), (tx) => prepared.commit(tx, account.p));
+        expect(calls).toBe(9);
+        expect(peak).toBe(4);
+        const credentials = await transaction(org(), (tx) =>
+          tx.query<{ cleanup_secret_ciphertext: string }>(
+            'SELECT cleanup_secret_ciphertext FROM model_deployment_resources WHERE connection_id=$1 AND deleted_at IS NULL',
+            [computeId],
+          ),
+        );
+        expect(credentials.rows).toHaveLength(9);
+        expect(
+          credentials.rows.every(
+            (value) => unseal<string>(value.cleanup_secret_ciphertext) === 'rotated-same-account',
+          ),
+        ).toBe(true);
+      }
+      await transaction(org(), (tx) =>
+        tx.query(
+          "UPDATE model_deployments SET desired_state='stopped',state='stopped',next_check_at=NULL WHERE id=ANY($1::uuid[])",
+          [peers],
+        ),
+      );
+    },
+  );
 
   it('rejects another account key before changing either connection or cleanup authority', async () => {
     await advance();

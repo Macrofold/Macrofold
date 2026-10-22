@@ -63,6 +63,7 @@ CREATE TABLE model_deployment_resources (
  UNIQUE(organization_id,id), UNIQUE(attempt_id)
 );
 CREATE UNIQUE INDEX model_deployment_one_resource ON model_deployment_resources(deployment_id) WHERE deleted_at IS NULL;
+CREATE INDEX model_deployment_connection_resources ON model_deployment_resources(connection_id,id) WHERE deleted_at IS NULL;
 CREATE INDEX model_deployment_resources_listing ON model_deployment_resources(deployment_id,(deleted_at IS NULL) DESC,created_at DESC,id DESC);
 CREATE INDEX model_deployment_historical_cost_due ON model_deployment_resources(deployment_id,deleted_at DESC,observed_at,id) WHERE deleted_at IS NOT NULL AND provider_id IS NOT NULL;
 CREATE TABLE model_deployment_cost_observations (

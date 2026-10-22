@@ -10,6 +10,7 @@ import { assert } from './errors';
 import { runpodModelHosting } from '../../providers/src/runpod-model-hosting';
 import type { DeploymentResourceRow, ModelHostingProvider } from './model-deployment-types';
 import { matchesDeploymentResource } from './model-deployment-resource';
+import { mapConcurrent } from './concurrent';
 
 async function assertCurrentAuthority(tx: Tx, p: Principal) {
   const actor = {
@@ -68,22 +69,23 @@ export async function prepareConnectionSave(
       })
     : undefined;
   if (snapshot?.connection.kind === 'runpod' && body.secret !== undefined) {
-    assert(body.secret.trim(), 400, 'credentials_required', 'Provide the replacement account key.');
+    const replacementSecret = body.secret;
+    assert(replacementSecret.trim(), 400, 'credentials_required', 'Provide the replacement account key.');
     assert(
       snapshot.resources.every((r) => r.provider_id),
       409,
       'deployment_conflict',
       'Resolve the ambiguous hosting attempt before rotating its account key. Existing cleanup authority is retained.',
     );
-    for (const resource of snapshot.resources) {
-      const observation = await provider.inspect(body.secret, String(resource.provider_id));
+    await mapConcurrent(snapshot.resources, 4, async (resource) => {
+      const observation = await provider.inspect(replacementSecret, String(resource.provider_id));
       assert(
         observation && matchesDeploymentResource(resource, observation),
         409,
         'connection_identity_immutable',
         'The replacement key must retain access to the exact owned model endpoint. Use a separate connection for another provider account.',
       );
-    }
+    });
   }
   return {
     commit: async (tx: Tx, p: Principal) => {

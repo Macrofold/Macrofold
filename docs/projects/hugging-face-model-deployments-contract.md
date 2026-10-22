@@ -55,7 +55,7 @@ Prefix all paths below with `/v1/model-deployments`. Every state-changing operat
 | Method/path | Body and result | Authority and side effect |
 | --- | --- | --- |
 | `POST /inspect` | Source-only `{source,task:"text_generation",runtime_preferences?}`; 200 advisory support/profile/hardware options | Write; bounded HF metadata only, no GPU or model call, no resource mutation/idempotency requirement |
-| `POST /` | Create body below; 201 returns deployment and first revision, or explicit unsupported inspection result | Write; HF metadata resolution allowed, no GPU provisioning |
+| `POST /` | Create body below; 201 returns deployment and first revision; unsupported selection returns 422 | Write; HF metadata resolution allowed, no GPU provisioning |
 | `GET /` | Existing cursor pagination conventions; summaries only | Read; no provider probe |
 | `GET /{id}` | Deployment, current revision ID and optional active activation ID | Read; no credentials, prompts or implicit warmup |
 | `POST /{id}/revisions` | Same source/runtime/hosting specification as create; 201 immutable revision | Write; no active configuration replacement |
@@ -68,9 +68,12 @@ Prefix all paths below with `/v1/model-deployments`. Every state-changing operat
 | `GET /{id}/activations/{activation_id}` | Activation projection below | Read/use; no provider inference or cold start |
 | `POST /{id}/activations/{activation_id}/stop` | `{reason:"operator_requested"}`; 202 same activation | Write; closes admission immediately, reconciles drain/teardown asynchronously |
 | `POST /{id}/activations/{activation_id}/cost-reconciliations` | Owner-verified provider evidence and complete amount below; 201 immutable reconciliation | Owner write; accounting evidence only, no model or provider mutation |
+| `GET /{id}/activations/{activation_id}/cost-reconciliations` | Owner-only cursor-paginated evidence/supersession history | Owner read; recipients use safe activation cost fields instead |
 | `DELETE /{id}` | 202 retirement intent, 200 once retired | Write; stops active capacity first; never erases unresolved financial evidence |
 
 Activation HTTP 202 is a control-plane accepted operation. Inference HTTP 202 retains its different, existing meaning: an already admitted Run executing/recovering. API docs and clients must distinguish these response types.
+
+Control errors use the existing error envelope: 400 `invalid_model_deployment` for invalid strict input; 403 `permission_denied`; 404 `not_found` without leaking another tenant's resources; 409 `deployment_conflict` for a conflicting live lifecycle or duplicate grant; 409 `deployment_quote_stale` for expired/changed quote or grant snapshot; 422 `unsupported_model_source` for a definitive unsupported source/runtime; 422 `invalid_hosting_budget` for insufficient/unpriceable managed authorization; 503 `deployment_provider_unavailable` for transient metadata/provider unavailability. The existing idempotency-key/body conflict remains its current code. Inspection returns 200 with compatibility reasons for definitive unsupported candidates; a timeout is a transient error, never proof a repository is absent or unsupported.
 
 ### Create and revision inputs
 
@@ -133,12 +136,15 @@ Required fields:
 | `identity_evidence` | `verified_manifest` or `operator_declared` |
 | `qualification_id` | Immutable certificate UUID, null before qualifying |
 | `capabilities` | Certificate below, null until established |
+| `serving_observation` | Latest qualified `{observed_at,worker_boot_id,served_model_alias,hardware:{accelerator_kind,model,count,memory_bytes,data_center_id}}`; null before observation |
 | `cost_policy` | `{basis:"deployment_activation",funding_mode:"byok",request_charge_micro_usd:"0",infrastructure_cost_included:false}` |
 | `accepted_terms` | Immutable nonsecret accepted commitment described below; never reconstructed from today's price or a current grant |
-| `infrastructure_cost` | `{status,estimated_micro_usd,provider_reported_micro_usd,unresolved_liability,as_of}`; unknown numeric values null |
+| `infrastructure_cost` | `{status,estimated_micro_usd,provider_reported_micro_usd,reconciled_micro_usd,reconciliation_id,reconciliation_basis,unresolved_liability,as_of}`; unknown numeric values and absent reconciliation fields null |
 | `failure_code` | Stable code or null; human-readable redacted detail optional |
 
 Infrastructure status is `estimated`, `provider_reported`, `reconciled`, `external_unknown` or `uncertain`. A stopped resource can still have uncertain accounting. `reconciled` requires accepted account/invoice evidence for the entire activation and residual resources; elapsed time or a quiet hourly billing bucket is not finality. Estimates and provider reports overlap; never add them together.
+
+`reconciliation_id` is the current accepted immutable record UUID; `reconciliation_basis` is `owner_attested_provider_evidence` or null; `reconciled_micro_usd` is its exact accepted total, not an additional charge. On reopened uncertainty retain the last record as history, but clear these current-final fields until a superseding reconciliation is accepted. An authorized owner may inspect the append-only history; the safe use projection exposes only the current-final values, `status`, uncertainty and observation time. Consumers retaining prior snapshots can preserve their supersession trail without invoice or owner-only access.
 
 `accepted_terms` contains the quote's exact `quote_id`, `quote_digest`, `duration_seconds`, `authorization_expires_at`, `max_infrastructure_cost_micro_usd`, `cleanup_reserve_micro_usd`, `startup_timeout_seconds`, `drain_timeout_seconds`, `rate_snapshot`, `qualification_suite_id`, `qualification_max_requests`, `qualification_max_output_tokens`, `request_charge_micro_usd`, `funding_mode`, `external_cap_guaranteed`, plus nullable `external_cost_acknowledgment_id` and `external_cost_acknowledgment` (the safe normalized declaration). It exposes neither provider secrets nor other recipients. OpenLegend reads this projection once with the immutable revision and reserves the accepted maximum commitment; it never infers an allocation budget from a request receipt or recomputes it from current catalog prices. `external_cap_guaranteed:false` means a strict cannot-exceed-total-liability study must reject this mode. A planning-bound study may reserve the quoted commitment while explicitly retaining residual shutdown liability and later overruns.
 
@@ -153,6 +159,8 @@ The owner reviews the actual provider statement/invoice and records its opaque r
 Corrections append a new record with `supersedes_reconciliation_id`; they never rewrite old observations, receipts or journals. A newly received conflicting charge/resource observation reopens uncertainty and blocks a final-cost claim until corrected. OpenLegend can finish qualitative evaluation earlier, but any final-dollar qualification remains explicitly pending until this evidence workflow completes. Owner acknowledgment is an authorized accounting operation, not an implicit step in inference or shutdown.
 
 Readiness can become false without changing a revision, for example after capacity loss or revocation. A ready projection is advisory for OpenLegend startup; Macrofold rechecks current authority, activation generation, deadline, cost exposure and capacity in its own dispatch admission. Do not poll management APIs on every NPC turn.
+
+The immutable revision describes requested source/runtime/placement; `serving_observation` records actual qualified process/hardware evidence. `accelerator_kind` is `gpu`, `cpu` or `unknown`; other hardware values may be null when external evidence cannot establish them, and `memory_bytes` uses a nonnegative decimal string. Managed readiness requires observed GPU/count/location to satisfy the accepted offer. A new worker boot invalidates current readiness until qualified; historical receipts retain their immutable qualification reference rather than being relabeled by the latest observation. Never report requested pool/region as measured hardware.
 
 ## 4. Capability certificate
 

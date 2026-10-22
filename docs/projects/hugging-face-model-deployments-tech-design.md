@@ -107,6 +107,8 @@ The initial image layers a narrow wrapper around a pinned official vLLM runtime.
 
 ### Startup sequence
 
+Generate a fresh random boot UUID for each wrapper/engine startup in either mode; never derive or restore it from an activation, image or cache. If vLLM exits, end that boot, close admission and do not automatically relaunch the engine. A subsequent startup cannot serve the previous activation.
+
 1. Validate the supplied revision/activation manifest and finite expiry before contacting Hugging Face. Read credentials through the approved secret delivery mechanism, never command interpolation.
 2. Download exactly the selected files at the resolved commits into an activation-scoped or verified content-addressed cache. Reject traversal, symlink escape, unexpected executable files and partial downloads. Verify file size and available repository content hashes; compute final SHA-256 hashes of the loaded artifacts for the manifest.
 3. Record the actual model, tokenizer and template hashes, runtime image digest, serving flags, hardware and effective context/output/concurrency in the startup manifest. A model alias is only an alias. No invented hash is returned for an operator-asserted external endpoint.

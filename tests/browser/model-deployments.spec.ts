@@ -186,6 +186,10 @@ test('shows loading, empty and denied states with retry and prevents creating wi
   await expect(page.getByRole('alert')).toContainText('Deployment access denied.');
   await expect(page.getByRole('button', { name: 'Create deployment', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath('model-deployment-access-error.png'),
+    fullPage: true,
+  });
 });
 
 test('applies revision rollback, preserves pending readiness, grants/revokes access and describes external stop honestly', async ({
@@ -300,7 +304,10 @@ test('applies revision rollback, preserves pending readiness, grants/revokes acc
   ).toEqual([]);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
-  await page.screenshot({ path: test.info().outputPath('model-deployment-status-mobile.png'), fullPage: true });
+  await page.screenshot({
+    path: test.info().outputPath('model-deployment-status-mobile.png'),
+    fullPage: true,
+  });
 });
 
 test('creates a stopped external deployment and a revision through the actual application API', async ({
@@ -497,7 +504,10 @@ test('ignores stale source inspection and saves the reviewed immutable source wi
     'Selected hardware estimate per active replica (2 GPUs): $2.00/hour · $48.00/day · $1,440.00/30 days',
   );
   await expect(form).toContainText('Storage, data transfer and other provider charges are additional');
-  await page.screenshot({ path: test.info().outputPath('model-deployment-managed-setup.png'), fullPage: true });
+  await page.screenshot({
+    path: test.info().outputPath('model-deployment-managed-setup.png'),
+    fullPage: true,
+  });
   await form.getByRole('checkbox', { name: /I have reviewed and accept this model/ }).check();
   await form.getByRole('button', { name: 'Create deployment', exact: true }).click();
   await expect(form).toHaveCount(0);

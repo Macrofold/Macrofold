@@ -1,8 +1,8 @@
 # Hugging Face model deployments — technical design
 
-| Status | Current progress | Last updated |
-| --- | --- | --- |
-| In progress | Production implementation is authorized and in progress; acceptance remains open. | 2026-10-22 |
+| Status      | Current progress                                                                                                       | Last updated |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------- | ------------ |
+| In progress | Server, clients, runtime and management surfaces are implemented; final local and live release acceptance remain open. | 2026-10-22   |
 
 ## Scope and authoritative references
 
@@ -12,15 +12,15 @@ The production path is a persistent model service. It must work without an exper
 
 ## 1. Component ownership
 
-| Owner | Responsibility |
-| --- | --- |
-| `apps/web` transport/composition | Authenticate, validate public input, call domain operations and expose existing inference/stream/status results. |
-| `packages/core` deployment domain | Tenant ownership, immutable serving revisions, current grants, desired service policy, readiness, capacity and resource reconciliation. |
-| Existing inference domain | Run/idempotency, admission, accepted revision snapshot, dispatch, cancellation, output preservation and terminal receipt recovery. |
-| `packages/providers` | Hugging Face metadata/download, RunPod REST adaptation and compatible endpoint transport behind domain-owned ports. |
-| Serving image | Maintained vLLM inference, exact source loading, health and narrowly required authentication/HTTP route protection. |
-| Existing database/operations/accounting | Durable control attempts, tenant transactions, request charges and separate provider resource/cost observations. |
-| OpenLegend | Character context and privacy, task-specific prompt/schema construction, output validation and current-world effects. |
+| Owner                                   | Responsibility                                                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web` transport/composition        | Authenticate, validate public input, call domain operations and expose existing inference/stream/status results.                        |
+| `packages/core` deployment domain       | Tenant ownership, immutable serving revisions, current grants, desired service policy, readiness, capacity and resource reconciliation. |
+| Existing inference domain               | Run/idempotency, admission, accepted revision snapshot, dispatch, cancellation, output preservation and terminal receipt recovery.      |
+| `packages/providers`                    | Hugging Face metadata/download, RunPod REST adaptation and compatible endpoint transport behind domain-owned ports.                     |
+| Serving image                           | Maintained vLLM inference, exact source loading, health and narrowly required authentication/HTTP route protection.                     |
+| Existing database/operations/accounting | Durable control attempts, tenant transactions, request charges and separate provider resource/cost observations.                        |
+| OpenLegend                              | Character context and privacy, task-specific prompt/schema construction, output validation and current-world effects.                   |
 
 A model deployment is distinct from a native-agent Worker, HostRun, Worktree or Session. Reuse existing operation, money and fencing helpers without manufacturing an agent Run to host a model. Keep `DecisionBinding`, Jev protocols and native harness capability admission separate; small text models do not inherit the native harness catalog's 128k context floor.
 
@@ -28,13 +28,13 @@ A model deployment is distinct from a native-agent Worker, HostRun, Worktree or 
 
 Use existing UUIDv7 IDs, tenant transactions, restricted database roles, public decimal-string money and exact integer/rational pricing. Add normal forward migrations and update current consumers together under the pre-launch compatibility policy.
 
-| Logical record | Required facts |
-| --- | --- |
-| Deployment | Tenant/owner, display metadata, current service generation, desired state/revision, serving revision, operating policy and retirement intent. |
-| Immutable revision | Resolved model/tokenizer commits, selected files/template, reviewed runtime image/configuration or registered endpoint/model reference, supported protocol and effective model limits. |
-| Current use grant | Deployment, subject and workspace scope, approving connection owner and current revocation state; reuse an existing grant representation where sufficient. |
-| Provider resource/operation | Exact resource, provider account, serving revision, desired configuration, control attempt/generation, observed lifecycle, uncertainty and next reconciliation time. |
-| Cost observation | Provider resource and attributable period, estimated/provider-reported amount, observation time and completeness; retain corrections without altering financial journals. |
+| Logical record              | Required facts                                                                                                                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deployment                  | Tenant/owner, display metadata, current service generation, desired state/revision, serving revision, operating policy and retirement intent.                                          |
+| Immutable revision          | Resolved model/tokenizer commits, selected files/template, reviewed runtime image/configuration or registered endpoint/model reference, supported protocol and effective model limits. |
+| Current use grant           | Deployment, subject and workspace scope, approving connection owner and current revocation state; reuse an existing grant representation where sufficient.                             |
+| Provider resource/operation | Exact resource, provider account, serving revision, desired configuration, control attempt/generation, observed lifecycle, uncertainty and next reconciliation time.                   |
+| Cost observation            | Provider resource and attributable period, estimated/provider-reported amount, observation time and completeness; retain corrections without altering financial journals.              |
 
 The first managed implementation needs one active provider endpoint per deployment. A revision change drains and removes that endpoint before creating the next one; no parallel blue-green fleet is required. Keep historical resource references for accepted Runs and outstanding cleanup/costs. Metadata retirement does not delete those obligations.
 
@@ -98,19 +98,19 @@ The current shared transport's 50-second timeout must not silently truncate supp
 
 Use REST v2, not deprecated GraphQL or guessed older fields. The [official evidence register](hugging-face-model-deployments-research.md#source-register) owns source URLs; reverify the pinned schema during implementation.
 
-| Purpose | Mapping |
-| --- | --- |
-| Create/list | `POST` / `GET https://api.runpod.io/v2/serverless`; bounded cursor pagination with `nextCursor`/`hasNextPage`. |
-| Inspect/update/delete | `GET` / `PATCH` / `DELETE /v2/serverless/{id}`; workers at `/v2/serverless/{id}/workers`. |
-| Endpoint | `type:"LOAD_BALANCER"`; no provider queue-based `/run` protocol. |
-| Owned runtime | Inline immutable `image`, exec-form `cmd`/optional `entrypoint`, explicit `disk` and `ports:["8000/http"]`; no shared template ownership. |
-| Environment/health | String `env` with `PORT:"8000"`, `PORT_HEALTH:"8000"`, `HEALTH_CHECK_PATH:"/ping"`, nonsecret attempt/revision correlation and approved secret delivery. |
-| Hardware | Accepted catalog `gpu.pools`, GPU count and compatible CUDA requirement. Pool IDs differ from display/type IDs. |
-| Placement | `dataCenterIds` is preferred placement, not guaranteed residency. Reject a required guarantee the provider cannot supply. |
-| Scaling | Explicit `workers.min/max/idleTimeout` and `scaling:{type:"REQUEST_COUNT",requestCount:...}`. Warm default minimum is one; maximum is always explicit. Idle timeout uses seconds. |
-| Timeout | Explicit milliseconds consistent with accepted request/profile limits, never extending Macrofold's 240-second execution ceiling. |
-| Origin | Validate returned HTTPS `requestUrls.base`, append the native chat path and reject redirects. |
-| Stop | Set worker bounds to zero and delete the exclusively owned endpoint after drain; deletion must remain possible if scale-down/listing fails. |
+| Purpose               | Mapping                                                                                                                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create/list           | `POST` / `GET https://api.runpod.io/v2/serverless`; bounded cursor pagination with `nextCursor`/`hasNextPage`.                                                                    |
+| Inspect/update/delete | `GET` / `PATCH` / `DELETE /v2/serverless/{id}`; workers at `/v2/serverless/{id}/workers`.                                                                                         |
+| Endpoint              | `type:"LOAD_BALANCER"`; no provider queue-based `/run` protocol.                                                                                                                  |
+| Owned runtime         | Inline immutable `image`, exec-form `cmd`/optional `entrypoint`, explicit `disk` and `ports:["8000/http"]`; no shared template ownership.                                         |
+| Environment/health    | String `env` with `PORT:"8000"`, `PORT_HEALTH:"8000"`, `HEALTH_CHECK_PATH:"/ping"`, nonsecret attempt/revision correlation and approved secret delivery.                          |
+| Hardware              | Accepted catalog `gpu.pools`, GPU count and compatible CUDA requirement. Pool IDs differ from display/type IDs.                                                                   |
+| Placement             | `dataCenterIds` is preferred placement, not guaranteed residency. Reject a required guarantee the provider cannot supply.                                                         |
+| Scaling               | Explicit `workers.min/max/idleTimeout` and `scaling:{type:"REQUEST_COUNT",requestCount:...}`. Warm default minimum is one; maximum is always explicit. Idle timeout uses seconds. |
+| Timeout               | Explicit milliseconds consistent with accepted request/profile limits, never extending Macrofold's 240-second execution ceiling.                                                  |
+| Origin                | Validate returned HTTPS `requestUrls.base`, append the native chat path and reject redirects.                                                                                     |
+| Stop                  | Set worker bounds to zero and delete the exclusively owned endpoint after drain; deletion must remain possible if scale-down/listing fails.                                       |
 
 Use provider-native worker health, replacement and supported scaling. Do not prohibit replacements or multiple replicas for experimental reproducibility. Hardware pools can evolve: inspect actual compatible hardware and current rates during background reconciliation. Unaccepted hardware/rates must not silently expand the operator's policy. Existing accepted Runs retain their execution facts; an observation change alone is not output corruption.
 
@@ -128,15 +128,15 @@ Use existing bounded maintenance scheduling and short SQL claims; never hold tra
 
 Keep desired state/revision separate from actual serving state/revision. The following events use one lifecycle owner:
 
-| Event | Behavior |
-| --- | --- |
-| Start | Commit current authorization, revision and policy; provision or reconcile its known endpoint, then expose ready capacity. |
-| Same-revision worker loss | Provider replaces/restarts within policy; temporarily reduce availability, preserve deployment identity and recover readiness. |
-| Capacity change | Validate and persist policy before provider update. Scale within the approved range; no model-revision change. |
-| Revision change or rollback | Close new admission, retain accepted old-revision Runs, drain within their deadlines, remove old endpoint, start the selected revision. Show the interruption honestly. |
-| Stop, optional stop time or retirement | Close admission and drain/cancel; requests cannot undo stop intent. Reconcile owned shutdown until confirmed. |
-| Credential rotation | Resolve the new secret for the same approved account/connection; reconfigure securely if needed and recover readiness. No experiment approval or model-revision change. |
-| Permission loss or policy violation | Block affected new effects, preserve current cancellation/publication rules and clean up where authority requires it. |
+| Event                                  | Behavior                                                                                                                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Start                                  | Commit current authorization, revision and policy; provision or reconcile its known endpoint, then expose ready capacity.                                               |
+| Same-revision worker loss              | Provider replaces/restarts within policy; temporarily reduce availability, preserve deployment identity and recover readiness.                                          |
+| Capacity change                        | Validate and persist policy before provider update. Scale within the approved range; no model-revision change.                                                          |
+| Revision change or rollback            | Close new admission, retain accepted old-revision Runs, drain within their deadlines, remove old endpoint, start the selected revision. Show the interruption honestly. |
+| Stop, optional stop time or retirement | Close admission and drain/cancel; requests cannot undo stop intent. Reconcile owned shutdown until confirmed.                                                           |
+| Credential rotation                    | Resolve the new secret for the same approved account/connection; reconfigure securely if needed and recover readiness. No experiment approval or model-revision change. |
+| Permission loss or policy violation    | Block affected new effects, preserve current cancellation/publication rules and clean up where authority requires it.                                                   |
 
 Resolve an existing idempotency key/Run **before** selecting today's serving revision. A replay after a rollout observes the original request and receipt. A new request resolves the serving revision atomically with admission and saves it immutably. An optional revision pin must match the currently serving revision; it cannot implicitly revive an old resource. Default unpinned clients adopt a revision only after the explicit operator rollout makes it ready.
 
@@ -180,14 +180,14 @@ Use deterministic fixtures for malformed responses, authority races, unavailable
 
 ## 11. Implementation and user surfaces
 
-| Task | Owners and completion |
-| --- | --- |
-| MD02: contracts/storage | Authored OpenAPI, `InferenceBinding`, deployment/revision/service/grant records, scopes, `http-contract.ts`, operation registry, API routes and five generated clients. |
+| Task                        | Owners and completion                                                                                                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MD02: contracts/storage     | Authored OpenAPI, `InferenceBinding`, deployment/revision/service/grant records, scopes, `http-contract.ts`, operation registry, API routes and five generated clients.      |
 | MD03: inference integration | Core target resolution, preparation/admission, compatible-chat adapter, controls, streaming/final receipts and Run recovery. Deliver external endpoint production use first. |
-| MD04: managed service | Source/RunPod adapters, service policy, known-resource recovery, durable create attempts, capacity updates, drain/revision change and cleanup through existing maintenance. |
-| MD05: runtime | Pinned vLLM image, exact source startup, health, necessary HTTP protection and advertised protocol capabilities; automatic same-revision restart/replacement acceptance. |
-| MD06: user surfaces | API/CLI/dashboard inspect/create/revision/service/status/stop flow, safe credential setup, current grants, costs, production guidance and OpenLegend release coordination. |
-| MD07: release acceptance | Real provider auth/loading/recovery/scaling/cleanup and cross-repository scenarios below, with measured performance and honest evidence limits. |
+| MD04: managed service       | Source/RunPod adapters, service policy, known-resource recovery, durable create attempts, capacity updates, drain/revision change and cleanup through existing maintenance.  |
+| MD05: runtime               | Pinned vLLM image, exact source startup, health, necessary HTTP protection and advertised protocol capabilities; automatic same-revision restart/replacement acceptance.     |
+| MD06: user surfaces         | API/CLI/dashboard inspect/create/revision/service/status/stop flow, safe credential setup, current grants, costs, production guidance and OpenLegend release coordination.   |
+| MD07: release acceptance    | Real provider auth/loading/recovery/scaling/cleanup and cross-repository scenarios below, with measured performance and honest evidence limits.                              |
 
 Inspect existing `core/inferences.ts`, `direct-inference.ts`, `inference-invocations.ts`, `inference-control.ts`, `inference-receipt.ts`, `model-credentials.ts`, `model-gateway.ts`, `operations.ts`, `http-contract.ts`, provider `native-inference.ts`, database migrations and SDK transports. Extend semantic owners rather than copying Run/ledger/authorization logic. New deployment policy and provider modules need no additional orchestration service, Redis, Kubernetes or custom scheduler.
 
@@ -210,24 +210,37 @@ Contracts/storage and inference integration are owned in their existing domain/A
 
 ## 12. Verification, rollout and rollback
 
-| Boundary | Required evidence |
-| --- | --- |
-| Contract | Existing provider and decision calls unchanged; stable selector/optional pin works; all five SDKs preserve native request/receipt shapes. |
-| Authority | Cross-tenant/workspace denial, immediate grant changes, owner-bound credentials, secret rotation, no credential disclosure/fallback and narrow cleanup authority. |
-| Source/runtime | Exact source/image/template loading, unsupported model/gated access, cache integrity, remote code rejection, out-of-memory and failed startup cleanup. |
-| Lifecycle | Start/stop/restart, lost create acknowledgment, stale callbacks, provider worker replacement, capacity updates, optional timed stop and revision rollback. No duplicated resource or restart after stop intent. |
-| Requests | Same-key replay after rollout returns original Run; old valid completion remains acceptable; new unpinned calls use new ready revision; stale pins reject. |
-| Capacity/performance | Concurrent requests from multiple API instances, saturation/backpressure, warm/cold timings, bounded streams and no added provider-management round trip per inference. |
-| Output/recovery | Native JSON/text/tools/SSE, missing usage, malformed/refused/truncated output, strict-schema rejection, cancellation and uncertain dispatch without a second model call. |
-| Cost/cleanup | Exact units/rounding, continuing idle expense, replacement overlap, delayed/duplicate provider billing, rate guard, failed stop and externally managed obligations. |
-| Security | Actual RunPod bearer/custom-header forwarding, no direct unauthenticated engine route, private-origin rules and body/deadline bounds. |
-| Application | OpenLegend's normal character-generation configuration works without an experiment profile, preserves privacy/schema/current-world checks and handles unavailable service visibly. |
+| Boundary             | Required evidence                                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contract             | Existing provider and decision calls unchanged; stable selector/optional pin works; all five SDKs preserve native request/receipt shapes.                                                                       |
+| Authority            | Cross-tenant/workspace denial, immediate grant changes, owner-bound credentials, secret rotation, no credential disclosure/fallback and narrow cleanup authority.                                               |
+| Source/runtime       | Exact source/image/template loading, unsupported model/gated access, cache integrity, remote code rejection, out-of-memory and failed startup cleanup.                                                          |
+| Lifecycle            | Start/stop/restart, lost create acknowledgment, stale callbacks, provider worker replacement, capacity updates, optional timed stop and revision rollback. No duplicated resource or restart after stop intent. |
+| Requests             | Same-key replay after rollout returns original Run; old valid completion remains acceptable; new unpinned calls use new ready revision; stale pins reject.                                                      |
+| Capacity/performance | Concurrent requests from multiple API instances, saturation/backpressure, warm/cold timings, bounded streams and no added provider-management round trip per inference.                                         |
+| Output/recovery      | Native JSON/text/tools/SSE, missing usage, malformed/refused/truncated output, strict-schema rejection, cancellation and uncertain dispatch without a second model call.                                        |
+| Cost/cleanup         | Exact units/rounding, continuing idle expense, replacement overlap, delayed/duplicate provider billing, rate guard, failed stop and externally managed obligations.                                             |
+| Security             | Actual RunPod bearer/custom-header forwarding, no direct unauthenticated engine route, private-origin rules and body/deadline bounds.                                                                           |
+| Application          | OpenLegend's normal character-generation configuration works without an experiment profile, preserves privacy/schema/current-world checks and handles unavailable service visibly.                              |
 
-Run applicable existing targeted domain/provider/SDK, image, CLI/dashboard and documentation gates under [TESTING.md](../../TESTING.md). Later behavioral implementation includes its meaningful tests; this documentation change creates none. Live calls remain within separately authorized finite test spending even though the product supports continuing production services.
+Run applicable existing targeted domain/provider/SDK, image, CLI/dashboard and documentation gates under [TESTING.md](../../TESTING.md). Ordinary CI adds the CPU serving protocol suite without enabling paid execution. Live calls remain within separately authorized finite test spending even though the product supports continuing production services.
+
+### Current implementation evidence
+
+The implementation branch is `feat/production-model-deployments`, [PR 14](https://github.com/Macrofold/Macrofold/pull/14), incorporating approved design `e79a2c066584037e369d80e626810de86aefe611` above main `07ba0ee1bb5c76aeb4d0d3553339dc274854335a`. [Setup and OpenLegend calls](../features/execution/model-deployments.md) use the actual API and generated methods. No package/image was published, production default changed, paid resource created or main merge performed.
+
+The local Linux AMD64 wrapper config ID is `sha256:c338c00d3ba9ba4267b8eaefdda5df4db778027d74ef25d153eb99c29681f42b`, built from the serving sources at `389efbcef2e6de1f82b92af011dd1ab34eeff9a1`. This is a local image identity, **not a published registry manifest digest**. Its upstream vLLM base is pinned at `sha256:6ee133356d49ed24cee03dd0cda3d3980279a11c107ce3e752c89e76540f41c9`. Actual-image CPU transport/configuration/preparation tests pass 12/12, including protected routes, HEAD rejection, native JSON/SSE, deadlines and disconnect cleanup. CPU tests do not load a GPU model.
+
+Focused disposable-database evidence covers tenant/workspace/current-owner grants, late revocation, accepted-result preservation across stop/rotation, explicit revision pins, capacity rejection, zero request accounting and unknown infrastructure costs. Lifecycle/rotation fixtures pass 28/28; RunPod protocol fixtures pass 22/22; the final source/access/cost follow-up passes 37/37. The public HF metadata-only smoke resolves `Qwen/Qwen3-0.6B` to `c1899de289a04d12100db370d81485cdf75e47ca` with no inspection findings and a 5,830,492,233-byte estimated memory requirement. It downloads no weights and performs no inference.
+
+`pnpm check` passes. Documentation verification passes 68 published pages, 270 Markdown files and 54 requirement evidence mappings. All five clients are regenerated through the maintained generator; final actual-API SDK, optimized browser/CLI, aggregate coverage and complete-image scan outcomes are recorded here when complete. The initial optimized build compiled and passed framework checks, then correctly failed source-provenance verification because final fixes overlapped its snapshot; it establishes no browser acceptance.
+
+The base main CI run `39257420297` already failed acceptance, application/native and combined gates; SDK generation and critical mutation passed. Base extended mutation run `39233807342` also failed. Keep those pre-existing failures separate from this candidate's results.
+
+Actual paid-provider cost is **US $0**. No RunPod credential is configured. Publishing a reviewed wrapper registry digest, actual RunPod authentication/header forwarding, GPU loading and advertised decoding modes, replacement/scaling, warm/cold performance, real billing and confirmed provider cleanup remain live release gates. OpenLegend PR 40's design head `05d2bb034cea0f717c54efedee019f74906849c6` was consulted; its subsequent serializer/decoder and real-game acceptance remain a joint consumer gate, independent of server-owned implementation. Keep MD07 open until those exact environments and behaviors are exercised.
 
 Measure preparation, cold startup, warm platform overhead, model prefill/decode, first-token/total latency and concurrency separately. Compare the same model/workload/topology; no invented throughput or cheapest-provider claim. Optional quality experiments and financial allocation reports do not block ordinary production capability acceptance.
 
 Ship the current API/storage/generated clients together, then qualify the actual serving backend and OpenLegend integration. Keep unverified offers disabled. Record actual server/client/runtime versions in release evidence. Disabling new deployments must not stop cleanup of existing owned resources. Rollback stops new admission, drains safely and preserves unresolved provider resources and historical receipts; it must not strand paid capacity or erase money facts.
 
 The architecture is selected. Remaining deployment inputs are model, account, immutable image, compatible hardware, operating limits and workload tuning. Provider authentication, real loading/recovery, cancellation and billing behavior require live evidence. Those are concrete release gates, not reasons to build an experiment-centric runtime.
-

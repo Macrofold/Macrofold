@@ -8,6 +8,7 @@ import configuration from './config.json';
 import { metadata } from './metadata';
 import { preserveGoNullableArrays } from './nullable-arrays';
 import { preservePythonBooleanConstants } from './python-boolean-constants';
+import { preserveRustBooleanConstants } from './rust-boolean-constants';
 import { generatePythonResources } from './python';
 import { generateGoResources } from './go';
 import { generateRustResources } from './rust';
@@ -142,6 +143,7 @@ try {
       );
     }
     if (language === 'rust') {
+      await preserveRustBooleanConstants(output);
       // Generated urlencode uses form semantics; path segments must encode spaces as %20, not +.
       await replaceOnce(
         path.join(output, 'src/apis/mod.rs'),

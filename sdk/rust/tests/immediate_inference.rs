@@ -27,8 +27,8 @@ async fn application_immediate_json_and_sse() {
     assert!(deployment.serving_revision_id.is_none());
     assert!(deployment.infrastructure_cost.estimated_micro_usd.is_none());
     assert_eq!(
-        deployment.cost_policy.request_charge_micro_usd.to_string(),
-        "0"
+        serde_json::to_value(&deployment.cost_policy.request_charge_micro_usd).unwrap(),
+        serde_json::json!("0")
     );
     let selected = client
         .model_deployments()
@@ -154,7 +154,7 @@ async fn application_immediate_json_and_sse() {
                 deployed_receipt(event.data.result.as_ref().unwrap(), false);
                 deployed_terminal = true;
             }
-            Ok(())
+            true
         })
         .await
         .unwrap();

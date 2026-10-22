@@ -23,6 +23,9 @@ const LEASE_MS = 120_000;
 const STARTUP_MS = 20 * 60_000;
 const DRAIN_MS = 270_000;
 const MAX_FAILURES = 8;
+const cleanupCandidates = z
+  .array(z.object({ id: z.string().min(1).max(256), state: z.enum(['pending', 'unverified', 'deleted']) }))
+  .max(4000);
 type Claim = { row: DeploymentRow; lease: string };
 type Connection = {
   kind: string;
@@ -225,8 +228,19 @@ async function reconcileAttempt(
   provider: ModelHostingProvider,
 ): Promise<DeploymentResourceRow | undefined> {
   if (resource.provider_id) return resource;
-  const matches = await provider.findAttempt(key, resource.attempt_id);
+  // Once duplicate identities are discovered, none may become the serving
+  // resource. Keep their nonsecret IDs for bounded, recipe-verified teardown.
+  if (resource.config.cleanup_candidates !== undefined) return;
+  const matches = [...new Map((await provider.findAttempt(key, resource.attempt_id)).map((v) => [v.id, v])).values()];
   if (matches.length !== 1) {
+    if (matches.length > 1)
+      await transaction(org, async (tx) => {
+        await tx.query(
+          `UPDATE model_deployment_resources SET config=jsonb_set(config,'{cleanup_candidates}',$2::jsonb)
+          WHERE id=$1 AND provider_id IS NULL AND deleted_at IS NULL AND NOT config ? 'cleanup_candidates'`,
+          [resource.id, JSON.stringify(cleanupCandidates.parse(matches.map((v) => ({ id: v.id, state: 'pending' }))))],
+        );
+      });
     await mutate(org, current, async (tx) => {
       await tx.query(
         "UPDATE model_deployment_resources SET state='ambiguous',last_error=$2,observed_at=now() WHERE id=$1",
@@ -255,6 +269,58 @@ async function reconcileAttempt(
     );
   });
   return { ...resource, provider_id: observed.id, endpoint_url: observed.endpoint_url, state: 'starting' };
+}
+
+async function stopDuplicateResources(
+  org: string,
+  current: Claim,
+  resource: DeploymentResourceRow,
+  key: string,
+  provider: ModelHostingProvider,
+) {
+  const candidates = cleanupCandidates.parse(resource.config.cleanup_candidates);
+  const candidate = candidates.find((v) => v.state === 'pending') ?? candidates.find((v) => v.state === 'unverified');
+  if (!candidate) return;
+  // Discovery (up to 60s) happens in a separate pass. One candidate costs at
+  // most four 20s calls, leaving room within the 120s lease for billing refresh.
+  const observed = await provider.inspect(key, candidate.id);
+  let state: 'unverified' | 'deleted' | 'pending' = 'pending';
+  if (observed === null) state = 'deleted';
+  else if (!matchesDeploymentResource(resource, observed)) state = 'unverified';
+  else {
+    const allowed = await mutate(org, current, async (tx) => {
+      await tx.query("UPDATE model_deployment_resources SET state='cleanup_pending' WHERE id=$1", [resource.id]);
+      return true;
+    });
+    if (!allowed) return;
+    await provider.update(key, candidate.id, { workers: { min: 0, max: 0 } }).catch(() => {});
+    await provider.delete(key, candidate.id).catch(() => {});
+    if ((await provider.inspect(key, candidate.id)) === null) state = 'deleted';
+  }
+  // Move unresolved candidates behind the others so one foreign/mutated tag
+  // cannot prevent cleanup of independently verified owned endpoints.
+  const remaining = candidates.filter((v) => v.id !== candidate.id);
+  remaining.push({ id: candidate.id, state });
+  const deleted = remaining.every((v) => v.state === 'deleted');
+  await mutate(org, current, async (tx, row) => {
+    await tx.query(
+      `UPDATE model_deployment_resources SET config=jsonb_set(config,'{cleanup_candidates}',$2::jsonb),
+      state=$3,stopped_at=CASE WHEN $4 THEN coalesce(stopped_at,now()) ELSE stopped_at END,
+      deleted_at=CASE WHEN $4 THEN now() ELSE NULL END,
+      cleanup_secret_ciphertext=CASE WHEN $4 THEN NULL ELSE cleanup_secret_ciphertext END,
+      observed_at=now(),last_error=CASE WHEN $4 THEN NULL ELSE 'multiple_provider_resources' END WHERE id=$1`,
+      [resource.id, JSON.stringify(remaining), deleted ? 'deleted' : 'cleanup_pending', deleted],
+    );
+    await tx.query(
+      `UPDATE model_deployments SET serving_revision_id=NULL,ready_replicas=0,
+      state=CASE WHEN NOT $2 THEN 'cleanup_pending' WHEN failure_code='service_recovery_exhausted' THEN 'failed'
+        WHEN desired_state='running' AND retired=false THEN 'starting' ELSE 'stopped' END,
+      drain_started_at=CASE WHEN $2 THEN NULL ELSE drain_started_at END,
+      failure_code=CASE WHEN failure_code='service_recovery_exhausted' THEN failure_code
+        WHEN $2 THEN NULL ELSE 'multiple_provider_resources' END,observed_at=now() WHERE id=$1`,
+      [row.id, deleted],
+    );
+  });
 }
 
 async function observeCosts(
@@ -370,6 +436,10 @@ async function stopOwnedResource(
 ) {
   if (!(await drain(org, current, resource.revision_id))) return;
   const key = await resourceCredential(org, current.row, resource, true);
+  if (resource.config.cleanup_candidates !== undefined) {
+    await stopDuplicateResources(org, current, resource, key, provider);
+    return;
+  }
   const known = await reconcileAttempt(org, current, resource, key, provider);
   if (!known?.provider_id) return;
   // Narrowing and deletion do not depend on a fresh catalog or working inventory.

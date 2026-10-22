@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import configuration from './config.json';
 import { metadata } from './metadata';
 import { preserveGoNullableArrays } from './nullable-arrays';
+import { preserveGoSourceKinds } from './go-source-kinds';
 import { preservePythonBooleanConstants } from './python-boolean-constants';
 import { preserveRustBooleanConstants } from './rust-boolean-constants';
 import { generatePythonResources } from './python';
@@ -128,6 +129,7 @@ try {
     }
     if (language === 'go') {
       await preserveGoNullableArrays(output);
+      await preserveGoSourceKinds(output);
       // A successful zero-byte download still owns a usable temporary file.
       await replaceOnce(
         path.join(output, 'client.go'),

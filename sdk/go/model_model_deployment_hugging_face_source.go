@@ -353,6 +353,10 @@ func (o *ModelDeploymentHuggingFaceSource) UnmarshalJSON(data []byte) (err error
 		}
 	}
 
+	if kind, ok := allProperties["kind"].(string); !ok || kind != "hugging_face" {
+		return fmt.Errorf("expected source kind hugging_face")
+	}
+
 	varModelDeploymentHuggingFaceSource := _ModelDeploymentHuggingFaceSource{}
 
 	err = json.Unmarshal(data, &varModelDeploymentHuggingFaceSource)

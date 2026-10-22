@@ -224,6 +224,10 @@ func (o *ModelDeploymentExternalSource) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
+	if kind, ok := allProperties["kind"].(string); !ok || kind != "external" {
+		return fmt.Errorf("expected source kind external")
+	}
+
 	varModelDeploymentExternalSource := _ModelDeploymentExternalSource{}
 
 	decoder := json.NewDecoder(bytes.NewReader(data))

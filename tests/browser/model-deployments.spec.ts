@@ -110,6 +110,10 @@ test('shows exact owned cleanup resources and keeps recovery controls off recipi
       administrativeReads++;
       return route.fulfill({ json: { data: [], next_cursor: null } });
     }
+    if (path.endsWith(`/revisions/${revisionId}`)) {
+      administrativeReads++;
+      return route.fulfill({ json: revision() });
+    }
     return route.fulfill({ json: current });
   });
   await page.goto(`/model-deployments/${deploymentId}`);

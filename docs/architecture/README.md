@@ -59,6 +59,8 @@ This is a modular application, not dozens of independently deployed services. So
 
 The [customer-agent starter](../../examples/personal-agent/README.md) composes the public SDK from application-owned customer records; it does not add a customer aggregate to the platform. Its local store and HTTP/auth adapter can be replaced together with the integrating app's infrastructure. Deployment connector setup and trigger quotas live in owner-administered policy tables, separate from customer connections, tool grants and run funding. [Ownership and verification](../engineering/testing/customer-agents.md) records these boundaries and deliberate limits.
 
+[Custom model deployments](../projects/hugging-face-model-deployments-tech-design.md) are a designed, unimplemented extension: persistent model-serving resources compose existing inference and Run recovery, with bounded provider-native capacity and infrastructure costs distinct from native-agent Workers and per-call pricing.
+
 ## Durable transaction sequence
 
 Admission resolves and freezes model/harness/rate/grants/limits, authorizes the tenant and credential, takes worktree/account locks, reserves maximum liability, creates the run/session, writes its first event and inserts its dispatch record in one transaction. A transport response does not own the run. Immediate Workflow dispatch is repaired by authenticated minutely cron. Duplicate scheduler instances compete for a phase lease. Stable VM identity and a native launch marker prevent a lost acknowledgement from replaying the prompt.

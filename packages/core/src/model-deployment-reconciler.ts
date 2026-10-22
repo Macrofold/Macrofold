@@ -24,7 +24,12 @@ const STARTUP_MS = 20 * 60_000;
 const DRAIN_MS = 270_000;
 const MAX_FAILURES = 8;
 const cleanupCandidates = z
-  .array(z.object({ id: z.string().min(1).max(256), state: z.enum(['pending', 'unverified', 'stopping', 'deleted']) }))
+  .array(
+    z.object({
+      id: z.string().min(1).max(256),
+      state: z.enum(['pending', 'unverified', 'stopping', 'deleted']),
+    }),
+  )
   .max(4000);
 type Claim = { row: DeploymentRow; lease: string };
 type Connection = {

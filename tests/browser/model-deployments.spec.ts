@@ -158,6 +158,13 @@ test('shows loading, empty and denied states with retry and prevents creating wi
     await Promise.all(pending);
   }
   await expect(page.getByRole('heading', { name: 'No model deployments', exact: true })).toBeVisible();
+  const create = page.getByRole('button', { name: 'Create deployment', exact: true });
+  await create.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Create model deployment', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Create model deployment', exact: true })).toHaveCount(0);
+  await expect(create).toBeFocused();
   await page.unroute('**/v1/model-deployments?**');
   await page.route('**/v1/model-deployments?**', (route) =>
     route.fulfill({
@@ -188,6 +195,12 @@ test('shows loading, empty and denied states with retry and prevents creating wi
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
   await page.screenshot({
     path: test.info().outputPath('model-deployment-access-error.png'),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({
+    path: test.info().outputPath('model-deployment-access-error-mobile.png'),
     fullPage: true,
   });
 });
@@ -506,6 +519,12 @@ test('ignores stale source inspection and saves the reviewed immutable source wi
   await expect(form).toContainText('Storage, data transfer and other provider charges are additional');
   await page.screenshot({
     path: test.info().outputPath('model-deployment-managed-setup.png'),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({
+    path: test.info().outputPath('model-deployment-managed-setup-mobile.png'),
     fullPage: true,
   });
   await form.getByRole('checkbox', { name: /I have reviewed and accept this model/ }).check();

@@ -10,8 +10,7 @@ pub enum ${name} {
     #[serde(rename = "${literal}")]
     ${variant},
 }`;
-  if (source.split(before).length !== 2)
-    throw new Error(`Recheck Rust boolean constant generation: ${name}`);
+  if (source.split(before).length !== 2) throw new Error(`Recheck Rust boolean constant generation: ${name}`);
   return source.replace(
     before,
     `#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]

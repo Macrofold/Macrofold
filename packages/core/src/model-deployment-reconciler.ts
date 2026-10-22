@@ -24,7 +24,7 @@ const STARTUP_MS = 20 * 60_000;
 const DRAIN_MS = 270_000;
 const MAX_FAILURES = 8;
 const cleanupCandidates = z
-  .array(z.object({ id: z.string().min(1).max(256), state: z.enum(['pending', 'unverified', 'deleted']) }))
+  .array(z.object({ id: z.string().min(1).max(256), state: z.enum(['pending', 'unverified', 'stopping', 'deleted']) }))
   .max(4000);
 type Claim = { row: DeploymentRow; lease: string };
 type Connection = {
@@ -231,14 +231,19 @@ async function reconcileAttempt(
   // Once duplicate identities are discovered, none may become the serving
   // resource. Keep their nonsecret IDs for bounded, recipe-verified teardown.
   if (resource.config.cleanup_candidates !== undefined) return;
-  const matches = [...new Map((await provider.findAttempt(key, resource.attempt_id)).map((v) => [v.id, v])).values()];
+  const matches = [
+    ...new Map((await provider.findAttempt(key, resource.attempt_id)).map((v) => [v.id, v])).values(),
+  ];
   if (matches.length !== 1) {
     if (matches.length > 1)
       await transaction(org, async (tx) => {
         await tx.query(
           `UPDATE model_deployment_resources SET config=jsonb_set(config,'{cleanup_candidates}',$2::jsonb)
           WHERE id=$1 AND provider_id IS NULL AND deleted_at IS NULL AND NOT config ? 'cleanup_candidates'`,
-          [resource.id, JSON.stringify(cleanupCandidates.parse(matches.map((v) => ({ id: v.id, state: 'pending' }))))],
+          [
+            resource.id,
+            JSON.stringify(cleanupCandidates.parse(matches.map((v) => ({ id: v.id, state: 'pending' })))),
+          ],
         );
       });
     await mutate(org, current, async (tx) => {
@@ -279,23 +284,29 @@ async function stopDuplicateResources(
   provider: ModelHostingProvider,
 ) {
   const candidates = cleanupCandidates.parse(resource.config.cleanup_candidates);
-  const candidate = candidates.find((v) => v.state === 'pending') ?? candidates.find((v) => v.state === 'unverified');
+  const candidate =
+    candidates.find((v) => v.state === 'pending') ??
+    candidates.find((v) => v.state === 'stopping') ??
+    candidates.find((v) => v.state === 'unverified');
   if (!candidate) return;
-  // Discovery (up to 60s) happens in a separate pass. One candidate costs at
-  // most four 20s calls, leaving room within the 120s lease for billing refresh.
+  // Discovery (up to 60s) happens in a separate pass. Inspect uses two 20s
+  // requests; adding scale-down/delete costs at most 80s. Confirm absence in a
+  // later pass, leaving room within the 120s lease for billing refresh.
   const observed = await provider.inspect(key, candidate.id);
-  let state: 'unverified' | 'deleted' | 'pending' = 'pending';
+  let state: 'unverified' | 'deleted' | 'stopping' = 'stopping';
   if (observed === null) state = 'deleted';
-  else if (!matchesDeploymentResource(resource, observed)) state = 'unverified';
+  else if (observed.id !== candidate.id || !matchesDeploymentResource(resource, observed))
+    state = 'unverified';
   else {
     const allowed = await mutate(org, current, async (tx) => {
-      await tx.query("UPDATE model_deployment_resources SET state='cleanup_pending' WHERE id=$1", [resource.id]);
+      await tx.query("UPDATE model_deployment_resources SET state='cleanup_pending' WHERE id=$1", [
+        resource.id,
+      ]);
       return true;
     });
     if (!allowed) return;
     await provider.update(key, candidate.id, { workers: { min: 0, max: 0 } }).catch(() => {});
     await provider.delete(key, candidate.id).catch(() => {});
-    if ((await provider.inspect(key, candidate.id)) === null) state = 'deleted';
   }
   // Move unresolved candidates behind the others so one foreign/mutated tag
   // cannot prevent cleanup of independently verified owned endpoints.
@@ -442,6 +453,9 @@ async function stopOwnedResource(
   }
   const known = await reconcileAttempt(org, current, resource, key, provider);
   if (!known?.provider_id) return;
+  // Inventory recovery can consume 100s; continue destructive calls in the
+  // next lease instead of extending this pass beyond its ownership budget.
+  if (!resource.provider_id) return;
   // Narrowing and deletion do not depend on a fresh catalog or working inventory.
   // DELETE must still be attempted if scale-down fails.
   const updated = await mutate(org, current, async (tx) => {
@@ -728,6 +742,7 @@ async function observeManaged(
   const key = await resourceCredential(org, current.row, resource, false, provider);
   const known = await reconcileAttempt(org, current, resource, key, provider);
   if (!known?.provider_id) return;
+  if (!resource.provider_id) return;
   const observation = await provider.inspect(key, known.provider_id);
   if (!observation) {
     await mutate(org, current, async (tx, row) => {

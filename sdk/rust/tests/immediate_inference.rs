@@ -6,6 +6,24 @@ use tokio::{
 };
 const ID: &str = "01900000-0000-7000-8000-000000000001";
 
+#[test]
+fn deployment_boolean_constants_keep_json_types_and_literal_constraints() {
+    use models::model_deployment_cost_policy::InfrastructureCostIncluded;
+    use models::model_deployment_hosting_one_of_1::ExternalHostingAcknowledged;
+
+    let cost: InfrastructureCostIncluded = serde_json::from_value(serde_json::json!(false)).unwrap();
+    assert_eq!(serde_json::to_value(cost).unwrap(), serde_json::json!(false));
+    for invalid in [serde_json::json!(true), serde_json::json!("false")] {
+        assert!(serde_json::from_value::<InfrastructureCostIncluded>(invalid).is_err());
+    }
+    let acknowledged: ExternalHostingAcknowledged =
+        serde_json::from_value(serde_json::json!(true)).unwrap();
+    assert_eq!(serde_json::to_value(acknowledged).unwrap(), serde_json::json!(true));
+    for invalid in [serde_json::json!(false), serde_json::json!("true")] {
+        assert!(serde_json::from_value::<ExternalHostingAcknowledged>(invalid).is_err());
+    }
+}
+
 #[tokio::test]
 #[ignore = "Run pnpm test:sdks for isolated application acceptance"]
 async fn application_immediate_json_and_sse() {

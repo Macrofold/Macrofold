@@ -261,14 +261,29 @@ it('keeps partial infrastructure amounts uncertain until every owned resource ha
   });
   await transaction(owner.organizationId, (tx) =>
     tx.query(
-      'INSERT INTO model_deployment_cost_observations(organization_id,resource_id,period_start,period_end,provider_reported_micro_usd) VALUES($1,$2,$3,$4,0)',
+      'INSERT INTO model_deployment_cost_observations(organization_id,resource_id,period_start,period_end,estimated_micro_usd) VALUES($1,$2,$3,$4,200)',
       [owner.organizationId, second, start, end],
+    ),
+  );
+  const estimatedRemainder = await transaction(owner.organizationId, (tx) =>
+    deployments.get(tx, owner, created.id),
+  );
+  expect(estimatedRemainder.infrastructure_cost).toMatchObject({
+    provider_reported_micro_usd: '100',
+    estimated_micro_usd: '200',
+    status: 'uncertain',
+    unresolved_liability: true,
+  });
+  await transaction(owner.organizationId, (tx) =>
+    tx.query(
+      'UPDATE model_deployment_cost_observations SET provider_reported_micro_usd=0 WHERE resource_id=$1 AND period_start=$2 AND period_end=$3',
+      [second, start, end],
     ),
   );
   const observed = await transaction(owner.organizationId, (tx) => deployments.get(tx, owner, created.id));
   expect(observed.infrastructure_cost).toMatchObject({
     provider_reported_micro_usd: '100',
-    estimated_micro_usd: null,
+    estimated_micro_usd: '200',
     status: 'provider_reported',
     unresolved_liability: false,
   });

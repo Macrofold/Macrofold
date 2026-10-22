@@ -108,7 +108,7 @@ The inspected strict v2 create schema contains no model/cache selection or cache
 
 ### Authentication and immutable runtime evidence
 
-Runpod's load-balancer examples authenticate with the Runpod API key in the bearer header. The inspected documentation does not establish how that header is forwarded/rewritten, or that every direct worker ingress path is inaccessible. Adding a second vLLM bearer requirement without checking the transport could break authentication. vLLM itself warns that its API-key option covers selected prefixes while other inference routes can remain unauthenticated. [R01] [V03]
+Runpod's load-balancer examples authenticate with the Runpod API key in the bearer header. Macrofold sends it only to the validated provider endpoint origin, never injects it into the worker environment, and strips it before forwarding to vLLM. The inspected documentation does not establish whether the provider forwards that header into the wrapper, or that every direct worker ingress path is inaccessible; these remain managed-release gates. Runpod documents endpoint-restricted API keys, but a separate invocation-key lifecycle is not implemented or qualified by the current REST v2 integration. Adding a second vLLM bearer requirement without checking the transport could break authentication. vLLM itself warns that its API-key option covers selected prefixes while other inference routes can remain unauthenticated. [R01] [R17] [V03]
 
 The technical design therefore uses a small controlled gateway around the pinned inference runtime: provider edge authentication, an independently authenticated Macrofold-to-worker channel, explicitly allowed routes, and loopback-only access to vLLM. This is implemented wrapper behavior, not a claimed Runpod feature; CPU transport fixtures verify its route/auth boundary. The exposed health path must reveal no secrets; raw inference/admin/debug routes must not bypass authorization. Verify custom-header forwarding and both ordinary and direct ingress paths before enabling the adapter.
 
@@ -186,6 +186,7 @@ All sources are primary vendor/project documentation or official repositories, i
 | R14 | [GraphQL configurations][R14]            | Deprecation and retirement guidance                                                        |
 | R15 | [Delete serverless endpoint][R15]        | Worker/job/template cleanup semantics                                                      |
 | R16 | [Cached models][R16]                     | Model cache behavior, snapshot path and current limitations                                |
+| R17 | [Runpod credentials][R17]                | Endpoint-restricted API keys; no verified separate invocation-key lifecycle                |
 | H01 | [HF Endpoint pricing][H01]               | Per-instance prices, minute billing and initialization charges                             |
 | H02 | [HF autoscaling][H02]                    | Cold-start and scale-to-zero behavior                                                      |
 | H03 | [HF custom containers][H03]              | Engine/custom-container integration and mounted repository                                 |
@@ -221,6 +222,7 @@ All sources are primary vendor/project documentation or official repositories, i
 [R14]: https://docs.runpod.io/sdks/graphql/configurations
 [R15]: https://docs.runpod.io/api-reference-v2/serverless/delete-a-serverless-endpoint
 [R16]: https://docs.runpod.io/serverless/endpoints/model-caching
+[R17]: https://docs.runpod.io/get-started/credentials#api-keys
 [H01]: https://huggingface.co/docs/inference-endpoints/en/pricing
 [H02]: https://huggingface.co/docs/inference-endpoints/en/guides/autoscaling
 [H03]: https://huggingface.co/docs/inference-endpoints/en/engines/custom_container

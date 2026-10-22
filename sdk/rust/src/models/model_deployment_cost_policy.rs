@@ -56,9 +56,27 @@ impl Default for RequestChargeMicroUsd {
 }
 ///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[serde(try_from = "bool", into = "bool")]
 pub enum InfrastructureCostIncluded {
-    #[serde(rename = "false")]
     False,
+}
+
+impl TryFrom<bool> for InfrastructureCostIncluded {
+    type Error = &'static str;
+
+    fn try_from(value: bool) -> Result<Self, Self::Error> {
+        if value == false {
+            Ok(Self::False)
+        } else {
+            Err("Expected false")
+        }
+    }
+}
+
+impl From<InfrastructureCostIncluded> for bool {
+    fn from(_: InfrastructureCostIncluded) -> bool {
+        false
+    }
 }
 
 impl Default for InfrastructureCostIncluded {

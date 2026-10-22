@@ -62,9 +62,27 @@ impl Default for Lifecycle {
 }
 ///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[serde(try_from = "bool", into = "bool")]
 pub enum ExternalHostingAcknowledged {
-    #[serde(rename = "true")]
     True,
+}
+
+impl TryFrom<bool> for ExternalHostingAcknowledged {
+    type Error = &'static str;
+
+    fn try_from(value: bool) -> Result<Self, Self::Error> {
+        if value == true {
+            Ok(Self::True)
+        } else {
+            Err("Expected true")
+        }
+    }
+}
+
+impl From<ExternalHostingAcknowledged> for bool {
+    fn from(_: ExternalHostingAcknowledged) -> bool {
+        true
+    }
 }
 
 impl Default for ExternalHostingAcknowledged {

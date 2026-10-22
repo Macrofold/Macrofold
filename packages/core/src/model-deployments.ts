@@ -663,11 +663,14 @@ async function projections(
       reported: string | null;
       as_of: Date | null;
       unresolved: boolean;
+      partially_reported: boolean;
     }>(
       `SELECT r.deployment_id,min(c.period_start) AS period_start,max(c.period_end) AS period_end,
     sum(c.estimated_micro_usd)::text AS estimated,sum(c.provider_reported_micro_usd)::text AS reported,max(c.as_of) AS as_of,
     bool_or(c.resource_id IS NULL OR (c.estimated_micro_usd IS NULL AND c.provider_reported_micro_usd IS NULL)
-      OR r.state IN ('creating','ambiguous','cleanup_pending') OR (r.state='stopping' AND r.deleted_at IS NULL)) AS unresolved
+      OR r.state IN ('creating','ambiguous','cleanup_pending') OR (r.state='stopping' AND r.deleted_at IS NULL)) AS unresolved,
+    count(DISTINCT r.id) FILTER (WHERE c.provider_reported_micro_usd IS NOT NULL)>0
+      AND count(DISTINCT r.id) FILTER (WHERE c.provider_reported_micro_usd IS NOT NULL)<count(DISTINCT r.id) AS partially_reported
     FROM model_deployment_resources r LEFT JOIN model_deployment_cost_observations c ON c.resource_id=r.id
     WHERE r.deployment_id=ANY($1::uuid[]) GROUP BY r.deployment_id`,
       [rows.map((row) => row.id)],
@@ -707,17 +710,18 @@ async function projections(
         period_end: cost?.period_end?.toISOString() ?? null,
         estimated_micro_usd: cost?.estimated ?? null,
         provider_reported_micro_usd: cost?.reported ?? null,
-        status: cost?.unresolved
-          ? 'uncertain'
-          : cost?.reported !== undefined && cost.reported !== null
-            ? 'provider_reported'
-            : cost?.estimated !== undefined && cost.estimated !== null
-              ? 'estimated'
-              : revision?.hosting.kind === 'external_openai'
-                ? 'external_unknown'
-                : 'uncertain',
+        status:
+          cost?.unresolved || cost?.partially_reported
+            ? 'uncertain'
+            : cost?.reported !== undefined && cost.reported !== null
+              ? 'provider_reported'
+              : cost?.estimated !== undefined && cost.estimated !== null
+                ? 'estimated'
+                : revision?.hosting.kind === 'external_openai'
+                  ? 'external_unknown'
+                  : 'uncertain',
         as_of: cost?.as_of?.toISOString() ?? null,
-        unresolved_liability: cost?.unresolved ?? false,
+        unresolved_liability: !!(cost?.unresolved || cost?.partially_reported),
       },
       failure_code: row.failure_code,
       retired: row.retired,

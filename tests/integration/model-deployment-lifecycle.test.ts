@@ -36,6 +36,8 @@ class FixtureProvider implements ModelHostingProvider {
   entries = new Map<string, ServingObservation>();
   creates = 0;
   deletes = 0;
+  inspected: string[] = [];
+  deleted: string[] = [];
   updates: Record<string, unknown>[] = [];
   lostCreate = false;
   inventoryEmpty = false;
@@ -80,6 +82,7 @@ class FixtureProvider implements ModelHostingProvider {
     return { id: providerId, endpoint_url: endpoint };
   }
   async inspect(secret: string, providerId: string) {
+    this.inspected.push(providerId);
     if (secret === 'different-account') return null;
     if (this.failInspect) throw new Error('Synthetic provider observation failure');
     return this.entries.get(providerId) ?? null;
@@ -105,6 +108,7 @@ class FixtureProvider implements ModelHostingProvider {
   async delete(secret: string, providerId: string) {
     expect(secret).toBe(this.deleteKey);
     this.deletes++;
+    this.deleted.push(providerId);
     this.entries.delete(providerId);
     if (this.lostDelete) throw new Error('Synthetic lost delete acknowledgment');
   }
@@ -286,6 +290,9 @@ describe('persistent model service reconciliation', () => {
     await advance();
     expect((await resource()).state).toBe('ambiguous');
     await advance();
+    expect((await row()).serving_revision_id).toBeNull();
+    expect((await resource()).provider_id).toBe('endpoint-1');
+    await advance();
     expect((await row()).state).toBe('ready');
     expect(provider.creates).toBe(1);
   });
@@ -299,6 +306,101 @@ describe('persistent model service reconciliation', () => {
     expect((await row()).state).toBe('cleanup_pending');
     expect((await resource()).provider_id).toBeNull();
     expect(provider.creates).toBe(1);
+  });
+
+  it('durably cleans duplicate exact attempts one endpoint per pass without adopting or recreating', async () => {
+    provider.lostCreate = true;
+    await advance();
+    const first = provider.entries.get('endpoint-1');
+    if (!first) throw new Error('Expected the lost-create fixture endpoint.');
+    provider.entries.set('duplicate', { ...structuredClone(first), id: 'duplicate' });
+    await stopIntent();
+    // The inventory pass never adds destructive calls to its 60s I/O budget.
+    await advance();
+    expect(provider.inspected).toEqual([]);
+    expect(provider.deleted).toEqual([]);
+    expect((await resource()).config.cleanup_candidates).toEqual([
+      { id: 'endpoint-1', state: 'pending' },
+      { id: 'duplicate', state: 'pending' },
+    ]);
+    config.allowPaid = false;
+    provider.failPatch = true;
+    provider.lostDelete = true;
+    await advance();
+    expect(provider.deleted).toEqual(['endpoint-1']);
+    expect((await resource()).deleted_at).toBeNull();
+    expect((await row()).state).toBe('cleanup_pending');
+    await advance();
+    expect(provider.deleted).toEqual(['endpoint-1', 'duplicate']);
+    expect((await resource()).deleted_at).toBeNull();
+    await advance();
+    expect((await resource()).deleted_at).toBeNull();
+    await advance();
+    expect((await resource()).deleted_at).not.toBeNull();
+    expect((await resource()).cleanup_secret_ciphertext).toBeNull();
+    expect((await row()).state).toBe('stopped');
+    expect((await row()).serving_revision_id).toBeNull();
+    expect(provider.creates).toBe(1);
+  });
+
+  it('never deletes an attempt-tag collision with another immutable recipe and still cleans verified duplicates', async () => {
+    provider.lostCreate = true;
+    await advance();
+    const first = provider.entries.get('endpoint-1');
+    if (!first) throw new Error('Expected the lost-create fixture endpoint.');
+    const foreign = structuredClone(first);
+    foreign.id = 'foreign';
+    foreign.config.image = `foreign/runtime@sha256:${'b'.repeat(64)}`;
+    provider.entries = new Map([
+      ['foreign', foreign],
+      ['endpoint-1', first],
+      ['duplicate', { ...structuredClone(first), id: 'duplicate' }],
+    ]);
+    await advance();
+    expect((await row()).state).toBe('cleanup_pending');
+    expect((await resource()).provider_id).toBeNull();
+    await stopIntent();
+    await advance();
+    expect(provider.deleted).toEqual([]);
+    await advance();
+    await advance();
+    expect(provider.deleted).toEqual(['endpoint-1', 'duplicate']);
+    expect(provider.entries.has('foreign')).toBe(true);
+    expect((await resource()).deleted_at).toBeNull();
+    expect((await resource()).cleanup_secret_ciphertext).not.toBeNull();
+    expect((await row()).state).toBe('cleanup_pending');
+    expect((await row()).serving_revision_id).toBeNull();
+    expect(provider.creates).toBe(1);
+  });
+
+  it('retains duplicate cleanup until each provider endpoint is confirmed absent', async () => {
+    provider.lostCreate = true;
+    await advance();
+    const first = provider.entries.get('endpoint-1');
+    if (!first) throw new Error('Expected the lost-create fixture endpoint.');
+    provider.entries.set('duplicate', { ...structuredClone(first), id: 'duplicate' });
+    await advance();
+    await stopIntent();
+    const deleteEndpoint = provider.delete.bind(provider);
+    provider.delete = async (_key, providerId) => {
+      provider.deleted.push(providerId);
+      provider.deletes++;
+      throw new Error('Synthetic unsuccessful delete');
+    };
+    await advance();
+    expect((await resource()).deleted_at).toBeNull();
+    expect((await row()).state).toBe('cleanup_pending');
+    expect(provider.entries.has('endpoint-1')).toBe(true);
+    provider.delete = deleteEndpoint;
+    await advance();
+    expect((await resource()).deleted_at).toBeNull();
+    await advance();
+    expect((await resource()).deleted_at).toBeNull();
+    await advance();
+    expect((await resource()).deleted_at).toBeNull();
+    await advance();
+    expect((await resource()).deleted_at).not.toBeNull();
+    expect((await row()).state).toBe('stopped');
   });
 
   it('retains a late create identity after stop without reopening service and cleans with paid execution disabled', async () => {

@@ -16,7 +16,7 @@ Set `MF_MODEL_CONFIG` to a JSON object with `source`, `parameters` and `served_a
 
 Required parameters are `context_window_tokens`, `max_output_tokens` and `max_concurrent_requests`. Supported optional parameters are dtype, quantization, tensor parallelism, memory utilization and built-in tool/reasoning parser selection. No shell, plugin path, arbitrary image or remote repository code is accepted. Native engine flags enforce exact context and output limits, with prompt truncation disabled at the protected boundary.
 
-Set `MF_ENDPOINT_SECRET` to a generated ASCII secret of at least 32 characters. An optional owner-authorized `HF_TOKEN` is given only to the snapshot downloader and removed before the engine starts. RunPod's account token must never be supplied to this container. There are no image-build secrets. The server listens on `PORT` (default 8000), and the engine listens only on loopback port 8001.
+Set `MF_ENDPOINT_SECRET` to a generated ASCII secret of at least 32 characters. An optional owner-authorized `HF_TOKEN` is given only to the snapshot downloader and removed before the engine starts. RunPod's account token is never injected into the worker environment or forwarded by the wrapper to the engine. There are no image-build secrets. The server listens on `PORT` (default 8000), and the engine listens only on loopback port 8001.
 
 Startup downloads the selected commits through maintained Hub snapshot/cache APIs and verifies their upstream checksums, including cache hits. A separate file view prevents another cached weight variant from entering the engine. Only a completed verified recipe starts vLLM. Failed download/loading or engine loss terminates this worker; provider replacement and Macrofold's bounded service recovery own subsequent attempts. No completed answer depends on a worker boot identity.
 
@@ -28,6 +28,8 @@ Startup downloads the selected commits through maintained Hub snapshot/cache API
 - All other paths and methods are denied. Inference/admin/metrics/tokenizer routes on the raw engine are not exposed.
 
 Requests are bounded to 8 MiB and responses/streams to 24 MiB, below the provider's 30 MB limit. Native JSON/SSE, final usage and errors pass through. The wrapper strips incoming credentials, disables redirects and inference retries, and closes the upstream socket on cancellation, disconnect or deadline. An interrupted forwarded request can remain uncertain; closing transport is not proof that generation never occurred. Streaming after a transport/size/deadline failure ends incompletely rather than fabricating a successful final event.
+
+Macrofold sends the required RunPod bearer only to the validated RunPod endpoint origin. [RunPod's examples](https://docs.runpod.io/serverless/load-balancing/build-a-worker) require that bearer; whether the provider forwards it into the wrapper remains unverified and must be tested before managed release. [Endpoint-restricted keys](https://docs.runpod.io/get-started/credentials#api-keys) are documented, but a separate invocation-key lifecycle is not implemented or qualified.
 
 ## Verification and dependencies
 

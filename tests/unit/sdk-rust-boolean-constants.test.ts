@@ -1,7 +1,9 @@
 import { expect, it } from 'vitest';
 import { rustBooleanConstant } from '../../scripts/sdk/rust-boolean-constants';
 
-const source = (literal: boolean) => `#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+const source = (
+  literal: boolean,
+) => `#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Included {
     #[serde(rename = "${literal}")]
     ${literal ? 'True' : 'False'},
@@ -16,8 +18,10 @@ it.each([true, false])('retains the %s boolean literal with typed serde conversi
 });
 
 it('requires the exact pinned-generator declaration before adapting it', () => {
-  expect(() => rustBooleanConstant(source(true).replace('True,', 'True,\n    False,'), 'Included', true))
-    .toThrow('Recheck Rust boolean constant generation');
-  expect(() => rustBooleanConstant(source(false), 'Included', true))
-    .toThrow('Recheck Rust boolean constant generation');
+  expect(() =>
+    rustBooleanConstant(source(true).replace('True,', 'True,\n    False,'), 'Included', true),
+  ).toThrow('Recheck Rust boolean constant generation');
+  expect(() => rustBooleanConstant(source(false), 'Included', true)).toThrow(
+    'Recheck Rust boolean constant generation',
+  );
 });

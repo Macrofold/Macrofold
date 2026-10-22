@@ -4,7 +4,7 @@ The five SDKs expose generated resource methods over the existing transports. [S
 
 ## Custom model deployment acceptance
 
-On October 22, 2026, `pnpm test:sdks` passes with client revision `6e3b2e576aab9ae6562dfe6c2f9de203fb7fe6cf` and backend/API source matching `356922e159b6786696e46e8d29471e25dcc0e838`. All 1,638 inventoried API/client input files have identical hashes before and after the run. The fixture owns disposable PostgreSQL, a real loopback API handler, an OpenAI-compatible synthetic upstream and a simulator worker; it preserves the separate running preview.
+On October 22, 2026, the full `pnpm test:sdks` passes with clients and actual backend/API source at review candidate `b43334c3f5f372df873a2abad277c125c24f73fa`. All 1,638 inventoried API/client input files have identical hashes before and after SDK and installable-package verification. The fixture owns disposable PostgreSQL, a real loopback API handler, an OpenAI-compatible synthetic upstream and a simulator worker; it preserves the separate running preview.
 
 Every language reads stopped deployment metadata, an immutable revision and application grants, and rejects generation while stopped. Each then completes custom-model JSON and SSE calls, retaining native response attributes, deployment/revision attribution, token usage, a zero separate request charge and null unknown provider costs. Reusing the original mutation key after stopping the service returns the original result. The upstream observes exactly two custom calls per language: one JSON and one SSE; recovery adds none.
 

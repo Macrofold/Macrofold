@@ -2,138 +2,116 @@
 
 | Status | Current progress | Last updated |
 | --- | --- | --- |
-| In progress | The deployment and application integration design is specified; implementation and live provider qualification have not started. | 2026-10-22 |
+| In progress | Production serving and the shared application interface are designed; runtime implementation and live acceptance remain open. | 2026-10-22 |
 
 ## Purpose and document ownership
 
-Let an application developer select a model from Hugging Face, inspect whether it can run, authorize a finite experiment, and call that exact deployment through Macrofold's existing inference API. OpenLegend is the first consumer: it needs to compare instruction-tuned and low-refusal models for fictional character simulation without maintaining GPU infrastructure inside the game.
+Let an application use a chosen Hugging Face model as an ordinary production model provider. An operator supplies the model, selects compatible hosting and operating limits, and starts a service. The application keeps using its deployment while Macrofold manages serving, health and permitted recovery. OpenLegend is the first consumer: characters should be able to use compatible open and low-refusal models through the game's existing AI execution path. Comparing models is an optional use of this capability.
 
-This is a design, not an implemented capability. The [technical design](hugging-face-model-deployments-tech-design.md) owns internal implementation and rollout. The [shared contract](hugging-face-model-deployments-contract.md) is the canonical owner of public fields, wire examples, error semantics and the cross-repository agreement. The [research](hugging-face-model-deployments-research.md) owns provider comparisons and source evidence. [Maintainer work](../maintainers/TODO.md#hugging-face-model-deployments) owns implementation and acceptance status. Do not copy those contracts into independent schemas or treat this specification as permission to launch paid infrastructure.
-
-The reviewed baseline is `Macrofold/Macrofold` at `07ba0ee1bb5c76aeb4d0d3553339dc274854335a`. Current [inference](../features/decisions/README.md) and [Worker](../architecture/worker-execution.md) documentation continues to describe what exists today.
+This is a target design, not implemented behavior. The [technical design](hugging-face-model-deployments-tech-design.md) owns implementation and rollout; the [shared contract](hugging-face-model-deployments-contract.md) owns public fields, examples and errors; [research](hugging-face-model-deployments-research.md) owns provider evidence; [maintainer work](../maintainers/TODO.md#hugging-face-model-deployments) owns delivery status. The reviewed baseline is `Macrofold/Macrofold` at `07ba0ee1bb5c76aeb4d0d3553339dc274854335a`. Existing [inference](../features/decisions/README.md) and [Worker](../architecture/worker-execution.md) guides continue to describe current behavior.
 
 ## Product decisions
 
-1. **Macrofold owns serving infrastructure.** A model deployment is an organization-owned resource with its own revision, activation, permissions and costs. It is distinct from a native-agent Worker, Worktree or Session. OpenLegend owns permitted character context, game rules, experiment grading and admission of model-proposed actions.
-2. **Use an existing serving engine.** The initial managed lifecycle uses RunPod Serverless Load Balancer REST v2 with a pinned vLLM runtime and a small authentication/provenance wrapper. Macrofold does not implement inference kernels or a replacement GPU scheduler.
-3. **Start an experiment explicitly.** Creating or inspecting a model deployment does not purchase compute. An activation accepts an exact revision, a fresh quote and finite limits. Ordinary inference never creates, resumes or renews an activation.
-4. **Use the customer's provider account initially.** RunPod and any required Hugging Face credentials are exact owner-approved connections. This design does not launch Macrofold-funded GPU resale or silently substitute platform credentials. Provider charges and Macrofold request charges remain separate.
-5. **Pin the whole experiment.** Model weights, tokenizer, chat template, quantization, serving image and relevant runtime settings determine the immutable revision. Each activation permits one bounded qualification suite and certificate; verified serving also pins one process boot. Observed identity drift or a bound credential-generation change ends use and requires a fresh explicitly authorized activation. A request cannot slide to a replacement experiment.
-6. **Start with one replica.** Each initial RunPod activation has a maximum of one worker. Concurrent requests share that bounded capacity. Larger fleets require a later measured scaling increment and a new accepted quote, not hidden autoscaling.
-7. **Support qualified external endpoints.** An operator may register an existing OpenAI-compatible text endpoint, including a separately operated local server reachable from Macrofold. Its lifecycle and infrastructure bill remain externally managed. Report its provenance assurance and known/unknown cost explicitly.
-8. **Model freedom does not change application authority.** Macrofold does not insert character policy, silently rewrite prompts, repair output with a second model, or require all customer outputs to be JSON. A low-refusal model remains an untrusted producer of application data.
+1. **A deployment is a reusable service.** Starting it authorizes continued hosting within its operator-selected capacity and hourly cost limits. It has no mandatory expiration, per-experiment activation or repeated approval ritual. An optional stop time supports temporary use.
+2. **Macrofold owns hosting; the application owns behavior.** Source resolution, serving infrastructure, provider credentials and health belong to Macrofold. OpenLegend owns permitted character context, task schemas, game rules and application of model-proposed actions. Hosting choices never become world laws.
+3. **Use maintained serving software.** The first managed adapter uses RunPod Serverless Load Balancer REST v2 and a pinned vLLM runtime. Native provider scaling and vLLM batching do the scheduling. A small protected HTTP wrapper exists only where needed to secure the exposed routes.
+4. **Applications select a stable deployment.** Production calls normally follow its currently serving revision. An optional revision pin supports deliberate rollout control or comparisons. Every accepted request records the exact revision it used.
+5. **Normal recovery is automatic.** A replacement worker running the same model revision can resume service under existing authorization. A process restart, new machine, secret rotation or changed diagnostic identifier does not invalidate a valid completed answer. Changes to actual model or serving configuration require a deliberate revision selection.
+6. **Capacity is explicit and extensible.** Default to one warm replica for interactive use; operators can choose supported minimum/maximum replicas and request concurrency. A larger replica count is configuration within provider and cost limits, not a new architecture project.
+7. **Use the customer's provider account initially.** No GPU resale, platform-funded fallback or invented token price is required. Provider infrastructure expense remains separate from Macrofold's initially zero deployment request fee.
+8. **Existing endpoints are a production path.** An operator can register a compatible OpenAI-chat endpoint, including local or alternative engines. Supported protocol, authorization and application validation determine usability. A custom provenance wrapper or experimental certificate is not required.
 
 ## What “any Hugging Face model” means
 
-Any repository may be submitted for inspection. A repository URL is not evidence that its files implement text generation, fit a GPU, have a usable chat template, or work in the selected serving engine.
+Any repository may be inspected. Deployability depends on the actual task, architecture, weight format, tokenizer/template and available hardware; a Hugging Face URL alone does not establish those properties.
 
-| Candidate | Initial product behavior |
+| Candidate | Initial behavior |
 | --- | --- |
-| Supported text-generation architecture with safetensors and a compatible tokenizer/template | Resolve an immutable revision, prepare a runtime plan and offer compatible capacity. Paid startup and qualification still have to succeed. |
-| Supported quantized text model | Preserve the exact quantization files and supported runtime mode; do not silently convert or substitute weights. |
-| GGUF or a model served by another engine | Register a qualified externally managed endpoint. Automatic llama.cpp/MLX deployment is not part of the initial RunPod backend. |
-| Gated or private model | Require the owner's authorized Hugging Face connection and any necessary upstream access acceptance. Never substitute a public model. |
-| Unknown architecture, missing chat template, adapter-only repository, or required remote Python code | Explain the specific compatibility blocker and retain the candidate. The initial managed runtime does not execute repository code or perform hidden fine-tuning/adapter merges. |
-| Embedding, image, audio or other non-chat task | Report the unsupported task for this inference profile. Do not send it a chat request or advertise capability based on its presence on Hugging Face. |
+| Compatible text-generation model and safetensors | Resolve the source to immutable commits, prepare a vLLM configuration and offer compatible capacity. Loading must still succeed. |
+| Supported quantization | Keep the exact files and supported runtime settings; no silent conversion or weight substitution. |
+| GGUF, MLX or another serving engine | Use a registered compatible external endpoint. Add a managed runtime only when an actual use case needs it. |
+| Private or gated repository | Use the owner's authorized Hugging Face connection and required upstream acceptance. |
+| Unsupported task/architecture, missing template, adapter-only source or required remote code | Explain the concrete blocker and retain the candidate; do not execute repository code or silently choose another model. |
 
-The useful promise is a common inspection, deployment and invocation workflow with explicit compatibility results, not that one engine can execute every artifact. The [research](hugging-face-model-deployments-research.md) explains why vLLM is the first serving engine and when a different provider or runtime is worth adding.
+The initial managed profile is text generation with remote code disabled. It does not imply embeddings, image/audio generation, native agent harness compatibility or Jev scoring. The [research](hugging-face-model-deployments-research.md) records maintained runtime alternatives.
 
-“Uncensored” and “low refusal” are model-author claims or experiment labels, not trusted capability flags. The platform does not equate fewer refusals with better instruction following, stable characterization, valid structured output, or permission to perform an action. OpenLegend evaluates those dimensions separately.
+“Uncensored” and “low refusal” describe model-author claims or measured behavior, not authority. Macrofold preserves customer prompts and supported native output formats. OpenLegend continues validating proposals against the game's rules regardless of model choice.
 
 ## Main user journeys
 
-### Deploy a Hugging Face candidate
+### Host a model for the game
 
-1. An authorized owner opens the model-deployment controls or uses the API/CLI and supplies a Hugging Face repository link or repository ID. The UI never asks the user to paste a secret into a prompt.
-2. Macrofold resolves the repository and requested revision through Hugging Face, identifies the artifact task/format, records source license/access information, and returns compatibility findings. No GPU is purchased. A branch such as `main` resolves to an immutable commit before it can be activated.
-3. The owner selects an available runtime profile and capacity offer and grants read/use to the exact application principal/key and workspace before quoting. The preview shows the exact artifact revision, tokenizer/template choices, effective context/output limits, hardware estimate, preferred region, maximum replicas, download/startup exposure, idle policy and provider account. A weight-size estimate is explicitly different from measured successful loading.
-4. The owner reviews a time-limited quote and starts an activation with a finite expiration and infrastructure-cost planning ceiling. The server rechecks the quote, current authority, connection and revision before any provider mutation. Changed terms require a new deliberate activation request.
-5. The activation moves through provisioning, loading and qualification. Its status identifies the current stage and the paid time consumed. A failed download, out-of-memory error or qualification failure ends with cleanup and an honest cost record; it does not try progressively larger GPUs automatically.
-6. Once the exact runtime is ready, the owner can copy a nonsecret application binding containing the deployment, revision and activation IDs. The previously granted game backend can use that resource without provider administration credentials. Later access additions require a new activation; revocations immediately narrow existing use.
-7. The owner runs the application or comparison. Status includes current readiness, remaining lifetime, effective concurrency and infrastructure cost observations. Reading status does not keep the activation alive.
-8. Explicit stop or expiry blocks new work, drains accepted calls within their existing bounds and requests provider shutdown. The UI distinguishes stopped capacity from a pending or uncertain final bill. A provider outage remains visible until reconciled.
+1. The owner supplies a Hugging Face repository ID/link. Macrofold resolves the requested ref to an immutable commit, reads bounded metadata and reports compatibility. Inspection creates no GPU resources.
+2. The owner selects a runtime, hardware/capacity policy and provider account. The preview explains expected memory, hourly cost, optional stop time and the distinction between estimates and successful loading. Secrets stay in Connections.
+3. The owner starts the deployment. Macrofold saves the exact desired revision and operating policy before provisioning. Compatible worker replacement and scaling within that policy are already authorized; a request cannot raise it.
+4. After loading and ordinary readiness checks, the operator grants the game backend use of the deployment and copies its nonsecret deployment ID. The game requires no RunPod or Hugging Face credential.
+5. Ordinary character requests use the existing inference endpoint. The deployment remains running between requests. Status reports health, effective limits, utilization, operational failures and estimated/provider-reported infrastructure costs.
+6. A worker failure triggers provider recovery within the same policy. Healthy replacement workers serve the same revision. Incomplete in-flight requests retain the existing failure/recovery semantics; recovery never blindly resubmits an ambiguous prompt.
+7. The owner can change capacity, stop the service, schedule a stop or select another immutable revision. A stopped service remains stopped until an authorized control action starts it.
 
-### Compare candidates in OpenLegend
-
-The developer selects a qualified deployment binding in OpenLegend's server-side experiment profile. The game sends its existing permitted messages and structured-response schema to `POST /v1/inferences`; Macrofold returns the ordinary result receipt plus deployment provenance and cost attribution.
-
-OpenLegend's live structured character route requires verified manifest evidence and the exact model/runtime to pass its schema and character-behavior checks. An operator-declared external endpoint or a plain-text-only candidate may be screened offline with an explicit evidence/validation mode. This is OpenLegend's narrower promotion policy; Macrofold still exposes honest provenance and separately qualified transport capabilities. Macrofold must not claim that a schema-shaped response is truthful or an acceptable character action, and OpenLegend must not turn a provider failure into fabricated dialogue.
-
-Each comparison records both repositories' revisions, model/runtime identity, prompt and schema identity, decoding settings, workload, output/usage, failures and the linked activation's infrastructure costs. This makes local/hosted and low-refusal/baseline comparisons possible without silently comparing different artifacts or charging shared idle cost once per request.
+The first revision-change operation drains the old service and starts the selected revision, with a visible brief interruption. Already accepted requests keep their original revision and can finish within their deadlines. Production callers using only the deployment ID then follow the newly ready revision; explicitly pinned callers receive a revision-unavailable error until their selected revision is serving. Seamless blue-green upgrades are not needed for the initial complete feature.
 
 ### Use an existing endpoint
 
-The connection owner registers an exact reachable origin and served model identity, declares source/runtime evidence and the external lifecycle/cost arrangement, then authorizes a finite activation for Macrofold use. Macrofold runs the same transport/capability qualification under the accepted connection and limits.
+The owner registers an exact origin, connection, served model and supported limits/capabilities. Macrofold uses the same production inference path and current permissions. Plain text, schema output, tool formatting and streaming are separately supported; compatibility does not require a universal evaluation suite.
 
-An ordinary stock endpoint cannot prove its loaded file hashes merely by returning a model name. Status and receipts distinguish verified wrapper evidence from operator assertions. Unknown provenance or host cost is not presented as a verified hash or a free model. A cloud Macrofold service cannot reach a laptop's loopback address; local use needs a self-hosted Macrofold instance with explicitly configured private-origin access or a separately authorized network arrangement.
+An external endpoint's source/runtime claims may be operator-declared. Show that honestly, without treating a missing artifact hash or boot ID as a reason to reject usable output. Trust in the operator-configured endpoint is the same kind of operational boundary used for ordinary model providers. Unsupported context/schema behavior remains a real limitation.
 
-Stopping an imported activation revokes Macrofold use and cancels/drains its calls. It does not claim to stop a machine or bill that Macrofold does not manage. The owner sees the explicit remaining external shutdown responsibility.
+Cloud Macrofold cannot reach a laptop through `localhost`. Local use requires self-hosted Macrofold with explicitly permitted private origins or an authorized reachable endpoint. Stopping Macrofold use does not stop externally managed hosting or its bill.
 
-## Application behavior and capability boundaries
+### Compare models when useful
 
-- Applications use the existing immediate inference endpoint and existing result/recovery semantics. The exact new binding is specified once in the [shared contract](hugging-face-model-deployments-contract.md).
-- An inference can use only a ready, authorized, unexpired activation of its requested revision. Unknown, starting, stopped, exhausted or wrong-revision targets reject before provider dispatch. No fallback model, activation, runtime, hardware tier or funding account is selected implicitly.
-- Platform preparation controls model identity, maximum output, transport, deadlines and accounting. Customer message content and supported native parameters remain intact. OpenRouter-specific options do not leak to a vLLM endpoint.
-- Streaming is advertised only when the qualified profile supports it. Partial text and tool arguments remain provisional. A final receipt is still required; reconnecting never repeats inference or replays unavailable transient tokens.
-- Native text, strict JSON schema and tool-call formatting are separate capabilities. Model-serving support for a tool-call format never executes that tool in Macrofold's single-call inference path.
-- The current native-harness context floor does not exclude smaller deployed models. Their actual qualified context, output and schema limits apply. Oversized context or unsupported schema fails explicitly; neither platform silently truncates evidence.
-- The API exposes no raw endpoint credential, Hugging Face token, provider control secret, arbitrary container command or unreviewed image execution through the inference binding.
+OpenLegend's optional benchmark runner uses the same deployment binding, request builder and output validation as production. It can pin a revision, record prompts/settings/results and compare it with the current ordinary model. A temporary deployment can use `stop_at` and its own capacity/rate limits.
 
-## Money and experiment limits
+Experimental reporting may distinguish cold/warm performance, hardware, failures, refusals and known/unknown costs. Those measurements do not add certificates, per-session identities, manual renewals or extra network calls to normal gameplay. Production capability delivery does not depend on completing a particular comparison campaign or building a financial reconciliation system for studies.
 
-There are two different financial records: the request's own charge and the activation's infrastructure expense. The initial deployment-backed request charge is explicitly zero under the accepted policy. This does **not** mean the experiment is free. Startup, model downloads, active generation, retained idle workers and configured storage can contribute to the provider bill.
+## Production request behavior
 
-The managed activation owns its finite time and infrastructure planning ceiling. An imported activation owns finite use authorization and records external infrastructure cost as known or unknown; Macrofold controls neither that external host nor its bill. Ordinary request `max_cost_micro_usd` bounds request charges; it does not cap the provider account or pay for the entire activation. Token usage is a model/workload measurement, not a fabricated GPU price. Shared infrastructure cost is counted once at activation level, with any experiment allocation method separately labeled as an estimate.
+- Use existing `POST /v1/inferences`, Run identity, idempotency, cancellation, streaming and final receipt recovery. There is no deployment-specific inference queue or second request lifecycle.
+- Resolve the serving revision once during admission. A running deployment may recover workers automatically, but an inference cannot create a deployment, override stop intent or purchase a larger tier.
+- Validate current tenant/workspace/use permission and actual capability limits. Reuse prepared immutable model configuration; do not fetch Hugging Face metadata, prices, provider worker lists or experiment status on each character request.
+- Preserve supported native parameters and response content. Multiple completions follow the existing aggregate output limit when the runtime supports them; OpenLegend normally requests one.
+- vLLM or the selected serving engine owns exact token/template/schema processing. Macrofold enforces its request bounds and supported capability contract without duplicating the engine or performing a second preparation HTTP call.
+- Streaming remains available when the runtime supports it. A final result is authoritative; partial output/tool arguments do not authorize application effects.
+- A restart or capacity observation cannot invalidate a completed response. Wrong actual model/configuration, revoked authority, cancelled work, unusable output or expired application context retain their relevant rejection rules.
+- Neither platform silently replaces the model, repairs a failed answer using another paid call or retries an ambiguous dispatched request. Confirmed pre-admission rejection may use the existing bounded retry rules.
 
-The system uses a conservative cost projection and automatic drain/stop policy before its accepted limits. RunPod control-plane failure or delayed billing can leave an uncertain tail. The product must state that a BYOK planning/automatic-shutdown ceiling is not a provider-guaranteed hard dollar cap. It cannot release an unknown obligation merely because the application stopped reading responses.
+## Operating limits and costs
 
-No standing development allowance, stored key or model discovery result starts an activation. Each paid experiment has an exact owner, accepted account/quote and finite authorization. Automatic renewal and automatic second attempts are excluded.
+Managed service policy specifies a supported replica range, request concurrency and a maximum authorized hourly infrastructure rate. Macrofold checks available rates/capacity before provisioning and reconciles observed service state in the background. A rate or resource change outside that policy prevents further expansion and triggers the documented stop/recovery behavior. Optional `stop_at` is useful for bounded development or temporary workloads; production has no default expiration.
 
-## Failure and recovery experience
+An hourly limit is a burn-rate guard, not a monthly allowance or a guaranteed final invoice ceiling. The UI shows continuing hourly exposure and an illustrative ongoing estimate, and directs owners to their provider account's available billing controls. Provider outages and delayed teardown can leave continuing charges. Unknown costs stay unknown. No new monthly billing-window state machine or invoice-attestation API is required for this release.
 
-| Situation | Visible result and required behavior |
+Deployment-backed request billing starts at zero under the current BYOK policy. Startup, warm idle capacity, generation and storage can still cost money in the provider account. Count deployment infrastructure expense once by provider resource and period, not once per request. Usage tokens remain useful workload data but do not imply an invented per-token GPU price.
+
+## Failure and recovery
+
+| Situation | Required behavior |
 | --- | --- |
-| Repository inaccessible or gated access missing | Compatibility report identifies the source/access blocker; no compute created. |
-| Requested artifact/runtime unsupported | Exact reason and supported next route; no alternate weights, remote code or hidden conversion. |
-| Quote expires or terms change | Reject activation; show the new quote for a new deliberate start. |
-| Provider create acknowledgement is lost | Show provisioning outcome unknown; reconcile the same attempt before another create is allowed. |
-| Startup fails or exceeds its bound | Stop new work, clean up owned capacity, retain incurred/unknown costs and diagnostic stage. |
-| Capability/schema check fails | Candidate remains ineligible for that capability; no repair call or lowered acceptance claim. |
-| Activation becomes unready, expires, loses permission or observes changed serving/credential identity | Close admission and stop/clean up; a replacement requires a fresh explicit activation. Accepted calls retain their cancellation/deadline, cost and late-result semantics. |
-| Inference transport is ambiguous | Preserve the same Run/idempotency identity and uncertain accounting; never start another model call automatically. |
-| Stop or provider billing confirmation is missing | Distinguish shutdown intent, observed worker state and unreconciled cost; expose the safe operator recovery action. |
-| External endpoint is stopped in Macrofold | Macrofold use ends; externally managed hosting/shutdown remains the owner's responsibility. |
-
-Errors use Macrofold's current error envelope and safe diagnostics. Detailed model output, credentials and other tenants' resource identities never appear in public failure messages.
+| Unsupported or inaccessible source | Actionable compatibility/access error; no GPU created. |
+| Startup fails or runs out of memory | Report the stage, stop failed capacity and retain incurred/unknown costs; no automatic larger GPU purchase. |
+| Worker restarts with the same revision | Recover automatically under the existing operating policy; no new application binding or approval. |
+| Health degrades | Route only to ready capacity; return ordinary unavailable/backpressure outcomes when none is ready. Bounded recovery backs off instead of creating a retry storm. |
+| Provider create acknowledgment is lost | Reconcile the saved attempt before another create; do not duplicate billable resources. |
+| Owner stops, revokes access or a stop time arrives | Close the relevant admission, drain/cancel under existing deadlines and perform owned cleanup. Current grants take effect without a new hosting session. |
+| Serving revision changes | New requests use the operator-selected ready revision; accepted requests retain their recorded revision. Optional stale pins reject rather than silently substitute. |
+| Inference outcome is ambiguous | Observe the same Run; preserve uncertainty and avoid a second provider call. |
+| Shutdown or billing observation is unavailable | Show the unresolved resource/cost state; continue bounded cleanup and surface operator recovery. |
 
 ## Delivery stages and acceptance
 
-The complete feature is staged so both repositories can implement a shared contract without depending on unfinished GPU provisioning. Completion of an early stage does not complete the requested feature.
-
 | Stage | Observable exit criterion |
 | --- | --- |
-| Contract and authorization | Both repositories consume identical bindings, capabilities, receipts and error rules; unsupported combinations fail before any external mutation. |
-| External endpoint integration | A qualified synthetic/local endpoint can execute through the real Macrofold inference path with permissions, limits, one-call idempotency, streaming/final receipts and explicit cost/provenance status. |
-| Managed RunPod activation | One pinned candidate can be planned, quoted, started, verified, invoked and stopped through the public lifecycle, with no duplicate endpoint after an ambiguous create. |
-| OpenLegend integration | The game uses an exact approved binding and validates character output; baseline routes still work and custom failures produce no unauthorized action or invented replacement response. |
-| Release qualification | Real provider startup, auth/private-route protection, immutable loading, revocation, capacity/cost controls and cleanup are verified within a separately authorized finite experiment. Results distinguish fixtures from live evidence. |
+| Shared contract and authorization | Stable deployment selection, optional pins, current grants and receipts agree across both repositories and generated clients. |
+| Production endpoint integration | A compatible existing endpoint works through real HTTP/SDK and OpenLegend execution, including normal errors, recovery and local output validation. |
+| Managed hosting | One pinned HF model starts, remains available, recovers a worker and stops through RunPod under explicit capacity/rate controls. |
+| Production operations | Capacity updates, revision changes/rollback, credential rotation, unavailable service, revocation and cleanup work without experiment-specific setup. |
+| Release acceptance | Actual provider authentication, source loading, bounded concurrent inference and cleanup are verified; cold/warm latency and costs are measured honestly. |
 
-Acceptance also requires all-five-client contract generation/verification, an API/CLI/dashboard lifecycle journey, tenant/credential isolation, current-authority and expiry races, no hidden inference/provisioning retry, truthful unknown-cost handling, and coordinated documentation. The detailed matrix belongs in the technical design and central maintainer tracker.
+Implementation and live acceptance remain tracked separately from the completed design. Optional model comparisons can proceed independently after the ordinary provider path works.
 
-## Deliberate initial limits and extension triggers
+## Scope and remaining decisions
 
-| Initial limit | Reason and expansion condition |
-| --- | --- |
-| Text-generation serving profile | OpenLegend's present need; add other tasks with their actual protocols and metering rather than pretending they are chat. |
-| vLLM-compatible safetensors and supported quantization for automatic hosting | Smallest maintained path with broad text-model support; add managed llama.cpp/MLX/custom engines when concrete candidates require them. Qualified external endpoints remain available. |
-| No repository remote code or arbitrary user container commands | Model data must not silently become privileged infrastructure code; any future code/image path needs its own explicit build, isolation, credential and review contract. |
-| One serverless replica per initial activation | Simple bounded experiments and comprehensible costs; expand only after queue, fairness, model-memory and billing measurements justify it. |
-| Finite explicit activation; no inference-triggered wake or renewal | Avoid hidden cold-start latency and spending. A future policy must specify who authorizes wake, lifetime, cost and ambiguous retries. |
-| BYOK infrastructure only | Avoid inventing GPU retail billing before provider usage and reconciliation are qualified; managed resale is a separate pricing/credit-risk decision. |
-| No automatic native-harness enablement | Model-serving readiness does not prove harness context/tool compatibility. Add harness use through its existing capability and runtime qualification owner. |
+The production architecture is selected. Initial limits are managed vLLM text serving, BYOK infrastructure, imported compatible endpoints and graceful revision changes with a brief interruption. No custom scheduler, model marketplace, fine-tuning system, GPU resale or automatic cross-model fallback is needed. Additional runtimes/providers fit behind the existing serving/provider boundaries when required by an actual model or operating workload.
 
-## Decisions and questions
-
-The architecture and initial product scope above are selected for this design. There is no unresolved product decision that blocks implementation of the stated stages. Model choice, provider-account access, actual immutable image digest, available GPU offer, permitted spending and numerical experiment thresholds are deployment/qualification inputs; they must be supplied and recorded before the corresponding paid experiment, not invented by an implementation agent.
-
-Provider-specific unknowns remain explicit release gates: authenticated RunPod custom-header forwarding and direct-route protection, actual pinned-model loading and memory, cancellation/scale-to-zero behavior, provider billing reconciliation, and workload-specific quality/latency. These are evidence requirements with specified failure behavior, not permission to weaken the contract or silently substitute a backend.
+Concrete model choice, account access, pinned image, capacity/rate policy and workload tuning are operator inputs. RunPod ingress authentication, actual GPU/model fit, restart behavior, cancellation and billing observations require implementation/live evidence before the backend is enabled. These checks establish normal service reliability; they do not require a permanent experimental approval system.

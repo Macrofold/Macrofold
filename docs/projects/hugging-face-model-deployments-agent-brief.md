@@ -2,9 +2,9 @@
 
 | Status | Current progress | Last updated |
 | --- | --- | --- |
-| In progress | The paired design and shared contract are prepared; implementation and live qualification remain unstarted. | 2026-10-22 |
+| In progress | Production serving and the shared contract are designed; implementation and live acceptance remain open. | 2026-10-22 |
 
-This is the reusable **design-only** brief for a Macrofold agent. It points to the completed design work rather than asking another agent to reconstruct the conversation. [Feature specification](hugging-face-model-deployments-feature-spec.md) · [Technical design](hugging-face-model-deployments-tech-design.md) · [Shared contract](hugging-face-model-deployments-contract.md) · [Research](hugging-face-model-deployments-research.md) · [Maintainer work](../maintainers/TODO.md).
+This reusable **design-only** brief points to the current requirements. [Feature specification](hugging-face-model-deployments-feature-spec.md) · [Technical design](hugging-face-model-deployments-tech-design.md) · [Shared contract](hugging-face-model-deployments-contract.md) · [Research](hugging-face-model-deployments-research.md) · [Maintainer work](../maintainers/TODO.md).
 
 ## Copyable brief
 
@@ -13,70 +13,69 @@ Work in Macrofold/Macrofold on design/huggingface-model-deployments-2026-10-22.
 This assignment is DESIGN ONLY. Do not implement code, deploy GPUs, run paid
 model calls, change production/default models, or merge the branch.
 
-Read this branch's complete root AGENTS.md and its applicable design, AI,
-documentation and startup rules. Apply Macrofold instructions here. When
-reading or editing Macrofold/OpenLegend, read and apply that repository's
-AGENTS.md separately; do not transfer project-specific policy between them.
-Inspect current branch/base and preserve any other contributor's changes.
+Read this branch's complete root AGENTS.md and applicable design, AI,
+documentation and startup rules. Apply OpenLegend's own AGENTS.md when working
+there. Inspect current branch/base and preserve other contributors' work.
 
-Read the existing design family:
-- docs/projects/hugging-face-model-deployments-feature-spec.md
-- docs/projects/hugging-face-model-deployments-tech-design.md
-- docs/projects/hugging-face-model-deployments-contract.md
-- docs/projects/hugging-face-model-deployments-research.md
-- the matching model-deployment section of docs/maintainers/TODO.md
+Read the existing hugging-face-model-deployments feature spec, technical
+design, shared contract, research and agent brief under docs/projects/, and
+the corresponding section of docs/maintainers/TODO.md. Follow the linked
+OpenLegend production model-provider design and tracker.
 
-Read OpenLegend's matching branch and:
-- docs/projects/model-experiments-feature-spec.md
-- docs/projects/model-experiments-tech-design.md
-- docs/maintainers/model-experiments.md
-- docs/limits/model-experiments.md
+The primary goal is production model serving for OpenLegend and other apps.
+A user should select a Hugging Face model, choose compatible infrastructure
+and operating limits, start a reusable deployment, and use it as an ordinary
+provider through POST /v1/inferences. Experiments are optional consumers.
+Prioritize working functionality, request performance and extensibility.
 
-The goal is to inspect a Hugging Face model link, pin its actual artifacts,
-explain supported runtime/hardware choices and cost, explicitly authorize a
-finite hosting session, then let OpenLegend experiment through Macrofold's
-existing POST /v1/inferences. Macrofold owns source/runtime/hosting identity,
-credentials, capability qualification, GPU lifecycle and infrastructure cost.
-OpenLegend owns NPC purpose selection, permitted context, schema decoding,
-current-world authority and experiment/model-adoption decisions.
+Macrofold owns HF source resolution, runtime/hosting, credentials, service
+health, capacity and provider costs. OpenLegend owns permitted character
+context, task/schema validation and current-world authority. Do not put
+hosting or experimental policy into the game domain or authored world rules.
 
-Preserve the exact shared binding:
-model_binding = {deployment_id, deployment_revision_id, activation_id}.
-Use the native request and receipt contracts already specified. Do not invent
-a RunPod provider model in the OpenRouter catalog, widen Jev scoring to generic
-chat, apply native-agent context floors to small inference models, add a
-parallel inference/receipt system, or silently replace a selected model.
+Use model_binding = {deployment_id, deployment_revision_id?}. Production
+normally selects deployment_id and follows its currently serving revision.
+Optional pins serve deliberate rollout control or reproducible comparisons.
+Every accepted Run records its resolved immutable revision; a later process
+restart or service update does not invalidate an otherwise valid answer.
 
-RunPod Serverless load balancing through REST v2 with the pinned vLLM wrapper
-is the first designed managed route. Qualified imported OpenAI-chat endpoints
-cover alternative/local runtimes, with honest identity and external-cost limits.
-Every Hugging Face repository may be inspected; unsupported architectures,
-weights, terms, templates or hardware must produce a specific reason.
+Use a persistent desired running/stopped service and explicit operating
+policy, not finite experimental activations. Same-revision worker recovery
+and supported provider autoscaling operate within that authorization. Default
+to one warm replica, with explicit supported min/max and hourly cost limits;
+optional stop_at supports temporary use. Do not build a custom GPU scheduler,
+mandatory quote/certificate protocol or invoice-attestation subsystem.
 
-Review concrete lifecycle failures: ambiguous provisioning, expired/revoked
-grants, missing capacity, tokenizer/schema mismatch, failed/late output,
-cancelled requests, provider outage, uncertain teardown and delayed billing.
-Keep one qualified process per activation, reject a different boot before
-generation, and require a fresh activation after identity drift.
-A zero request fee is not free GPU time. A client timeout is
-not proof that execution or charges stopped. Keep cleanup authority and
-financial uncertainty until actual reconciliation.
+RunPod Serverless Load Balancer REST v2 plus pinned vLLM is the first managed
+adapter. Reuse native engine context/schema handling and batching. Add only
+necessary authentication/route protection around it. Imported compatible
+OpenAI-chat endpoints are also eligible for production on operator trust;
+no custom provenance wrapper is a prerequisite. Preserve honest limitations.
 
-Use current official provider/runtime documentation to resolve any concrete
-remaining API uncertainty. Distinguish design decisions from facts established
-by live qualification. Reuse and improve the existing documents in place;
-do not create duplicate schemas, revision diaries or a second task backlog.
-Do not broaden the initial scope into fine-tuning, a marketplace, general GPU
-scheduling, production model adoption or a new NPC cognition architecture.
+Reuse current inference, authorization, Run/idempotency, cancellation,
+streaming, accounting and recovery owners. Keep current grants effective;
+keep secrets out of callers. Never retry an ambiguous dispatched prompt or
+silently select another model. Preserve durable ambiguous-create recovery
+and cleanup, since those prevent real duplicate hosting charges.
 
-If you find an in-scope design defect, fix all affected contract/consumer
-documents together and update the existing maintainer tasks. Close only
-completed design criteria; leave implementation and model-quality evidence
-unchecked. Verify links, examples, field/error/money agreement and required
-documentation gates, commit to the design branch, and report consequential
-decisions, verified limits and any genuinely unresolved decisions.
+The normal request path must not fetch HF metadata, GPU prices, worker lists
+or experimental evidence. Resolve the active revision atomically, reuse
+immutable preparation and enforce necessary current permissions/capacity.
+A zero request fee is not zero hosting expense; report provider costs once
+per resource/period, with honest uncertainty and no invented token price.
+
+Review real production use, outage/recovery, concurrent calls, schema failures,
+streaming, credential rotation, model upgrades/rollback and resource teardown.
+Keep optional experiments separate and lean. Use current official sources for
+concrete provider uncertainties; distinguish documented behavior from live
+verification. Reconcile existing docs/tasks without duplicate contracts or
+revision diaries. Do not implement a new NPC cognition architecture.
+
+Fix in-scope design defects across both repositories, preserve completed
+versus unverified tracker status, verify links/examples/interfaces, commit to
+the design branch, and report actual evidence and material remaining gaps.
 ```
 
 ## Coordinated implementation boundary
 
-A later explicit implementation request starts with the existing staged delivery and current repository instructions. Macrofold's tested API/runtime/client release precedes OpenLegend's pinned client integration. The two branch names do not establish compatibility by themselves: record the actual tested server, client and runtime revisions. The design-only brief above is not authorization to execute that later work.
+A later explicit implementation request follows the production delivery stages and current repository instructions. Macrofold's API/runtime/client release precedes OpenLegend's consumer integration. Record the actual tested server, client and runtime revisions; branch names do not establish compatibility. Optional benchmark work is independent of production feature completion. This brief does not authorize deployment or paid execution.

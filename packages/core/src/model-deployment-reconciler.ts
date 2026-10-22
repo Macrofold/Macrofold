@@ -9,6 +9,7 @@ import { AppError, assert } from './errors';
 import { mapConcurrent } from './concurrent';
 import { revisionRow } from './model-deployments';
 import { quoteManagedService } from './model-deployment-service';
+import { matchesDeploymentResource } from './model-deployment-resource';
 import type {
   DeploymentRow,
   DeploymentRevisionRow,
@@ -127,23 +128,6 @@ async function activeResource(org: string, deploymentId: string) {
   );
 }
 
-function sameRecipe(resource: DeploymentResourceRow, observation: ServingObservation) {
-  const desiredEnv = resource.config.env;
-  const actualEnv = observation.config.env;
-  if (!desiredEnv || typeof desiredEnv !== 'object' || !actualEnv || typeof actualEnv !== 'object')
-    return false;
-  return (
-    observation.config.image === resource.config.image &&
-    'MF_ATTEMPT_ID' in actualEnv &&
-    actualEnv.MF_ATTEMPT_ID === resource.attempt_id &&
-    'MF_REVISION_ID' in actualEnv &&
-    actualEnv.MF_REVISION_ID === resource.revision_id &&
-    'MF_MODEL_CONFIG' in actualEnv &&
-    'MF_MODEL_CONFIG' in desiredEnv &&
-    actualEnv.MF_MODEL_CONFIG === desiredEnv.MF_MODEL_CONFIG
-  );
-}
-
 function validateObservedHardware(
   revision: DeploymentRevisionRow,
   resource: DeploymentResourceRow,
@@ -210,12 +194,20 @@ async function resourceCredential(
     );
     const observation = await provider.inspect(key, resource.provider_id);
     assert(
-      observation && sameRecipe(resource, observation),
+      observation && matchesDeploymentResource(resource, observation),
       403,
       'permission_denied',
       'The rotated credential did not establish access to the same owned endpoint.',
     );
     await transaction(org, async (tx) => {
+      const revision = await revisionRow(tx, row.id, resource.revision_id);
+      const latest = await connection(tx, row, revision, resource.connection_id, 'runpod');
+      assert(
+        latest.secret_ciphertext === selected.secret_ciphertext,
+        409,
+        'deployment_conflict',
+        'The connection changed during resource credential validation.',
+      );
       await tx.query(
         'UPDATE model_deployment_resources SET cleanup_secret_ciphertext=$2 WHERE id=$1 AND deleted_at IS NULL',
         [resource.id, selected.secret_ciphertext],
@@ -249,7 +241,7 @@ async function reconcileAttempt(
   }
   const observed = await provider.inspect(key, matches[0].id);
   assert(
-    observed && sameRecipe(resource, observed),
+    observed && matchesDeploymentResource(resource, observed),
     409,
     'deployment_conflict',
     'The ambiguous provider resource does not match the saved immutable attempt.',
@@ -687,7 +679,7 @@ async function observeManaged(
     return;
   }
   assert(
-    sameRecipe(known, observation),
+    matchesDeploymentResource(known, observation),
     409,
     'deployment_conflict',
     'The endpoint no longer matches its selected immutable revision.',

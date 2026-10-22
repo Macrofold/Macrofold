@@ -724,6 +724,37 @@ function DeploymentForm({
                   />
                 </Field>
               )}
+              {(() => {
+                const selected = values(gpuPools).map((id) =>
+                  inspection.hosting_options.find((offer) => offer.gpu_pool_id === id),
+                );
+                const prices = selected.map((offer) => offer?.hourly_cost_micro_usd);
+                const count = Number(gpuCount);
+                if (
+                  !selected.length ||
+                  prices.some((price) => price === null || price === undefined) ||
+                  !Number.isSafeInteger(count) ||
+                  count < 1
+                )
+                  return (
+                    <p>GPU cost estimate: Unknown. Choose priced hardware and a GPU count before starting.</p>
+                  );
+                const hourly = prices.map((price) => BigInt(price!) * BigInt(count));
+                const low = hourly.reduce((a, b) => (a < b ? a : b));
+                const high = hourly.reduce((a, b) => (a > b ? a : b));
+                const amount = (multiplier: bigint) =>
+                  low === high
+                    ? money((low * multiplier).toString())
+                    : `${money((low * multiplier).toString())}–${money((high * multiplier).toString())}`;
+                return (
+                  <p>
+                    Selected hardware estimate per active replica ({count} GPU{count === 1 ? '' : 's'}):{' '}
+                    {amount(1n)}/hour · {amount(24n)}/day · {amount(720n)}/30 days at continuous operation.
+                    Multiply by active replicas. Storage, data transfer and other provider charges are
+                    additional; prices and actual usage can change.
+                  </p>
+                );
+              })()}
               {inspection.license_acknowledgement_required && (
                 <label>
                   <input

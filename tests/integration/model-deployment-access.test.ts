@@ -224,6 +224,56 @@ it('exposes bounded exact cleanup identities only to the current owner with mana
   expect(recipient).not.toHaveProperty('resources');
 });
 
+it('keeps partial infrastructure amounts uncertain until every owned resource has a cost observation', async () => {
+  const { created, connection } = await fixture();
+  const first = id(),
+    second = id();
+  const start = '2026-01-01T00:00:00.000Z',
+    end = '2026-01-01T01:00:00.000Z';
+  await transaction(owner.organizationId, async (tx) => {
+    await tx.query(
+      `INSERT INTO model_deployment_resources(id,organization_id,deployment_id,revision_id,connection_id,attempt_id,secret_ciphertext,config,accepted_rates,state,created_at,deleted_at)
+      SELECT r.id,$1,$2,$3,$4,r.attempt,$5,'{}','{}','deleted',$6,$7
+      FROM unnest($8::uuid[],$9::uuid[]) AS r(id,attempt)`,
+      [
+        owner.organizationId,
+        created.id,
+        created.desired_revision_id,
+        connection.id,
+        seal('fixture-resource-secret'),
+        start,
+        end,
+        [first, second],
+        [id(), id()],
+      ],
+    );
+    await tx.query(
+      'INSERT INTO model_deployment_cost_observations(organization_id,resource_id,period_start,period_end,provider_reported_micro_usd) VALUES($1,$2,$3,$4,100)',
+      [owner.organizationId, first, start, end],
+    );
+  });
+  const partial = await transaction(owner.organizationId, (tx) => deployments.get(tx, owner, created.id));
+  expect(partial.infrastructure_cost).toMatchObject({
+    provider_reported_micro_usd: '100',
+    estimated_micro_usd: null,
+    status: 'uncertain',
+    unresolved_liability: true,
+  });
+  await transaction(owner.organizationId, (tx) =>
+    tx.query(
+      'INSERT INTO model_deployment_cost_observations(organization_id,resource_id,period_start,period_end,provider_reported_micro_usd) VALUES($1,$2,$3,$4,0)',
+      [owner.organizationId, second, start, end],
+    ),
+  );
+  const observed = await transaction(owner.organizationId, (tx) => deployments.get(tx, owner, created.id));
+  expect(observed.infrastructure_cost).toMatchObject({
+    provider_reported_micro_usd: '100',
+    estimated_micro_usd: null,
+    status: 'provider_reported',
+    unresolved_liability: false,
+  });
+});
+
 it('enforces tenant isolation on confirmed existing deployments', async () => {
   const { created } = await fixture();
   expect(

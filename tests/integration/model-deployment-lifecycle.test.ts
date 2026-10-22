@@ -8,6 +8,8 @@ import * as resources from '../../packages/core/src/resources';
 import * as deployments from '../../packages/core/src/model-deployments';
 import { runtimeCapabilities } from '../../packages/core/src/model-deployment-profiles';
 import { advanceModelDeployment } from '../../packages/core/src/model-deployment-reconciler';
+import { prepareConnectionSave } from '../../packages/core/src/model-hosting-connections';
+import type { RequestContext } from '../../packages/core/src/api-types';
 import type {
   DeploymentResourceRow,
   ModelHostingProvider,
@@ -41,6 +43,7 @@ class FixtureProvider implements ModelHostingProvider {
   failInspect = false;
   lostDelete = false;
   amount = '100';
+  deleteKey = 'synthetic-compute-secret';
   onCreate?: () => Promise<void>;
   async catalog() {
     return [
@@ -100,7 +103,7 @@ class FixtureProvider implements ModelHostingProvider {
     if (entry) entry.config = { ...entry.config, ...patch };
   }
   async delete(secret: string, providerId: string) {
-    expect(secret).toBe('synthetic-compute-secret');
+    expect(secret).toBe(this.deleteKey);
     this.deletes++;
     this.entries.delete(providerId);
     if (this.lostDelete) throw new Error('Synthetic lost delete acknowledgment');
@@ -174,6 +177,22 @@ async function stopIntent() {
       [deploymentId],
     );
   });
+}
+
+function rotationContext(secret = 'rotated-same-account'): RequestContext {
+  const body = { secret };
+  return {
+    p: account.p,
+    request: new Request(`${config.origin}/v1/connections/${computeId}`),
+    query: new URLSearchParams(),
+    params: { connection_id: computeId },
+    body,
+    bytes: Buffer.from(JSON.stringify(body)),
+    operationId: 'updateConnection',
+    idempotencyKey: id(),
+    headers: new Headers(),
+    requestId: id(),
+  };
 }
 
 beforeAll(async () => {
@@ -630,6 +649,141 @@ describe('persistent model service reconciliation', () => {
     expect(canonical((await resource()).config)).not.toContain('different-account');
     await advance();
     expect(provider.deletes).toBe(1);
+    expect((await resource()).deleted_at).not.toBeNull();
+  });
+
+  it('rotates a positively verified same-account key and cleanup credential atomically', async () => {
+    await advance();
+    await advance();
+    const prepared = await prepareConnectionSave(rotationContext(), provider);
+    await transaction(org(), (tx) => prepared.commit(tx, account.p));
+    expect(unseal<string>((await resource()).cleanup_secret_ciphertext || '')).toBe('rotated-same-account');
+    provider.deleteKey = 'rotated-same-account';
+    await stopIntent();
+    await advance();
+    expect((await resource()).deleted_at).not.toBeNull();
+    expect((await resource()).cleanup_secret_ciphertext).toBeNull();
+  });
+
+  it('rejects another account key before changing either connection or cleanup authority', async () => {
+    await advance();
+    await expect(prepareConnectionSave(rotationContext('different-account'), provider)).rejects.toMatchObject(
+      { code: 'connection_identity_immutable' },
+    );
+    expect(unseal<string>((await resource()).cleanup_secret_ciphertext || '')).toBe(
+      'synthetic-compute-secret',
+    );
+    const connection = await transaction(org(), (tx) => resources.get(tx, 'connections', computeId));
+    expect(unseal<string>(String(connection.secret_ciphertext))).toBe('synthetic-compute-secret');
+  });
+
+  it.each(['MF_REVISION_ID', 'MF_MODEL_CONFIG'])(
+    'rejects rotated access to mismatched immutable %s',
+    async (field) => {
+      await advance();
+      const entry = provider.entries.get('endpoint-1');
+      if (!entry) throw new Error('Expected the created fixture endpoint.');
+      entry.config.env = { ...(entry.config.env as Record<string, string>), [field]: 'changed-recipe' };
+      await expect(prepareConnectionSave(rotationContext(), provider)).rejects.toMatchObject({
+        code: 'connection_identity_immutable',
+      });
+    },
+  );
+
+  it('blocks key rotation while an accepted create still has an ambiguous provider identity', async () => {
+    provider.lostCreate = true;
+    await advance();
+    await expect(prepareConnectionSave(rotationContext(), provider)).rejects.toMatchObject({
+      code: 'deployment_conflict',
+    });
+    expect(unseal<string>((await resource()).cleanup_secret_ciphertext || '')).toBe(
+      'synthetic-compute-secret',
+    );
+  });
+
+  it.each(['resource', 'connection'])(
+    'rejects a concurrent %s change after rotation inspection',
+    async (changed) => {
+      await advance();
+      const prepared = await prepareConnectionSave(rotationContext(), provider);
+      await transaction(org(), async (tx) => {
+        if (changed === 'resource')
+          await tx.query(
+            "UPDATE model_deployment_resources SET config=jsonb_set(config,'{env,MF_MODEL_CONFIG}','\"concurrent-recipe\"'::jsonb) WHERE deployment_id=$1",
+            [deploymentId],
+          );
+        else await saveConnection(tx, account.p, { name: 'Concurrent rename' }, computeId);
+      });
+      await expect(transaction(org(), (tx) => prepared.commit(tx, account.p))).rejects.toMatchObject({
+        code: 'deployment_conflict',
+      });
+      expect(unseal<string>((await resource()).cleanup_secret_ciphertext || '')).toBe(
+        'synthetic-compute-secret',
+      );
+    },
+  );
+
+  it('rechecks current connection authority after provider inspection', async () => {
+    await advance();
+    const prepared = await prepareConnectionSave(rotationContext(), provider);
+    await transaction(org(), (tx) =>
+      tx.query("UPDATE memberships SET role='viewer' WHERE user_id=$1 AND organization_id=$2", [
+        account.p.userId,
+        org(),
+      ]),
+    );
+    try {
+      await expect(transaction(org(), (tx) => prepared.commit(tx, account.p))).rejects.toMatchObject({
+        code: 'permission_denied',
+      });
+      await expect(prepareConnectionSave(rotationContext(), provider)).rejects.toMatchObject({
+        code: 'permission_denied',
+      });
+      expect(unseal<string>((await resource()).cleanup_secret_ciphertext || '')).toBe(
+        'synthetic-compute-secret',
+      );
+    } finally {
+      await transaction(org(), (tx) =>
+        tx.query("UPDATE memberships SET role='owner' WHERE user_id=$1 AND organization_id=$2", [
+          account.p.userId,
+          org(),
+        ]),
+      );
+    }
+  });
+
+  it('fences a stale reconciler credential inspection after a newer verified key rotation', async () => {
+    await advance();
+    await advance();
+    await transaction(org(), (tx) =>
+      saveConnection(tx, account.p, { secret: 'intermediate-key' }, computeId),
+    );
+    let entered!: () => void;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const inspect = provider.inspect.bind(provider);
+    provider.inspect = async (key, providerId) => {
+      if (key === 'intermediate-key') {
+        entered();
+        await held;
+      }
+      return inspect(key, providerId);
+    };
+    const advancing = advance();
+    await ready;
+    const prepared = await prepareConnectionSave(rotationContext('newest-key'), provider);
+    await transaction(org(), (tx) => prepared.commit(tx, account.p));
+    release();
+    await advancing;
+    expect(unseal<string>((await resource()).cleanup_secret_ciphertext || '')).toBe('newest-key');
+    provider.deleteKey = 'newest-key';
+    await stopIntent();
+    await advance();
     expect((await resource()).deleted_at).not.toBeNull();
   });
 });

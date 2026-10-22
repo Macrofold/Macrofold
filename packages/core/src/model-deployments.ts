@@ -652,6 +652,8 @@ async function projections(
     ])
   ).rows;
   const byRevision = new Map(revisions.map((revision) => [revision.id, revision]));
+  // Partial known amounts stay useful, but a different owned resource with no
+  // billing observation must not turn an incomplete total into a reported bill.
   const costs = (
     await tx.query<{
       deployment_id: string;
@@ -664,7 +666,8 @@ async function projections(
     }>(
       `SELECT r.deployment_id,min(c.period_start) AS period_start,max(c.period_end) AS period_end,
     sum(c.estimated_micro_usd)::text AS estimated,sum(c.provider_reported_micro_usd)::text AS reported,max(c.as_of) AS as_of,
-    bool_or(r.state IN ('creating','ambiguous','cleanup_pending') OR (r.state='stopping' AND r.deleted_at IS NULL)) AS unresolved
+    bool_or(c.resource_id IS NULL OR (c.estimated_micro_usd IS NULL AND c.provider_reported_micro_usd IS NULL)
+      OR r.state IN ('creating','ambiguous','cleanup_pending') OR (r.state='stopping' AND r.deleted_at IS NULL)) AS unresolved
     FROM model_deployment_resources r LEFT JOIN model_deployment_cost_observations c ON c.resource_id=r.id
     WHERE r.deployment_id=ANY($1::uuid[]) GROUP BY r.deployment_id`,
       [rows.map((row) => row.id)],

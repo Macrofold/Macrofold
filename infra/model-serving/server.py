@@ -178,6 +178,8 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
                 await app.state.client.aclose()
 
     async def health(request):
+        if request.method != "GET":
+            return error(405, "method_not_allowed")
         if request.app.state.startup != "ready":
             return JSONResponse({"ready": False}, status_code=503)
         try:
@@ -188,6 +190,8 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
         return JSONResponse({"ready": ready}, status_code=200 if ready else 503)
 
     async def proxy(request):
+        if request.method not in {"GET", "POST"}:
+            return error(405, "method_not_allowed")
         secrets = request.headers.getlist(ENDPOINT_SECRET_HEADER)
         if len(secrets) != 1 or not hmac.compare_digest(secrets[0].encode(), secret.encode()):
             return error(401, "unauthorized")

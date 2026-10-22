@@ -39,6 +39,8 @@ The [model catalog](../features/execution/models.md) separates reviewed compatib
 
 ## Named connections
 
+[Custom model deployments](../features/execution/model-deployments.md) use `core/model-deployments.ts` for revisions, grants and admission targets, `model-deployment-service.ts` for prepared management operations, and `model-deployment-reconciler.ts` for durable hosting intent and cleanup. `model-hosting-connections.ts` fences account-key rotation. The HF and RunPod adapters live in `providers/model-deployment-source.ts` and `runpod-model-hosting.ts`; `deployment-chat.ts` adapts the existing immediate inference executor. `infra/model-serving` owns the protected vLLM wrapper, independently of the native-agent runtime.
+
 Named account configuration is owned by `packages/core/src/connections.ts` and `claude-connections.ts`; Composio authorization by `composio-auth.ts`; native authentication path exclusions by `packages/runtime/src/auth-paths.ts`. See [feature behavior](../features/identity-integrations/named-connections.md) and [remaining subscription architecture](../engineering/testing/named-connections.md).
 
 The native adapter registry lives in `packages/contracts/harnesses.ts`; the native harness dispatcher selects Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness or Pi. The [Unified Harness Interface](../features/execution/unified-harness-interface.md) is implemented by `HarnessAdapter` in `packages/runtime/src/types.ts` and defines the contribution boundary. [Harness architecture](../features/execution/runtime.md#harness-adapters) explains the embedded cores, private process bridge and shared gateway/checkpoint boundaries.

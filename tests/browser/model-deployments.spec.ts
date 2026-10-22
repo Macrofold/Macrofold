@@ -83,6 +83,56 @@ async function signIn(page: Page) {
   await expect(page).not.toHaveURL(/login/);
 }
 
+test('shows exact owned cleanup resources and keeps recovery controls off recipient views', async ({
+  page,
+}) => {
+  await signIn(page);
+  let current: Schema['ModelDeployment'] = {
+    ...deployment(),
+    state: 'cleanup_pending',
+    failure_code: 'provider_cleanup_unconfirmed',
+    resources: [
+      {
+        resource_id: connectionId,
+        provider_id: 'synthetic-owned-endpoint',
+        attempt_id: grantId,
+        deployment_revision_id: revisionId,
+        state: 'cleanup_pending',
+        created_at: timestamp,
+        deleted_at: null,
+      },
+    ],
+  };
+  let administrativeReads = 0;
+  await page.route('**/v1/model-deployments/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/revisions') || path.endsWith('/grants')) {
+      administrativeReads++;
+      return route.fulfill({ json: { data: [], next_cursor: null } });
+    }
+    return route.fulfill({ json: current });
+  });
+  await page.goto(`/model-deployments/${deploymentId}`);
+  const resources = page.getByRole('region', { name: 'Owned hosting resources', exact: true });
+  await expect(resources).toContainText('stop or delete the identified resource there');
+  await resources.locator('summary').click();
+  await expect(resources).toContainText('synthetic-owned-endpoint');
+  await expect(resources).toContainText(grantId);
+  await expect(
+    resources.getByRole('button', { name: 'Copy provider resource ID', exact: true }),
+  ).toBeVisible();
+  await expect(resources.getByRole('button', { name: 'Copy hosting attempt ID', exact: true })).toBeVisible();
+  await expect.poll(() => administrativeReads).toBeGreaterThan(0);
+  const beforeRecipient = administrativeReads;
+  const { resources: _ownedResources, ...recipient } = current;
+  current = { ...recipient, can_manage: false };
+  await page.reload();
+  await expect(page.getByRole('heading', { name: current.name, exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Owned hosting resources', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Model revisions', exact: true })).toHaveCount(0);
+  expect(administrativeReads).toBe(beforeRecipient);
+});
+
 test('shows loading, empty and denied states with retry and prevents creating without management scope', async ({
   page,
 }) => {
@@ -421,6 +471,11 @@ test('ignores stale source inspection and saves the reviewed immutable source wi
     form.getByRole('heading', { name: 'Compatible serving configuration', exact: true }),
   ).toBeVisible();
   await form.getByLabel('GPU pool IDs', { exact: true }).fill('fixture-pool');
+  await form.getByLabel('GPU count per replica', { exact: true }).fill('2');
+  await expect(form).toContainText(
+    'Selected hardware estimate per active replica (2 GPUs): $2.00/hour · $48.00/day · $1,440.00/30 days',
+  );
+  await expect(form).toContainText('Storage, data transfer and other provider charges are additional');
   await form.getByRole('checkbox', { name: /I have reviewed and accept this model/ }).check();
   await form.getByRole('button', { name: 'Create deployment', exact: true }).click();
   await expect(form).toHaveCount(0);
@@ -436,7 +491,7 @@ test('ignores stale source inspection and saves the reviewed immutable source wi
     hosting: {
       kind: 'runpod_serverless',
       compute_connection_id: connectionId,
-      placement: { gpu_pool_ids: ['fixture-pool'] },
+      placement: { gpu_pool_ids: ['fixture-pool'], gpu_count: 2 },
     },
   });
 });

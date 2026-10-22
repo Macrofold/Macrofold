@@ -9,6 +9,27 @@ import { canonical } from './crypto';
 import { assert } from './errors';
 import { runpodModelHosting } from '../../providers/src/runpod-model-hosting';
 import type { DeploymentResourceRow, ModelHostingProvider } from './model-deployment-types';
+import { matchesDeploymentResource } from './model-deployment-resource';
+
+async function assertCurrentAuthority(tx: Tx, p: Principal) {
+  const actor = {
+    organization_id: p.organizationId,
+    workspace_id: null,
+    config: {
+      principal_id: p.id,
+      principal_kind: p.kind,
+      user_id: p.userId ?? p.id,
+      oauth_token_id: p.oauthTokenId,
+      oauth_audience: p.oauthAudience,
+    },
+  };
+  assert(
+    await actorAuthorized(tx, actor, 'connections:write'),
+    403,
+    'permission_denied',
+    'Current connection-management authority is required.',
+  );
+}
 
 async function activeResources(tx: Tx, connectionId: string) {
   return (
@@ -34,6 +55,7 @@ export async function prepareConnectionSave(
     connectionId = c.params.connection_id;
   const snapshot = connectionId
     ? await transaction(c.p.organizationId, async (tx) => {
+        await assertCurrentAuthority(tx, c.p);
         const connection = await resources.get(tx, 'connections', connectionId, c.p);
         assertConnectionOwner(c.p, connection);
         return {
@@ -56,12 +78,7 @@ export async function prepareConnectionSave(
     for (const resource of snapshot.resources) {
       const observation = await provider.inspect(body.secret, String(resource.provider_id));
       assert(
-        observation &&
-          observation.config.image === resource.config.image &&
-          typeof observation.config.env === 'object' &&
-          observation.config.env !== null &&
-          'MF_ATTEMPT_ID' in observation.config.env &&
-          observation.config.env.MF_ATTEMPT_ID === resource.attempt_id,
+        observation && matchesDeploymentResource(resource, observation),
         409,
         'connection_identity_immutable',
         'The replacement key must retain access to the exact owned model endpoint. Use a separate connection for another provider account.',
@@ -70,25 +87,11 @@ export async function prepareConnectionSave(
   }
   return {
     commit: async (tx: Tx, p: Principal) => {
-      const actor = {
-        organization_id: p.organizationId,
-        workspace_id: null,
-        config: {
-          principal_id: p.id,
-          principal_kind: p.kind,
-          user_id: p.userId ?? p.id,
-          oauth_token_id: p.oauthTokenId,
-          oauth_audience: p.oauthAudience,
-        },
-      };
-      assert(
-        await actorAuthorized(tx, actor, 'connections:write'),
-        403,
-        'permission_denied',
-        'Current connection-management authority is required.',
-      );
-      if (connectionId && snapshot) {
+      if (connectionId && snapshot)
         await tx.query('SELECT id FROM connections WHERE id=$1 FOR UPDATE', [connectionId]);
+      // Authority is evaluated after a possible connection-lock wait.
+      await assertCurrentAuthority(tx, p);
+      if (connectionId && snapshot) {
         const current = await resources.get(tx, 'connections', connectionId, p);
         assert(
           current.revision === snapshot.connection.revision,
@@ -105,7 +108,15 @@ export async function prepareConnectionSave(
             'Model resource ownership changed during credential validation. Retry the intended rotation.',
           );
       }
-      return saveConnection(tx, p, body, connectionId);
+      const saved = await saveConnection(tx, p, body, connectionId);
+      if (connectionId && snapshot?.connection.kind === 'runpod' && body.secret !== undefined)
+        // Inspection, the connection lock and the resource snapshot above prove
+        // that the replacement key still owns every unresolved paid endpoint.
+        await tx.query(
+          'UPDATE model_deployment_resources SET cleanup_secret_ciphertext=$2 WHERE connection_id=$1 AND deleted_at IS NULL',
+          [connectionId, saved.secret_ciphertext],
+        );
+      return saved;
     },
     dispose: async () => {},
   };

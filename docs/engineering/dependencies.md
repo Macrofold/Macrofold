@@ -58,6 +58,10 @@ Background step export uses `@vercel/functions` 3.9.5 (Apache-2.0), promoted fro
 
 Direct inference promotes `eventsource-parser` 3.1.1 (MIT), already present transitively, to a pinned server dependency. It handles incremental SSE framing; provider-specific assembly and completion checks remain in Macrofold’s provider adapter. No new hosted service, partial-JSON parser or tracing SDK upgrade is introduced. Preserve its existing bundled license when distributing the application.
 
+## Custom model serving
+
+The separate custom-model wrapper pins official vLLM 0.32.0 by its Linux AMD64 image digest plus HTTPX 0.28.1, Starlette 1.9.0, Uvicorn 0.54.0 and Hugging Face Hub 1.33.0. Its [runtime guide](../../infra/model-serving/README.md#verification-and-dependencies) records licenses and the narrow upstream dependency-graph repair/exception. Preserve upstream CUDA, engine and model notices; scan the complete OS/Python artifact before release. This image is separate from the native harness graph above and is not published by ordinary CI.
+
 ## Contributor guidance validation
 
 The guidance checker promotes the already locked `yaml` 2.9.0 (ISC) to an exact development dependency for standard YAML skill metadata, including quoted/block strings and duplicate-key rejection. It is tooling-only, requires no hosted service and does not affect runtime providers or images. The checker extends the existing documentation gate instead of importing OpenLegend's checker implementation or changing application validation.

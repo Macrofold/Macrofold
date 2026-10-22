@@ -15,7 +15,7 @@ function fixtures(
     tokenizerRemoteCode?: boolean;
     missingTemplate?: boolean;
     template?: unknown;
-    weights?: string[];
+    weights?: readonly string[];
     architecture?: string;
     license?: string;
     gated?: boolean;

@@ -191,6 +191,8 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
     async def test_default_deny_secret_scoping_and_minimal_readiness(self):
         response = await self.client.get("/ping")
         self.assertEqual(response.json(), {"ready": True})
+        self.assertEqual((await self.client.head("/ping")).status_code, 405)
+        self.assertEqual((await self.client.head("/v1/models", headers={config_module.ENDPOINT_SECRET_HEADER: SECRET})).status_code, 405)
         for path in ["/metrics", "/tokenize", "/docs", "/openapi.json", "/v1/completions", "/load_lora_adapter", "/v1/systemone"]:
             self.assertEqual((await self.client.get(path)).status_code, 404)
         for headers in [{}, {"authorization": "Bearer unrelated-provider-key"}, {config_module.ENDPOINT_SECRET_HEADER: "wrong"}]:

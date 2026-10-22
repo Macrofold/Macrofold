@@ -175,7 +175,7 @@ const inferenceRecovery = `{"run_id":"` + inferenceID + `","session_id":null,"wo
 const inferenceBusy = `{"error":{"code":"inference_service_unavailable","message":"Busy","retryable":true,"request_id":"` + inferenceID + `","details":{"reason":"local_capacity"}}}`
 
 func inferenceInput() *InferenceCreate {
-	input := NewInferenceCreate(map[string]interface{}{}, *NewDecisionBinding("openrouter", "fixture", "managed"))
+	input := NewInferenceCreate(map[string]interface{}{}, DecisionBindingAsInferenceBinding(NewDecisionBinding("openrouter", "fixture", "managed")))
 	input.SetLimits(*NewInferenceLimits("1000", 10, 10))
 	return input
 }

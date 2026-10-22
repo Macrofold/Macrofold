@@ -56,6 +56,12 @@ The terminal deployment and cost-attribution fields identify the admitted revisi
 
 ## Operate from the CLI
 
+Normal CLI login includes deployment read/use permission. Request management and connection consent explicitly:
+
+```sh
+macrofold login --scope model-deployments:write --scope connections:write
+```
+
 ```sh
 macrofold model-deployment inspect owner/model --compute-connection RUNPOD_CONNECTION_ID --json
 macrofold model-deployment create --config-file deployment.json --json
@@ -70,6 +76,8 @@ macrofold model-deployment stop DEPLOYMENT_ID --json
 ```
 
 Configuration JSON follows the [OpenAPI reference](../api/README.md). Use `--config-file -` or `--policy-file -` for standard input. Create connections through `macrofold connection add --config-file private-connection.json`; protect secret-bearing files with owner-only permissions, and never put secrets in arguments or source control. Explicit `--idempotency-key` preserves a saved mutation identity; generated SDK resource methods also support all management operations in five languages.
+
+Rotate a token through **Connections → Edit connection** or `macrofold connection update CONNECTION_ID --config-file private-connection-update.json`, using a protected JSON object such as `{"secret":"REPLACEMENT_TOKEN"}`. The replacement must retain authority over the same provider account and its resources. Use a new connection for a different account.
 
 Managed policy specifies positive `min_replicas`, `max_replicas`, `max_concurrent_requests`, decimal-string `max_hourly_cost_micro_usd` and optional `stop_at`. External policy contains only request concurrency and optional stop time. An hourly ceiling limits planned rate/capacity, not lifetime spending or a provider-guaranteed final invoice. Ongoing warm hosting continues while idle. Use provider-account spending controls and a stop time for additional limits.
 

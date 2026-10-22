@@ -266,7 +266,7 @@ function help(command?: string) {
           .sort()
           .map((name) => '  ' + name)
           .join('\n')}\n  completion bash|zsh|fish|powershell`
-  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}\nLinking selects a remote workspace; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse macrofold doctor to inspect the model catalog without starting inference.\n`;
+  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}${command?.startsWith('model-deployment') || command === 'connection update' ? '\nNormal login includes model-deployments:read/use. For management, run macrofold login --scope model-deployments:write --scope connections:write.\n' : ''}\nLinking selects a remote workspace; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse macrofold doctor to inspect the model catalog without starting inference.\n`;
 }
 function completion(shell: string) {
   const words = [

@@ -18,7 +18,7 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 - Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Implementation and verification in progress: immediate request ownership, shared accounting, batched authorization observation, typed recovery and all five SDKs. Hosted lifetime and measured deployment capacity remain acceptance gates.
 
-- Hugging Face model deployments: [feature specification](hugging-face-model-deployments-feature-spec.md), [technical design](hugging-face-model-deployments-tech-design.md), [shared contract](hugging-face-model-deployments-contract.md), [research](hugging-face-model-deployments-research.md) and [agent brief](hugging-face-model-deployments-agent-brief.md). Design complete for production BYOK serving and compatible external endpoints through existing inference; [implementation and live acceptance](../maintainers/TODO.md#hugging-face-model-deployments) remain open.
+- Hugging Face model deployments: [feature specification](hugging-face-model-deployments-feature-spec.md), [technical design](hugging-face-model-deployments-tech-design.md), [shared contract](hugging-face-model-deployments-contract.md), [research](hugging-face-model-deployments-research.md) and [agent brief](hugging-face-model-deployments-agent-brief.md). Production BYOK and external-endpoint serving, direct inference, lifecycle, protected runtime and operator/client surfaces are implemented locally. The [feature guide](../features/execution/model-deployments.md) owns setup; [remaining acceptance](../maintainers/TODO.md#hugging-face-model-deployments) distinguishes local checks from actual RunPod/GPU qualification, registry publication and subsequent OpenLegend integration.
 
 - [OpenRouter decision-model routing](decision-model-routing.md): reviewed Decision 1/Jev routing, native and typed requests, and shared billing controls.
 
@@ -41,4 +41,3 @@ Project documents retain proposal-specific context. Current feature behavior sta
 - [Native home persistence](native-home-persistence.md): explicit durable state per harness, disposable runtime home, and verified cold continuation.
 
 - [Native turn reliability](native-turn-reliability.md): asynchronous OpenCode turns, reported costs, copied SQLite normalization and permission-driven file tools.
-

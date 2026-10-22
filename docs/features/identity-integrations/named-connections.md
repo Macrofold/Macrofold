@@ -12,6 +12,10 @@ Connect each account separately and give it a recognizable name, such as **Gmail
 
 Connections belong to their authorizing user. Tool access can target the organization, a workspace, a preset, or an exact workspace + preset pair; model keys and Claude subscription configurations remain owner-bound. Disconnect removes local authority immediately. Upstream revocation can require a separate provider action; see [connection security](implementation.md).
 
+## Custom model hosting connections
+
+Hugging Face, RunPod and external model connections are owner-bound hosting credentials. Set them up in **Model deployments**, or use protected configuration files with the connection CLI. **Connections → Edit** accepts a masked replacement token; `macrofold connection update ID --config-file private.json` uses the same API. A RunPod replacement key must still reach every existing exact endpoint; unresolved creation blocks rotation. Disconnect closes ordinary use while retaining narrow cleanup authority for owned infrastructure. Hosting connections have no MCP tool permissions. See [custom model setup and operation](../execution/model-deployments.md).
+
 ## Save authentication in a preset
 
 An agent preset saves its harness, model, funding mode, provider connection, instructions, and optional tool-selection defaults. The dashboard preset editor lets you choose a named API-key connection. API and SDK clients use `provider_connection_id` for model authentication and `connection_grants` for app tools.

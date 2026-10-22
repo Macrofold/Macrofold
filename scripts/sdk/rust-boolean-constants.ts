@@ -41,9 +41,11 @@ impl From<${name}> for bool {
 
 export async function preserveRustBooleanConstants(output: string) {
   for (const [file, name, literal] of [
+    ['inference_receipt_cost_attribution.rs', 'InfrastructureCostIncluded', false],
     ['model_deployment_cost_policy.rs', 'InfrastructureCostIncluded', false],
     ['model_deployment_hosting.rs', 'ExternalHostingAcknowledged', true],
     ['model_deployment_hosting_one_of_1.rs', 'ExternalHostingAcknowledged', true],
+    ['recommendation.rs', 'ActionExecuted', false],
   ] as const) {
     const target = path.join(output, 'src/models', file);
     await writeFile(target, rustBooleanConstant(await readFile(target, 'utf8'), name, literal));

@@ -22,6 +22,12 @@ fn deployment_boolean_constants_keep_json_types_and_literal_constraints() {
     for invalid in [serde_json::json!(false), serde_json::json!("true")] {
         assert!(serde_json::from_value::<ExternalHostingAcknowledged>(invalid).is_err());
     }
+    type ReceiptFlag = models::inference_receipt_cost_attribution::InfrastructureCostIncluded;
+    let receipt: ReceiptFlag = serde_json::from_value(serde_json::json!(false)).unwrap();
+    assert_eq!(serde_json::to_value(receipt).unwrap(), serde_json::json!(false));
+    for invalid in [serde_json::json!(true), serde_json::json!("false")] {
+        assert!(serde_json::from_value::<ReceiptFlag>(invalid).is_err());
+    }
 }
 
 #[tokio::test]
@@ -82,14 +88,9 @@ async fn application_immediate_json_and_sse() {
     .unwrap();
     let stopped = client.inferences().create(stopped_input).await.unwrap_err();
     let request = stopped.downcast_ref::<RequestError>().unwrap();
-    let api = request.source.downcast_ref::<macrofold::apis::Error<macrofold::apis::inferences_api::CreateInferenceError>>().unwrap();
-    match api {
-        macrofold::apis::Error::ResponseError(response) => {
-            assert_eq!(response.status.as_u16(), 409);
-            assert!(response.content.contains("deployment_not_ready"));
-        }
-        _ => panic!("stopped deployment must reject before dispatch"),
-    }
+    let api = request.source.downcast_ref::<macrofold::InferenceHttpError>().unwrap();
+    assert_eq!(api.status, 409);
+    assert_eq!(api.code, "deployment_not_ready");
     let ready_id = std::env::var("MACROFOLD_FIXTURE_READY_DEPLOYMENT_RUST").unwrap();
     let ready_revision = std::env::var("MACROFOLD_FIXTURE_READY_DEPLOYMENT_REVISION_RUST").unwrap();
     let ready_input: models::InferenceCreate = serde_json::from_slice(

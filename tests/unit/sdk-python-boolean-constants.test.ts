@@ -21,3 +21,14 @@ it.each(['true', 'false'])(
 it('preserves string-valued true and false enum checks', () => {
   expect(pythonBooleanConstants(source('StrictStr', 'false'))).toBe(source('StrictStr', 'false'));
 });
+it('fails when an expected pinned-generator boolean declaration changes', () => {
+  expect(() =>
+    pythonBooleanConstants(source('StrictBool', 'false').replace('if value not in', 'if value  not in'), {
+      field: 'included',
+      literal: false,
+    }),
+  ).toThrow('Recheck Python boolean constant generation');
+  expect(
+    pythonBooleanConstants(source('StrictBool', 'false'), { field: 'included', literal: false }),
+  ).toContain('if value is not False:');
+});

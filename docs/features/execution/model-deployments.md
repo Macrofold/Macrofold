@@ -18,6 +18,8 @@ Cloud requires reachable public HTTPS. A self-hosted local installation can expl
 
 ## Call from Open Legend or another backend
 
+Use matching server and generated-client builds. For an unpublished TypeScript build, run `pnpm sdk:build` and `npm pack ./sdk/typescript --pack-destination .data/releases` in Macrofold, then install the resulting `macrofold-0.1.0.tgz` in the consumer application. The [SDK guide](../api/sdks/implementation.md) covers all five client builds. Configure `MACROFOLD_BASE_URL`, `MACROFOLD_API_KEY`, `MACROFOLD_WORKSPACE_ID` and `MACROFOLD_DEPLOYMENT_ID` in the backend environment.
+
 Keep the API key in your backend environment. It needs `runs:write`, `runs:read`, `model-deployments:read` and `model-deployments:use`, plus an active deployment grant. Supply the authorized `workspace_id` when using workspace-scoped credentials or grants. Applications own their users’ authorization, prompt/context privacy and final output validation.
 
 ```ts

@@ -937,6 +937,7 @@ export function ModelDeploymentsView() {
         </>
       )}
       <Modal
+        className="model-deployments"
         open={create}
         onOpenChange={setCreate}
         title="Create model deployment"
@@ -1595,6 +1596,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
       )}
       {current.can_manage && !current.retired && <DeploymentAccess deploymentId={deploymentId} />}
       <Modal
+        className="model-deployments"
         open={dialog === 'service'}
         onOpenChange={(open) => {
           if (!open) setDialog(undefined);
@@ -1612,6 +1614,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
         )}
       </Modal>
       <Modal
+        className="model-deployments"
         open={dialog === 'revision'}
         onOpenChange={(open) => {
           if (!open) setDialog(undefined);
@@ -1629,6 +1632,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
         )}
       </Modal>
       <Modal
+        className="model-deployments"
         open={dialog === 'stop' || dialog === 'delete'}
         onOpenChange={(open) => {
           if (!busy && !open) setDialog(undefined);

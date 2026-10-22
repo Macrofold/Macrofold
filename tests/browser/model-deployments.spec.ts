@@ -197,12 +197,14 @@ test('shows loading, empty and denied states with retry and prevents creating wi
   await page.screenshot({
     path: test.info().outputPath('model-deployment-access-error.png'),
     fullPage: true,
+    animations: 'disabled',
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   await page.screenshot({
     path: test.info().outputPath('model-deployment-access-error-mobile.png'),
     fullPage: true,
+    animations: 'disabled',
   });
 });
 
@@ -321,6 +323,7 @@ test('applies revision rollback, preserves pending readiness, grants/revokes acc
   await page.screenshot({
     path: test.info().outputPath('model-deployment-status-mobile.png'),
     fullPage: true,
+    animations: 'disabled',
   });
 });
 
@@ -521,12 +524,15 @@ test('ignores stale source inspection and saves the reviewed immutable source wi
   await page.screenshot({
     path: test.info().outputPath('model-deployment-managed-setup.png'),
     fullPage: true,
+    animations: 'disabled',
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await expect.poll(() => form.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({
     path: test.info().outputPath('model-deployment-managed-setup-mobile.png'),
     fullPage: true,
+    animations: 'disabled',
   });
   await form.getByRole('checkbox', { name: /I have reviewed and accept this model/ }).check();
   await form.getByRole('button', { name: 'Create deployment', exact: true }).click();

@@ -359,6 +359,171 @@ it('uses rotated credentials in the same immutable endpoint revision and rejects
   ).resolves.toBeUndefined();
 });
 
+it('keeps accepted managed resource credentials across rollout while enforcing current delegation authority', async () => {
+  const { created, connection, prepared, resourceId } = await transaction(
+    owner.organizationId,
+    async (tx) => {
+      const connection = await resources.create(tx, 'connections', owner.organizationId, {
+        name: 'Synthetic managed account',
+        kind: 'runpod',
+        auth_method: 'api_key',
+        owner_subject_id: owner.userId,
+        secret_ciphertext: seal('fixture-managed-account-secret'),
+        status: 'healthy',
+      });
+      const prepared: PreparedDeploymentRevision = {
+        source: {
+          kind: 'hugging_face',
+          repository: 'fixture/model',
+          revision: 'a'.repeat(40),
+          weight_files: ['model.safetensors'],
+        },
+        runtime: {
+          profile_id: 'vllm-0.32.0-text',
+          parameters: { context_window_tokens: 2048, max_output_tokens: 256, max_concurrent_requests: 1 },
+        },
+        hosting: {
+          kind: 'runpod_serverless',
+          compute_connection_id: connection.id,
+          placement: { region_ids: [], gpu_pool_ids: ['fixture-pool'], gpu_count: 1 },
+        },
+        capabilities,
+        source_evidence: {},
+      };
+      const created = await deployments.create(
+        tx,
+        owner,
+        { name: 'Managed target fixture', ...prepared, access: { grants: [grant()] } },
+        prepared,
+      );
+      const resourceId = id();
+      await tx.query(
+        `INSERT INTO model_deployment_resources(id,organization_id,deployment_id,revision_id,connection_id,attempt_id,
+      provider_id,endpoint_url,secret_ciphertext,config,accepted_rates,state)
+      VALUES($1,$2,$3,$4,$5,$6,'endpoint-one','https://endpoint-one.api.runpod.ai',$7,'{}','{}','ready')`,
+        [
+          resourceId,
+          owner.organizationId,
+          created.id,
+          created.desired_revision_id,
+          connection.id,
+          id(),
+          seal('fixture-managed-endpoint-secret-one'),
+        ],
+      );
+      await tx.query(
+        `UPDATE model_deployments SET desired_state='running',state='ready',serving_revision_id=desired_revision_id,
+      ready_replicas=1,policy=$2 WHERE id=$1`,
+        [created.id, JSON.stringify({ max_concurrent_requests: 1 })],
+      );
+      return { created, connection, prepared, resourceId };
+    },
+  );
+  const accepted = await transaction(owner.organizationId, (tx) =>
+    deployments.resolveDeploymentTargetTx(tx, application, { deployment_id: created.id }, workspace, 30),
+  );
+  expect(accepted).toMatchObject({
+    deployment_revision_id: created.desired_revision_id,
+    endpoint_connection_id: null,
+    credential_connection_id: connection.id,
+    provider_resource_id: resourceId,
+    endpoint_url: 'https://endpoint-one.api.runpod.ai/v1',
+    model_alias: `macrofold-${created.desired_revision_id}`,
+  });
+  const expectedAcceptedHeaders = {
+    Authorization: 'Bearer fixture-managed-account-secret',
+    'x-macrofold-endpoint-secret': 'fixture-managed-endpoint-secret-one',
+  };
+  expect(
+    await transaction(owner.organizationId, (tx) =>
+      deployments.deploymentCredentialTx(tx, application, accepted),
+    ),
+  ).toEqual(expectedAcceptedHeaders);
+
+  const replacementId = id();
+  const replacement = await transaction(owner.organizationId, async (tx) => {
+    const replacement = await deployments.addRevision(tx, owner, created.id, {
+      ...prepared,
+      source: { ...prepared.source, revision: 'b'.repeat(40) },
+    });
+    await tx.query("UPDATE model_deployment_resources SET state='deleted',deleted_at=now() WHERE id=$1", [
+      resourceId,
+    ]);
+    await tx.query(
+      `INSERT INTO model_deployment_resources(id,organization_id,deployment_id,revision_id,connection_id,attempt_id,
+      provider_id,endpoint_url,secret_ciphertext,config,accepted_rates,state)
+      VALUES($1,$2,$3,$4,$5,$6,'endpoint-two','https://endpoint-two.api.runpod.ai',$7,'{}','{}','ready')`,
+      [
+        replacementId,
+        owner.organizationId,
+        created.id,
+        replacement.deployment_revision_id,
+        connection.id,
+        id(),
+        seal('fixture-managed-endpoint-secret-two'),
+      ],
+    );
+    await tx.query('UPDATE model_deployments SET desired_revision_id=$2,serving_revision_id=$2 WHERE id=$1', [
+      created.id,
+      replacement.deployment_revision_id,
+    ]);
+    return replacement;
+  });
+  const current = await transaction(owner.organizationId, (tx) =>
+    deployments.resolveDeploymentTargetTx(tx, application, { deployment_id: created.id }, workspace, 30),
+  );
+  expect(current).toMatchObject({
+    deployment_revision_id: replacement.deployment_revision_id,
+    provider_resource_id: replacementId,
+    endpoint_url: 'https://endpoint-two.api.runpod.ai/v1',
+  });
+  expect(
+    await transaction(owner.organizationId, (tx) =>
+      deployments.deploymentCredentialTx(tx, application, current),
+    ),
+  ).toMatchObject({
+    'x-macrofold-endpoint-secret': 'fixture-managed-endpoint-secret-two',
+  });
+  expect(
+    await transaction(owner.organizationId, (tx) =>
+      deployments.deploymentCredentialTx(tx, application, accepted),
+    ),
+  ).toEqual(expectedAcceptedHeaders);
+  await expect(
+    transaction(owner.organizationId, (tx) =>
+      deployments.authorizeDeploymentInvocationTx(tx, application, accepted, workspace),
+    ),
+  ).resolves.toBeUndefined();
+
+  await transaction(owner.organizationId, (tx) =>
+    resources.update(tx, 'connections', connection.id, { status: 'expired' }),
+  );
+  await expect(
+    transaction(owner.organizationId, (tx) => deployments.deploymentCredentialTx(tx, application, accepted)),
+  ).rejects.toMatchObject({ code: 'permission_denied' });
+  await transaction(owner.organizationId, async (tx) => {
+    await resources.update(tx, 'connections', connection.id, { status: 'healthy' });
+    await tx.query("UPDATE memberships SET role='member' WHERE organization_id=$1 AND user_id=$2", [
+      owner.organizationId,
+      owner.userId,
+    ]);
+  });
+  try {
+    await expect(
+      transaction(owner.organizationId, (tx) =>
+        deployments.authorizeDeploymentInvocationTx(tx, application, accepted, workspace),
+      ),
+    ).rejects.toMatchObject({ code: 'permission_denied' });
+  } finally {
+    await transaction(owner.organizationId, (tx) =>
+      tx.query("UPDATE memberships SET role='owner' WHERE organization_id=$1 AND user_id=$2", [
+        owner.organizationId,
+        owner.userId,
+      ]),
+    );
+  }
+});
+
 it('fences accepted credential delegation when its approving owner loses management membership', async () => {
   const { created } = await fixture();
   await transaction(owner.organizationId, (tx) => deployments.createGrant(tx, owner, created.id, grant()));

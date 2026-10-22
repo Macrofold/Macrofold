@@ -8,6 +8,8 @@ This is the current design; [decision log](decisions.md) explains changes from t
 
 ## Technology decisions
 
+**Designed extension, not implemented:** [Custom model deployments](../projects/hugging-face-model-deployments-tech-design.md) add a separate model-serving resource behind the existing immediate inference path. Their [shared contract](../projects/hugging-face-model-deployments-contract.md) preserves Run receipts, authorization and recovery while identifying a finite infrastructure activation separately from per-call pricing. This does not turn model servers into native-agent Workers or change the implemented topology below.
+
 | Responsibility        | Implementation                                                         | Why / tradeoff                                                                                                       |
 | --------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | App, API, public docs | Next.js 16, React 19, Node 24, TypeScript                              | One same-origin deployment, established ecosystem, standalone build; serverless duration/body limits remain explicit |

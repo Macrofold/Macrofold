@@ -2,7 +2,7 @@
 
 | Status | Current progress | Last updated |
 | --- | --- | --- |
-| In progress | The deployment and application integration are being designed; implementation and live provider qualification have not started. | 2026-10-22 |
+| In progress | The deployment and application integration design is specified; implementation and live provider qualification have not started. | 2026-10-22 |
 
 ## Purpose and document ownership
 
@@ -57,7 +57,7 @@ The useful promise is a common inspection, deployment and invocation workflow wi
 
 The developer selects a qualified deployment binding in OpenLegend's server-side experiment profile. The game sends its existing permitted messages and structured-response schema to `POST /v1/inferences`; Macrofold returns the ordinary result receipt plus deployment provenance and cost attribution.
 
-OpenLegend's live structured character route requires the exact model/runtime to pass its schema and character-behavior checks. A plain-text-only candidate may be screened offline with an explicit output-validation mode. Macrofold must not claim that a schema-shaped response is truthful or an acceptable character action, and OpenLegend must not turn a provider failure into fabricated dialogue.
+OpenLegend's live structured character route requires verified manifest evidence and the exact model/runtime to pass its schema and character-behavior checks. An operator-declared external endpoint or a plain-text-only candidate may be screened offline with an explicit evidence/validation mode. This is OpenLegend's narrower promotion policy; Macrofold still exposes honest provenance and separately qualified transport capabilities. Macrofold must not claim that a schema-shaped response is truthful or an acceptable character action, and OpenLegend must not turn a provider failure into fabricated dialogue.
 
 Each comparison records both repositories' revisions, model/runtime identity, prompt and schema identity, decoding settings, workload, output/usage, failures and the linked activation's infrastructure costs. This makes local/hosted and low-refusal/baseline comparisons possible without silently comparing different artifacts or charging shared idle cost once per request.
 
@@ -83,7 +83,7 @@ Stopping an imported activation revokes Macrofold use and cancels/drains its cal
 
 There are two different financial records: the request's own charge and the activation's infrastructure expense. The initial deployment-backed request charge is explicitly zero under the accepted policy. This does **not** mean the experiment is free. Startup, model downloads, active generation, retained idle workers and configured storage can contribute to the provider bill.
 
-The activation owns its finite time and infrastructure planning ceiling. Ordinary request `max_cost_micro_usd` bounds request charges; it does not cap the provider account or pay for the entire activation. Token usage is a model/workload measurement, not a fabricated GPU price. Shared infrastructure cost is counted once at activation level, with any experiment allocation method separately labeled as an estimate.
+The managed activation owns its finite time and infrastructure planning ceiling. An imported activation owns finite use authorization and records external infrastructure cost as known or unknown; Macrofold controls neither that external host nor its bill. Ordinary request `max_cost_micro_usd` bounds request charges; it does not cap the provider account or pay for the entire activation. Token usage is a model/workload measurement, not a fabricated GPU price. Shared infrastructure cost is counted once at activation level, with any experiment allocation method separately labeled as an estimate.
 
 The system uses a conservative cost projection and automatic drain/stop policy before its accepted limits. RunPod control-plane failure or delayed billing can leave an uncertain tail. The product must state that a BYOK planning/automatic-shutdown ceiling is not a provider-guaranteed hard dollar cap. It cannot release an unknown obligation merely because the application stopped reading responses.
 

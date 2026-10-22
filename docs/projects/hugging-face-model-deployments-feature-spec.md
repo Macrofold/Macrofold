@@ -49,7 +49,7 @@ The initial managed profile is text generation with remote code disabled. It doe
 6. A worker failure triggers provider recovery within the same policy. Healthy replacement workers serve the same revision. Incomplete in-flight requests retain the existing failure/recovery semantics; recovery never blindly resubmits an ambiguous prompt.
 7. The owner can change capacity, stop the service, schedule a stop or select another immutable revision. A stopped service remains stopped until an authorized control action starts it.
 
-The first revision-change operation drains the old service and starts the selected revision, with a visible brief interruption. Already accepted requests keep their original revision and can finish within their deadlines. Production callers using only the deployment ID then follow the newly ready revision; explicitly pinned callers receive a revision-unavailable error until their selected revision is serving. Seamless blue-green upgrades are not needed for the initial complete feature.
+The first revision-change operation drains the old service and starts the selected revision, with an interruption covering teardown and model loading. Already accepted requests keep their original revision and can finish within their deadlines. Production callers using only the deployment ID then follow the newly ready revision; explicitly pinned callers receive a revision-unavailable error until their selected revision is serving. Seamless blue-green upgrades are not needed for the initial complete feature.
 
 ### Use an existing endpoint
 
@@ -112,6 +112,6 @@ Implementation and live acceptance remain tracked separately from the completed 
 
 ## Scope and remaining decisions
 
-The production architecture is selected. Initial limits are managed vLLM text serving, BYOK infrastructure, imported compatible endpoints and graceful revision changes with a brief interruption. No custom scheduler, model marketplace, fine-tuning system, GPU resale or automatic cross-model fallback is needed. Additional runtimes/providers fit behind the existing serving/provider boundaries when required by an actual model or operating workload.
+The production architecture is selected. Initial limits are managed vLLM text serving, BYOK infrastructure, imported compatible endpoints and graceful revision changes with a visible loading interruption. No custom scheduler, model marketplace, fine-tuning system, GPU resale or automatic cross-model fallback is needed. Additional runtimes/providers fit behind the existing serving/provider boundaries when required by an actual model or operating workload.
 
 Concrete model choice, account access, pinned image, capacity/rate policy and workload tuning are operator inputs. RunPod ingress authentication, actual GPU/model fit, restart behavior, cancellation and billing observations require implementation/live evidence before the backend is enabled. These checks establish normal service reliability; they do not require a permanent experimental approval system.

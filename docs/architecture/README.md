@@ -8,8 +8,6 @@ This is the current design; [decision log](decisions.md) explains changes from t
 
 ## Technology decisions
 
-**Designed extension, not implemented:** [Custom model deployments](../projects/hugging-face-model-deployments-tech-design.md) add a separate model-serving resource behind the existing immediate inference path. Their [shared contract](../projects/hugging-face-model-deployments-contract.md) preserves Run receipts, authorization and recovery while identifying a finite infrastructure activation separately from per-call pricing. This does not turn model servers into native-agent Workers or change the implemented topology below.
-
 | Responsibility        | Implementation                                                         | Why / tradeoff                                                                                                       |
 | --------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | App, API, public docs | Next.js 16, React 19, Node 24, TypeScript                              | One same-origin deployment, established ecosystem, standalone build; serverless duration/body limits remain explicit |
@@ -60,6 +58,8 @@ flowchart TD
 This is a modular application, not dozens of independently deployed services. Some provider composition is intentionally adjacent to domain services (for example the model gateway and connection implementation); the machine and object-store ports carry the critical hosting/persistence boundary. Do not claim every vendor can be replaced without implementation changes.
 
 The [customer-agent starter](../../examples/personal-agent/README.md) composes the public SDK from application-owned customer records; it does not add a customer aggregate to the platform. Its local store and HTTP/auth adapter can be replaced together with the integrating app's infrastructure. Deployment connector setup and trigger quotas live in owner-administered policy tables, separate from customer connections, tool grants and run funding. [Ownership and verification](../engineering/testing/customer-agents.md) records these boundaries and deliberate limits.
+
+[Custom model deployments](../projects/hugging-face-model-deployments-tech-design.md) are a designed, unimplemented extension: separate model-serving resources compose existing inference and Run recovery, with finite infrastructure activations distinct from native-agent Workers and per-call pricing.
 
 ## Durable transaction sequence
 

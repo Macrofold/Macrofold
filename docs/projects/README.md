@@ -10,8 +10,6 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 ## Plans
 
-- Hugging Face model deployments: [feature specification](hugging-face-model-deployments-feature-spec.md), [technical design](hugging-face-model-deployments-tech-design.md), [shared application contract](hugging-face-model-deployments-contract.md), [hosting research](hugging-face-model-deployments-research.md) and [agent handoff](hugging-face-model-deployments-agent-brief.md). Design for immutable model revisions, finite BYOK RunPod activations and qualified external endpoints through existing inference; implementation and live qualification have not started. [Delivery work](../maintainers/TODO.md#hugging-face-model-deployments) tracks the coordinated OpenLegend integration.
-
 - Execution efficiency: [feature specification](execution-efficiency-feature-spec.md), [technical design](execution-efficiency-tech-design.md) and [verification](execution-efficiency-verification.md), plus [optimization verification](execution-efficiency/optimization-verification.md). Compact two-commit immediate execution, bounded background administration, versioned caches and batched SQL are implemented locally across native/tool/queue/storage/event paths. Local capture/runtime refinement and activation are complete; six co-located Linux cohorts meet the server-overhead p95 target. The record preserves macOS misses, the open SQL/CI/hosted gates and the deliberate response-checkpoint tradeoff.
 
 - Execution-efficiency follow-up: [implementation-ready optimization annex](execution-efficiency/remaining-optimizations.md), paired with the existing execution-efficiency feature specification above. Proposed SQL batching, payload reuse and explicit diagnostic tradeoffs; no application implementation is authorized by these documents.
@@ -19,6 +17,8 @@ Project documents retain proposal-specific context. Current feature behavior sta
 - Opt-in performance profiling: [feature specification](performance-profiling-feature-spec.md) and [technical design](performance-profiling-tech-design.md). Implemented default-off operator flag, bounded content-free profiles and concurrent foreground/background attribution; observer-overhead qualification remains explicit.
 
 - Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Implementation and verification in progress: immediate request ownership, shared accounting, batched authorization observation, typed recovery and all five SDKs. Hosted lifetime and measured deployment capacity remain acceptance gates.
+
+- Hugging Face model deployments: [feature specification](hugging-face-model-deployments-feature-spec.md), [technical design](hugging-face-model-deployments-tech-design.md), [shared contract](hugging-face-model-deployments-contract.md), [research](hugging-face-model-deployments-research.md) and [agent brief](hugging-face-model-deployments-agent-brief.md). Design complete for finite BYOK hosting and external endpoints through existing inference; [implementation and live qualification](../maintainers/TODO.md#hugging-face-model-deployments) remain open.
 
 - [OpenRouter decision-model routing](decision-model-routing.md): reviewed Decision 1/Jev routing, native and typed requests, and shared billing controls.
 

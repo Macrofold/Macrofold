@@ -22,7 +22,7 @@ All three are UUIDs. Identifiers are references, never authority. The owning org
 
 Initial managed deployment supports customer-funded RunPod Serverless load balancing with a pinned vLLM recipe. Imported endpoints use `openai_chat` after qualification, with externally managed lifecycle. Macrofold does not make OpenLegend's fictional rules, refusal preferences, NPC purposes or audience policy platform-wide. Model servers are not native-agent Workers, Worktrees or HostRuns.
 
-The initial deployment has at most one nonterminal activation. A stopped activation cannot be restarted or renewed; request a fresh quote and activation. A revision cannot change beneath active calls. Preserve previous immutable revisions/receipts for their actual retention requirements, not a pre-launch compatibility layer.
+The initial deployment has at most one nonterminal activation. Each activation has one bounded qualification suite and one immutable certificate; verified endpoints also pin the authenticated serving-process boot. Observed boot/source/runtime drift or a connection credential-generation change closes admission and starts the same stop/cleanup path. Continued use requires a fresh quote and activation, even when the model revision is unchanged. This trades automatic recovery for reproducible, explicitly funded experiments. An unverified external endpoint cannot prove or fence unseen process changes. A stopped activation cannot be restarted or renewed. Preserve previous immutable revisions/receipts for their actual retention requirements, not a pre-launch compatibility layer.
 
 ## 2. Authorization
 
@@ -44,7 +44,7 @@ Keep the first release small: the authenticated deployment owner must also be th
 
 The server returns immutable `grant_id`, normalized input, `created_at`, `created_by_subject_id` and nullable `revoked_at`. `GET /{id}/grants` returns the owner's cursor-paginated full list; recipients see only their effective access through ordinary safe projections. `POST /{id}/grants` creates one exact grant, and `DELETE /{id}/grants/{grant_id}` revokes that grant idempotently. Only the deployment/connection owner with deployment-write may mutate. Grant identity rather than a mutable collection replacement prevents lost updates; there is no grant PATCH. Changed recipient/workspace scope means revoke then create. Revocation is immediate for future dispatch/publication. Additions apply to the next activation: a quote freezes grant IDs/digests, and an activation's maximum use scope never expands beyond that snapshot. A stale quote after an access change must be replaced; it cannot fund recipients the owner has not reviewed.
 
-Personal BYOK connections are not automatically organization credentials. The connection owner must authorize this exact deployment, connection revision, recipients/workspaces and finite spending policy. An organization administrator cannot silently consume another member's personal key. Revoking a use grant blocks later dispatch/publication under existing authorization rules, but does not revoke the narrowly retained system cleanup capability needed to stop outstanding capacity. Revoked/invalid provider credentials make cleanup uncertain, not successful.
+Revoking a use grant blocks later dispatch/publication under existing authorization rules, but does not revoke the narrowly retained system cleanup capability needed to stop outstanding capacity. Revoked/invalid provider credentials make cleanup uncertain, not successful.
 
 All operations use the existing API-key/session/customer-OAuth boundaries as applicable; management MCP remains read-only. Source/compute registration and credential entry use existing encrypted connection mechanisms. Request bodies, projections, traces and receipts contain connection IDs, never secret values.
 
@@ -134,9 +134,9 @@ Required fields:
 | `artifact_manifest_sha256` | Hex SHA-256 or null when unattested; never hash of alias alone |
 | `runtime_image_digest` | Pinned OCI digest or null for unverified external runtime |
 | `identity_evidence` | `verified_manifest` or `operator_declared` |
-| `qualification_id` | Immutable certificate UUID, null before qualifying |
+| `qualification_id` | This activation's immutable certificate UUID; null before qualification |
 | `capabilities` | Certificate below, null until established |
-| `serving_observation` | Latest qualified `{observed_at,worker_boot_id,served_model_alias,hardware:{accelerator_kind,model,count,memory_bytes,data_center_id}}`; null before observation |
+| `serving_observation` | Immutable qualified `{observed_at,worker_boot_id,served_model_alias,hardware:{accelerator_kind,model,count,memory_bytes,data_center_id}}`; null before qualification |
 | `cost_policy` | `{basis:"deployment_activation",funding_mode:"byok",request_charge_micro_usd:"0",infrastructure_cost_included:false}` |
 | `accepted_terms` | Immutable nonsecret accepted commitment described below; never reconstructed from today's price or a current grant |
 | `infrastructure_cost` | `{status,estimated_micro_usd,provider_reported_micro_usd,reconciled_micro_usd,reconciliation_id,reconciliation_basis,unresolved_liability,as_of}`; unknown numeric values and absent reconciliation fields null |
@@ -160,11 +160,11 @@ Corrections append a new record with `supersedes_reconciliation_id`; they never 
 
 Readiness can become false without changing a revision, for example after capacity loss or revocation. A ready projection is advisory for OpenLegend startup; Macrofold rechecks current authority, activation generation, deadline, cost exposure and capacity in its own dispatch admission. Do not poll management APIs on every NPC turn.
 
-The immutable revision describes requested source/runtime/placement; `serving_observation` records actual qualified process/hardware evidence. `accelerator_kind` is `gpu`, `cpu` or `unknown`; other hardware values may be null when external evidence cannot establish them, and `memory_bytes` uses a nonnegative decimal string. Managed readiness requires observed GPU/count/location to satisfy the accepted offer. A new worker boot invalidates current readiness until qualified; historical receipts retain their immutable qualification reference rather than being relabeled by the latest observation. Never report requested pool/region as measured hardware.
+The immutable revision describes requested source/runtime/placement; `serving_observation` records actual qualified process/hardware evidence. `accelerator_kind` is `gpu`, `cpu` or `unknown`; other hardware values may be null when external evidence cannot establish them, and `memory_bytes` uses a nonnegative decimal string. Managed readiness requires observed GPU/count/location to satisfy the accepted offer. Neither a replacement worker nor a later status read can rewrite this activation's qualified observation or historical receipts. Unverified external boot identity remains null and explicitly operator-declared; it cannot satisfy a verified-serving requirement. Never report requested pool/region as measured hardware.
 
 ## 4. Capability certificate
 
-One immutable certificate binds source/runtime/parameters, qualification suite and results. It is invalidated for dispatch by revision/credential/endpoint/identity drift or expiry of its configured requalification policy, not by a model's marketing label. The activation exposes:
+One immutable certificate binds source/runtime/parameters, qualification suite and results for the activation's finite lifetime. Verified endpoints additionally bind the authenticated boot before the suite's first generation request; both qualification and application requests require the wrapper to reject another boot before invoking the engine. Drift closes admission rather than scheduling another paid suite. Operator-declared external endpoints without that evidence retain their offline limitation. The activation exposes:
 
 - `protocol:"openai_chat"`; supported `input_modalities:["text"]` initially.
 - `chat_completions:boolean`, `json_object:boolean`, `json_schema:boolean`, `tools:boolean`, `streaming:boolean`, `stream_usage:boolean`.

@@ -55,8 +55,10 @@ weights, terms, templates or hardware must produce a specific reason.
 
 Review concrete lifecycle failures: ambiguous provisioning, expired/revoked
 grants, missing capacity, tokenizer/schema mismatch, failed/late output,
-cancelled requests, stale workers, provider outage, uncertain teardown and
-delayed billing. A zero request fee is not free GPU time. A client timeout is
+cancelled requests, provider outage, uncertain teardown and delayed billing.
+Keep one qualified process per activation, reject a different boot before
+generation, and require a fresh activation after identity drift.
+A zero request fee is not free GPU time. A client timeout is
 not proof that execution or charges stopped. Keep cleanup authority and
 financial uncertainty until actual reconciliation.
 

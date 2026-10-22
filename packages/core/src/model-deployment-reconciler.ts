@@ -23,6 +23,7 @@ const LEASE_MS = 120_000;
 const STARTUP_MS = 20 * 60_000;
 const DRAIN_MS = 270_000;
 const MAX_FAILURES = 8;
+const COST_CHECK_MS = 5 * 60_000;
 const cleanupCandidates = z
   .array(
     z.object({
@@ -341,14 +342,40 @@ async function stopDuplicateResources(
 
 async function observeCosts(
   org: string,
+  current: Claim,
   resource: DeploymentResourceRow,
   key: string,
   provider: ModelHostingProvider,
+  finalObservation = false,
 ) {
   if (!resource.provider_id) return;
+  if (
+    !finalObservation &&
+    resource.cost_checked_at &&
+    Date.now() - resource.cost_checked_at.getTime() < COST_CHECK_MS
+  )
+    return;
+  // Billing buckets change far less frequently than readiness. Persist the
+  // attempt before I/O so empty responses, errors and process loss share the
+  // same cadence, without delaying service control or inventing financial facts.
+  // See docs/projects/hugging-face-model-deployments-tech-design.md#9-capacity-cost-and-spending-policy.
+  const claimed = await mutate(
+    org,
+    current,
+    async (tx) =>
+      (
+        await tx.query<Pick<DeploymentResourceRow, 'created_at' | 'deleted_at'>>(
+          `UPDATE model_deployment_resources SET cost_checked_at=clock_timestamp() WHERE id=$1
+      AND ($3::boolean OR cost_checked_at IS NULL OR cost_checked_at<=clock_timestamp()-($2::integer*interval '1 millisecond'))
+      RETURNING created_at,deleted_at`,
+          [resource.id, COST_CHECK_MS, finalObservation],
+        )
+      ).rows[0],
+  );
+  if (!claimed) return;
   const now = Date.now();
-  const end = resource.deleted_at ?? new Date(now);
-  const start = new Date(Math.max(resource.created_at.getTime(), now - 30 * 86_400_000));
+  const end = claimed.deleted_at ?? new Date(now);
+  const start = new Date(Math.max(claimed.created_at.getTime(), now - 30 * 86_400_000));
   if (start >= end) return;
   const observations = await provider.costs(
     key,
@@ -378,7 +405,8 @@ async function observeCosts(
   });
 }
 
-async function historicalCosts(org: string, row: DeploymentRow, provider: ModelHostingProvider) {
+async function historicalCosts(org: string, current: Claim, provider: ModelHostingProvider) {
+  const row = current.row;
   // Confirmed teardown releases cleanup credentials. Delayed/corrected buckets
   // can still use the current healthy connection; unavailable access remains
   // unknown and never recreates infrastructure or retains a second billing key.
@@ -396,20 +424,14 @@ async function historicalCosts(org: string, row: DeploymentRow, provider: ModelH
     WHERE r.deployment_id=$1 AND r.deleted_at>now()-interval '30 days' AND r.provider_id IS NOT NULL
       AND c.data->>'owner_subject_id'=$2 AND c.data->>'kind'='runpod' AND c.data->>'status'='healthy'
       AND coalesce((c.data->>'deleted')::boolean,false)=false AND c.data->>'secret_ciphertext' IS NOT NULL
-      AND (r.observed_at IS NULL OR r.observed_at<now()-interval '5 minutes')
-    ORDER BY r.observed_at NULLS FIRST,r.id LIMIT 2`,
+      AND (r.cost_checked_at IS NULL OR r.cost_checked_at<now()-interval '5 minutes')
+    ORDER BY r.cost_checked_at NULLS FIRST,r.id LIMIT 2`,
           [row.id, row.owner_subject_id],
         )
       ).rows,
   );
   await mapConcurrent(resources, 2, async (resource) => {
-    try {
-      await observeCosts(org, resource, unseal<string>(resource.credential), provider);
-    } finally {
-      await transaction(org, async (tx) => {
-        await tx.query('UPDATE model_deployment_resources SET observed_at=now() WHERE id=$1', [resource.id]);
-      });
-    }
+    await observeCosts(org, current, resource, unseal<string>(resource.credential), provider);
   });
 }
 
@@ -472,7 +494,7 @@ async function stopOwnedResource(
   await provider.update(key, known.provider_id, { workers: { min: 0, max: 0 } }).catch(() => {});
   await provider.delete(key, known.provider_id).catch(() => {});
   const observation = await provider.inspect(key, known.provider_id);
-  await mutate(org, current, async (tx, row) => {
+  const deleted = await mutate(org, current, async (tx, row) => {
     if (observation === null) {
       await tx.query(
         "UPDATE model_deployment_resources SET state='deleted',stopped_at=coalesce(stopped_at,now()),deleted_at=now(),cleanup_secret_ciphertext=NULL,observed_at=now(),last_error=NULL WHERE id=$1",
@@ -484,6 +506,7 @@ async function stopOwnedResource(
         observed_at=now() WHERE id=$1`,
         [row.id],
       );
+      return true;
     } else {
       await tx.query(
         "UPDATE model_deployment_resources SET state='cleanup_pending',observed_at=now(),last_error='provider_stop_unconfirmed' WHERE id=$1",
@@ -493,9 +516,12 @@ async function stopOwnedResource(
         "UPDATE model_deployments SET state='cleanup_pending',serving_revision_id=NULL,ready_replicas=0,failure_code=CASE WHEN failure_code='service_recovery_exhausted' THEN failure_code ELSE 'provider_stop_unconfirmed' END,observed_at=now() WHERE id=$1",
         [row.id],
       );
+      return false;
     }
   });
-  await observeCosts(org, known, key, provider).catch(() => {});
+  // Observe once at confirmed teardown while its retained cleanup key is still
+  // available in memory; later corrections use the normal current connection.
+  await observeCosts(org, current, known, key, provider, deleted === true).catch(() => {});
 }
 
 async function external(
@@ -875,7 +901,7 @@ async function observeManaged(
       [known.id, ready ? 'ready' : 'starting', rates ? JSON.stringify(rates) : null],
     );
   });
-  await observeCosts(org, known, key, provider).catch(() => {});
+  await observeCosts(org, current, known, key, provider).catch(() => {});
 }
 
 /** Provider I/O lives outside tenant transactions. A new create is possible only
@@ -963,7 +989,7 @@ export async function advanceModelDeployment(
       );
     });
   } finally {
-    await historicalCosts(org, current.row, provider).catch(() => {});
+    await historicalCosts(org, current, provider).catch(() => {});
     await transaction(org, async (tx) => {
       // A newer control generation still waits for this owner's I/O to finish,
       // but must not wait for its lease expiry afterward. Only the exact lease

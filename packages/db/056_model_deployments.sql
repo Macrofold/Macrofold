@@ -57,7 +57,7 @@ CREATE TABLE model_deployment_resources (
  secret_ciphertext text NOT NULL, cleanup_secret_ciphertext text, config jsonb NOT NULL, accepted_rates jsonb NOT NULL,
  state text NOT NULL CHECK(state IN ('creating','ambiguous','starting','ready','stopping','deleted','cleanup_pending')),
  created_at timestamptz NOT NULL DEFAULT now(), stopped_at timestamptz, deleted_at timestamptz,
- observed_at timestamptz, last_error text,
+ observed_at timestamptz, cost_checked_at timestamptz, last_error text,
  FOREIGN KEY(organization_id,deployment_id,revision_id) REFERENCES model_deployment_revisions(organization_id,deployment_id,id),
  FOREIGN KEY(organization_id,connection_id) REFERENCES connections(organization_id,id),
  UNIQUE(organization_id,id), UNIQUE(attempt_id)
@@ -65,7 +65,7 @@ CREATE TABLE model_deployment_resources (
 CREATE UNIQUE INDEX model_deployment_one_resource ON model_deployment_resources(deployment_id) WHERE deleted_at IS NULL;
 CREATE INDEX model_deployment_connection_resources ON model_deployment_resources(connection_id,id) WHERE deleted_at IS NULL;
 CREATE INDEX model_deployment_resources_listing ON model_deployment_resources(deployment_id,(deleted_at IS NULL) DESC,created_at DESC,id DESC);
-CREATE INDEX model_deployment_historical_cost_due ON model_deployment_resources(deployment_id,deleted_at DESC,observed_at,id) WHERE deleted_at IS NOT NULL AND provider_id IS NOT NULL;
+CREATE INDEX model_deployment_historical_cost_due ON model_deployment_resources(deployment_id,deleted_at DESC,cost_checked_at,id) WHERE deleted_at IS NOT NULL AND provider_id IS NOT NULL;
 CREATE TABLE model_deployment_cost_observations (
  organization_id uuid NOT NULL, resource_id uuid NOT NULL, period_start timestamptz NOT NULL, period_end timestamptz NOT NULL,
  estimated_micro_usd bigint, provider_reported_micro_usd bigint, as_of timestamptz NOT NULL DEFAULT now(),

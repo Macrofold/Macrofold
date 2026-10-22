@@ -75,6 +75,7 @@ export type DeploymentResourceRow = {
   stopped_at: Date | null;
   deleted_at: Date | null;
   observed_at: Date | null;
+  cost_checked_at: Date | null;
   last_error: string | null;
 };
 export type GpuOffer = {

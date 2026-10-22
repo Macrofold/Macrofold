@@ -110,6 +110,12 @@ export function normalizeHuggingFaceSource(input: Source): Source {
     'unsupported_model_source',
     'Choose a valid explicit model revision.',
   );
+  assert(
+    input.weight_files === undefined || input.weight_files.length > 0,
+    400,
+    'unsupported_model_source',
+    'Select at least one safetensors file, or omit weight_files to inspect the complete variant.',
+  );
   for (const file of input.weight_files || [])
     assert(
       !file.startsWith('/') &&
@@ -231,11 +237,13 @@ export async function inspectHuggingFace(
       );
     if (!source.weight_files && weights.some((f) => f.rfilename.includes('/')))
       add('ambiguous_weight_variant', 'Select the exact weight_files for one compatible weight variant.');
-    if (source.weight_files?.some((f) => !weights.some((w) => w.rfilename === f)))
+    const weightPaths = new Set(weights.map((weight) => weight.rfilename));
+    const selectedPaths = source.weight_files ? new Set(source.weight_files) : undefined;
+    if (source.weight_files?.some((file) => !weightPaths.has(file)))
       add('missing_weight_file', 'One selected safetensors file does not exist at this revision.');
-    const selected = weights.filter((w) => !source.weight_files || source.weight_files.includes(w.rfilename));
+    const selected = weights.filter((weight) => !selectedPaths || selectedPaths.has(weight.rfilename));
     pinned.weight_files = selected.map((f) => f.rfilename);
-    normalizeHuggingFaceSource(pinned);
+    if (selected.length) normalizeHuggingFaceSource(pinned);
     let tokenizerConfig = tokenizer;
     let tokenizerSource = { repository: source.repository, revision: info.sha, siblings: info.siblings };
     if (source.tokenizer) {

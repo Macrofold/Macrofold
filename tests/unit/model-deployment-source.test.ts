@@ -260,6 +260,29 @@ it('pins a separately selected tokenizer and checks only the selected weight var
   });
 });
 
+it('rejects an empty explicit weight selection before metadata or hosting work', async () => {
+  const fetch = fixtures();
+  await expect(
+    inspectHuggingFace({
+      source: { kind: 'hugging_face', repository: 'fixture/model', weight_files: [] },
+      task: 'text_generation',
+    }),
+  ).rejects.toMatchObject({ code: 'unsupported_model_source', status: 400 });
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('selects one exact weight variant at the inventory and selection bounds', async () => {
+  const selected = Array.from({ length: 10000 }, (_, index) => `selected/shard-${index}.safetensors`);
+  const other = Array.from({ length: 10000 }, (_, index) => `other/shard-${index}.safetensors`);
+  fixtures({ weights: [...selected, ...other] });
+  const result = await inspectHuggingFace({
+    source: { kind: 'hugging_face', repository: 'fixture/model', weight_files: selected },
+    task: 'text_generation',
+  });
+  expect(result.supported).toBe(true);
+  expect(result.source?.weight_files).toEqual(selected);
+});
+
 it('accepts the canonical pinned standalone chat template in the model tokenizer', async () => {
   fixtures({ missingTemplate: true, templateArtifact: true });
   const result = await inspectHuggingFace(inspection());

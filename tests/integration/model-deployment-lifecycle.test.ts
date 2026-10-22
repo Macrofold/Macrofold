@@ -46,6 +46,7 @@ class FixtureProvider implements ModelHostingProvider {
   failInspect = false;
   lostDelete = false;
   amount = '100';
+  costMode: 'reported' | 'empty' | 'failure' = 'reported';
   costCalls: { providerId: string; start: string; end: string }[] = [];
   deleteKey = 'synthetic-compute-secret';
   onCreate?: () => Promise<void>;
@@ -116,6 +117,8 @@ class FixtureProvider implements ModelHostingProvider {
   }
   async costs(_secret: string, providerId: string, start: string, end: string) {
     this.costCalls.push({ providerId, start, end });
+    if (this.costMode === 'failure') throw new Error('Synthetic billing observation failure');
+    if (this.costMode === 'empty') return [];
     const bucket = Math.floor(Date.parse(start) / 3_600_000) * 3_600_000;
     return [
       {
@@ -175,6 +178,14 @@ async function resource() {
           [deploymentId],
         )
       ).rows[0],
+  );
+}
+async function costsDue() {
+  await transaction(org(), (tx) =>
+    tx.query(
+      "UPDATE model_deployment_resources SET cost_checked_at=now()-interval '6 minutes' WHERE deployment_id=$1",
+      [deploymentId],
+    ),
   );
 }
 async function stopIntent() {
@@ -518,6 +529,7 @@ describe('persistent model service reconciliation', () => {
   it('cleans owned infrastructure after connection disconnect erased ordinary credentials and scale-down failed', async () => {
     await advance();
     await advance();
+    expect(provider.costCalls).toHaveLength(1);
     await stopIntent();
     await transaction(org(), (tx) =>
       resources.update(tx, 'connections', computeId, {
@@ -528,10 +540,22 @@ describe('persistent model service reconciliation', () => {
     );
     provider.failPatch = true;
     provider.lostDelete = true;
+    provider.amount = '250';
     await advance();
     expect(provider.deletes).toBe(1);
     expect((await resource()).deleted_at).not.toBeNull();
     expect((await row()).state).toBe('stopped');
+    expect(provider.costCalls).toHaveLength(2);
+    const observed = await transaction(org(), (tx) =>
+      tx.query<{ amount: string }>(
+        `SELECT provider_reported_micro_usd AS amount FROM model_deployment_cost_observations
+      WHERE resource_id=(SELECT id FROM model_deployment_resources WHERE deployment_id=$1)`,
+        [deploymentId],
+      ),
+    );
+    expect(observed.rows).toEqual([{ amount: '250' }]);
+    await advance();
+    expect(provider.costCalls).toHaveLength(2);
   });
 
   it('preserves cleanup uncertainty when provider shutdown cannot be observed', async () => {
@@ -698,6 +722,7 @@ describe('persistent model service reconciliation', () => {
     await advance();
     await advance();
     provider.amount = '75';
+    await costsDue();
     await advance();
     // Query by the fixture resource through its tenant, independently of provider totals.
     const observed = await transaction(org(), (tx) =>
@@ -709,6 +734,32 @@ describe('persistent model service reconciliation', () => {
     expect(observed.rows).toEqual([{ provider_reported_micro_usd: '75', estimated_micro_usd: null }]);
   });
 
+  it.each(['reported', 'empty', 'failure'] as const)(
+    'keeps readiness checks independent of the five-minute %s billing cadence',
+    async (mode) => {
+      await advance();
+      provider.costMode = mode;
+      await advance();
+      expect(provider.costCalls).toHaveLength(1);
+      await advance();
+      expect((await row()).state).toBe('ready');
+      expect(provider.costCalls).toHaveLength(1);
+      provider.costMode = 'reported';
+      provider.amount = '175';
+      await costsDue();
+      await advance();
+      expect(provider.costCalls).toHaveLength(2);
+      const observed = await transaction(org(), (tx) =>
+        tx.query<{ amount: string }>(
+          `SELECT provider_reported_micro_usd AS amount FROM model_deployment_cost_observations
+        WHERE resource_id=(SELECT id FROM model_deployment_resources WHERE deployment_id=$1)`,
+          [deploymentId],
+        ),
+      );
+      expect(observed.rows).toEqual([{ amount: '175' }]);
+    },
+  );
+
   it('refreshes delayed billing corrections after confirmed cleanup without retaining the cleanup credential', async () => {
     await advance();
     await advance();
@@ -718,12 +769,7 @@ describe('persistent model service reconciliation', () => {
     if (!deletedAt) throw new Error('Expected confirmed cleanup.');
     expect((await resource()).cleanup_secret_ciphertext).toBeNull();
     provider.amount = '175';
-    await transaction(org(), async (tx) => {
-      await tx.query(
-        "UPDATE model_deployment_resources SET observed_at=now()-interval '6 minutes' WHERE deployment_id=$1",
-        [deploymentId],
-      );
-    });
+    await costsDue();
     await advance();
     expect(provider.costCalls.at(-1)?.end).toBe(deletedAt.toISOString());
     expect((await row()).next_check_at?.getTime()).toBeGreaterThan(Date.now() + 290_000);
@@ -748,7 +794,7 @@ describe('persistent model service reconciliation', () => {
     await transaction(org(), (tx) =>
       tx.query(
         `UPDATE model_deployment_resources SET created_at=now()-interval '32 days',
-      deleted_at=now()-interval '31 days',observed_at=now()-interval '6 minutes' WHERE deployment_id=$1`,
+      deleted_at=now()-interval '31 days',cost_checked_at=now()-interval '6 minutes' WHERE deployment_id=$1`,
         [deploymentId],
       ),
     );

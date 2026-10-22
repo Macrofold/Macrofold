@@ -16,34 +16,73 @@ const policy = { max_concurrent_requests: 2, stop_at: null };
 const calls: { method: string; path: string; body: unknown; key: string | undefined }[] = [];
 let server: Server, origin: string, directory: string;
 
-async function command(args: string[], stdin?: string) {
+async function command(args: string[], stdin?: string | Buffer[]) {
   return new Promise<{ code: number; stdout: string; stderr: string }>((resolve, reject) => {
-    const child = spawn(process.execPath, [path.resolve('packages/cli/dist/index.mjs'), ...args, '--json'], {
-      cwd: directory,
-      env: {
-        ...process.env,
-        AGENT_HOST: origin,
-        AGENT_API_KEY: 'sk_cli_model_deployment_fixture',
-        AGENT_CONFIG_DIR: path.join(directory, 'config'),
-        NO_COLOR: '1',
+    const chunks = Array.isArray(stdin) ? stdin : undefined;
+    const child = spawn(
+      process.execPath,
+      [
+        ...(chunks ? ['--import', path.join(directory, 'stdin-chunks.mjs')] : []),
+        path.resolve('packages/cli/dist/index.mjs'),
+        ...args,
+        '--json',
+      ],
+      {
+        cwd: directory,
+        env: {
+          ...process.env,
+          AGENT_HOST: origin,
+          AGENT_API_KEY: 'sk_cli_model_deployment_fixture',
+          AGENT_CONFIG_DIR: path.join(directory, 'config'),
+          NO_COLOR: '1',
+        },
+        stdio: ['pipe', 'pipe', 'pipe'],
       },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    );
     let stdout = '',
       stderr = '';
+    let nextChunk = 0,
+      observed = 0;
+    const writeChunk = () => {
+      if (!chunks || nextChunk >= chunks.length) return;
+      const chunk = chunks[nextChunk++];
+      if (nextChunk === chunks.length) child.stdin.end(chunk);
+      else child.stdin.write(chunk);
+    };
     child.stdout.on('data', (value) => {
       stdout += value;
     });
     child.stderr.on('data', (value) => {
       stderr += value;
+      const marker = 'stdin-chunk-consumed\n';
+      let index: number;
+      while ((index = stderr.indexOf(marker, observed)) !== -1) {
+        observed = index + marker.length;
+        writeChunk();
+      }
     });
     child.on('error', reject);
     child.on('close', (code) => resolve({ code: code ?? 1, stdout, stderr }));
-    child.stdin.end(stdin);
+    if (chunks) writeChunk();
+    else child.stdin.end(stdin);
   });
 }
 beforeAll(async () => {
   directory = await mkdtemp(path.join(tmpdir(), 'macrofold-deployment-cli-'));
+  // Acknowledge consumed pipe chunks so Unicode boundaries do not depend on
+  // process startup or arbitrary sleeps. The built CLI still reads real stdin.
+  await writeFile(
+    path.join(directory, 'stdin-chunks.mjs'),
+    `
+const iterate = process.stdin[Symbol.asyncIterator].bind(process.stdin);
+process.stdin[Symbol.asyncIterator] = async function* () {
+  for await (const chunk of iterate()) {
+    yield chunk;
+    process.stderr.write('stdin-chunk-consumed\\n');
+  }
+};
+`,
+  );
   server = createServer(async (request, response) => {
     let body = '';
     for await (const chunk of request) body += chunk;
@@ -89,6 +128,39 @@ afterAll(async () => {
 });
 
 describe('built model deployment CLI public transport', () => {
+  it('requires explicit noninteractive retirement confirmation before contacting the API', async () => {
+    const result = await command(['model-deployment', 'delete', deploymentId]);
+    expect(result.code).toBe(2);
+    expect(result.stdout).toContain('--yes');
+    expect(result.stdout).not.toContain('--dry-run');
+    expect(calls).toEqual([]);
+  });
+
+  it('preserves UTF-8 characters split across protected stdin chunks', async () => {
+    const input = { name: 'Café 世界 🌍', secret: 'synthetic-private-token' };
+    const bytes = Buffer.from(JSON.stringify(input));
+    const boundary = bytes.indexOf(Buffer.from('🌍')) + 1;
+    const result = await command(
+      ['connection', 'update', apiKeyId, '--config-file', '-'],
+      [bytes.subarray(0, boundary), bytes.subarray(boundary)],
+    );
+    expect(result.code, result.stderr || result.stdout).toBe(0);
+    expect(calls).toEqual([
+      { method: 'PATCH', path: `/v1/connections/${apiKeyId}`, body: input, key: expect.any(String) },
+    ]);
+    expect(result.stdout).not.toContain(input.secret);
+  });
+
+  it('bounds protected Unicode stdin by UTF-8 bytes before sending a request', async () => {
+    const result = await command(
+      ['connection', 'update', apiKeyId, '--config-file', '-'],
+      JSON.stringify({ name: '€'.repeat(Math.floor((4 * 1024 * 1024) / 3) + 1) }),
+    );
+    expect(result.code).toBe(2);
+    expect(result.stdout).toContain('Input exceeds 4 MiB');
+    expect(calls).toEqual([]);
+  });
+
   it.each(['file', 'stdin'])('omits malformed protected %s contents from errors', async (input) => {
     const secret = 'synthetic-protected-account-token';
     const file = path.join(directory, 'malformed-protected.json');

@@ -13707,6 +13707,951 @@
         },
         "description": " Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation."
       }
+    },
+    "/v1/model-deployments/inspect": {
+      "post": {
+        "operationId": "inspectModelDeployment",
+        "summary": "inspect Model Deployment",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentInspection"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelDeploymentInspectionInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-deployments": {
+      "post": {
+        "operationId": "createModelDeployment",
+        "summary": "create Model Deployment",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeployment"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelDeploymentCreate"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listModelDeployments",
+        "summary": "list Model Deployments",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-deployments/{deployment_id}": {
+      "get": {
+        "operationId": "getModelDeployment",
+        "summary": "get Model Deployment",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeployment"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteModelDeployment",
+        "summary": "delete Model Deployment",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeployment"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-deployments/{deployment_id}/revisions": {
+      "post": {
+        "operationId": "createModelDeploymentRevision",
+        "summary": "create Model Deployment Revision",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentRevision"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelDeploymentRevisionCreate"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listModelDeploymentRevisions",
+        "summary": "list Model Deployment Revisions",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentRevisionPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-deployments/{deployment_id}/revisions/{revision_id}": {
+      "get": {
+        "operationId": "getModelDeploymentRevision",
+        "summary": "get Model Deployment Revision",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentRevision"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-deployments/{deployment_id}/grants": {
+      "get": {
+        "operationId": "listModelDeploymentGrants",
+        "summary": "list Model Deployment Grants",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentGrantPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createModelDeploymentGrant",
+        "summary": "create Model Deployment Grant",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentGrant"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelDeploymentGrantInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-deployments/{deployment_id}/grants/{grant_id}": {
+      "delete": {
+        "operationId": "revokeModelDeploymentGrant",
+        "summary": "revoke Model Deployment Grant",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeploymentGrant"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-deployments/{deployment_id}/service": {
+      "put": {
+        "operationId": "setModelDeploymentService",
+        "summary": "set Model Deployment Service",
+        "tags": [
+          "Model deployments"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "model-deployments:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "model-deployments:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "deployment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDeployment"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelDeploymentServiceInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -13780,7 +14725,10 @@
               "triggers:write": "Manage incoming triggers and scheduled tasks",
               "workers:read": "Read authorized Worker configuration and aggregate compute usage",
               "workers:use": "Execute authorized Runs using granted Worker capacity",
-              "workers:write": "Manage Worker lifecycle, economic contracts and spending limits"
+              "workers:write": "Manage Worker lifecycle, economic contracts and spending limits",
+              "model-deployments:read": "Read authorized deployment status and capabilities",
+              "model-deployments:use": "Invoke an explicitly granted model deployment",
+              "model-deployments:write": "Manage owned deployments, connections, access and hosting policy"
             }
           }
         }
@@ -14033,7 +14981,10 @@
               "github",
               "composio",
               "search",
-              "claude_subscription"
+              "claude_subscription",
+              "hugging_face",
+              "runpod",
+              "external_model"
             ]
           },
           "provider": {
@@ -14969,7 +15920,10 @@
               "mcp_stdio",
               "composio",
               "search",
-              "claude_subscription"
+              "claude_subscription",
+              "hugging_face",
+              "runpod",
+              "external_model"
             ]
           },
           "provider": {
@@ -15048,7 +16002,10 @@
               "mcp_stdio",
               "composio",
               "search",
-              "claude_subscription"
+              "claude_subscription",
+              "hugging_face",
+              "runpod",
+              "external_model"
             ]
           },
           "provider": {
@@ -17373,6 +18330,49 @@
           },
           "billing": {
             "$ref": "#/components/schemas/InferenceBilling"
+          },
+          "deployment": {
+            "type": "object",
+            "properties": {
+              "deployment_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "deployment_revision_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "deployment_id",
+              "deployment_revision_id"
+            ],
+            "additionalProperties": false
+          },
+          "cost_attribution": {
+            "type": "object",
+            "properties": {
+              "basis": {
+                "type": "string",
+                "enum": [
+                  "deployment"
+                ]
+              },
+              "deployment_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "infrastructure_cost_included": {
+                "type": "boolean",
+                "const": false
+              }
+            },
+            "required": [
+              "basis",
+              "deployment_id",
+              "infrastructure_cost_included"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -23032,7 +24032,7 @@
             ]
           },
           "model_binding": {
-            "$ref": "#/components/schemas/DecisionBinding"
+            "$ref": "#/components/schemas/InferenceBinding"
           },
           "limits": {
             "$ref": "#/components/schemas/InferenceLimits"
@@ -23389,7 +24389,10 @@
               "github",
               "composio",
               "search",
-              "claude_subscription"
+              "claude_subscription",
+              "hugging_face",
+              "runpod",
+              "external_model"
             ]
           },
           "provider": {
@@ -24389,6 +25392,1347 @@
           "reason"
         ],
         "additionalProperties": false
+      },
+      "ModelDeploymentCapabilities": {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "openai_chat"
+            ]
+          },
+          "input_modalities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "text"
+              ]
+            },
+            "maxItems": 1
+          },
+          "chat_completions": {
+            "type": "boolean"
+          },
+          "json_object": {
+            "type": "boolean"
+          },
+          "json_schema": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "boolean"
+          },
+          "streaming": {
+            "type": "boolean"
+          },
+          "stream_usage": {
+            "type": "boolean"
+          },
+          "schema_keywords": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 100
+          },
+          "accepted_parameters": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 100
+          },
+          "schema_dialect": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context_window_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2097152
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1048576
+          },
+          "max_concurrent_requests": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "protocol",
+          "input_modalities",
+          "chat_completions",
+          "json_object",
+          "json_schema",
+          "tools",
+          "streaming",
+          "stream_usage",
+          "schema_keywords",
+          "accepted_parameters",
+          "schema_dialect",
+          "context_window_tokens",
+          "max_output_tokens",
+          "max_concurrent_requests"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentBinding": {
+        "type": "object",
+        "properties": {
+          "deployment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deployment_revision_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "deployment_id"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceBinding": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DecisionBinding"
+          },
+          {
+            "$ref": "#/components/schemas/ModelDeploymentBinding"
+          }
+        ]
+      },
+      "ModelDeploymentRuntimeParameters": {
+        "type": "object",
+        "properties": {
+          "context_window_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2097152
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1048576
+          },
+          "max_concurrent_requests": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65536
+          },
+          "dtype": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "half",
+              "bfloat16",
+              "float"
+            ]
+          },
+          "quantization": {
+            "type": "string",
+            "enum": [
+              "awq",
+              "gptq",
+              "fp8",
+              "compressed-tensors"
+            ]
+          },
+          "tensor_parallel_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "gpu_memory_utilization": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 0.95
+          },
+          "tool_call_parser": {
+            "type": "string",
+            "enum": [
+              "hermes",
+              "llama3_json",
+              "mistral"
+            ]
+          },
+          "reasoning_parser": {
+            "type": "string",
+            "enum": [
+              "deepseek_r1",
+              "qwen3"
+            ]
+          }
+        },
+        "required": [
+          "context_window_tokens",
+          "max_output_tokens",
+          "max_concurrent_requests"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentHuggingFaceSource": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "hugging_face"
+            ]
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "source_connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "weight_files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "maxItems": 10000
+          },
+          "tokenizer": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "repository"
+            ],
+            "additionalProperties": false
+          },
+          "chat_template": {
+            "type": "string",
+            "enum": [
+              "tokenizer"
+            ]
+          },
+          "license_acknowledged": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "repository"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentExternalSource": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "external"
+            ]
+          },
+          "repository": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ModelDeploymentCapabilities"
+          }
+        },
+        "required": [
+          "kind",
+          "capabilities"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentSource": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ModelDeploymentHuggingFaceSource"
+          },
+          {
+            "$ref": "#/components/schemas/ModelDeploymentExternalSource"
+          }
+        ]
+      },
+      "ModelDeploymentRuntime": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "profile_id": {
+                "type": "string",
+                "enum": [
+                  "vllm-0.32.0-text"
+                ]
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/ModelDeploymentRuntimeParameters"
+              }
+            },
+            "required": [
+              "profile_id",
+              "parameters"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "external"
+                ]
+              },
+              "engine": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ModelDeploymentHosting": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "runpod_serverless"
+                ]
+              },
+              "compute_connection_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "placement": {
+                "type": "object",
+                "properties": {
+                  "region_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "maxItems": 100
+                  },
+                  "gpu_pool_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "uniqueItems": true
+                  },
+                  "gpu_count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 16
+                  }
+                },
+                "required": [
+                  "region_ids",
+                  "gpu_pool_ids",
+                  "gpu_count"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "compute_connection_id",
+              "placement"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "external_openai"
+                ]
+              },
+              "endpoint_connection_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "model_alias": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "external"
+                ]
+              },
+              "external_hosting_acknowledged": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "kind",
+              "endpoint_connection_id",
+              "model_alias",
+              "lifecycle",
+              "external_hosting_acknowledged"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ModelDeploymentServicePolicy": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "min_replicas": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "max_replicas": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "max_concurrent_requests": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65536
+              },
+              "max_hourly_cost_micro_usd": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,14}$"
+              },
+              "stop_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "min_replicas",
+              "max_replicas",
+              "max_concurrent_requests",
+              "max_hourly_cost_micro_usd"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "max_concurrent_requests": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65536
+              },
+              "stop_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "max_concurrent_requests"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ModelDeploymentGrantInput": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "subject"
+                    ]
+                  },
+                  "subject_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "subject_id"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "api_key"
+                    ]
+                  },
+                  "api_key_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "api_key_id"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "workspace_scope": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "all"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "selected"
+                    ]
+                  },
+                  "workspace_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "kind",
+                  "workspace_ids"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "subject",
+          "workspace_scope"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentGrant": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "subject"
+                    ]
+                  },
+                  "subject_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "subject_id"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "api_key"
+                    ]
+                  },
+                  "api_key_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "api_key_id"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "workspace_scope": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "all"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "selected"
+                    ]
+                  },
+                  "workspace_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "kind",
+                  "workspace_ids"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "grant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deployment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "subject",
+          "workspace_scope",
+          "grant_id",
+          "deployment_id",
+          "created_at",
+          "revoked_at"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentRevisionCreate": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/ModelDeploymentSource"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/ModelDeploymentRuntime"
+          },
+          "hosting": {
+            "$ref": "#/components/schemas/ModelDeploymentHosting"
+          }
+        },
+        "required": [
+          "source",
+          "runtime",
+          "hosting"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "source": {
+            "$ref": "#/components/schemas/ModelDeploymentSource"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/ModelDeploymentRuntime"
+          },
+          "hosting": {
+            "$ref": "#/components/schemas/ModelDeploymentHosting"
+          },
+          "access": {
+            "type": "object",
+            "properties": {
+              "grants": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ModelDeploymentGrantInput"
+                },
+                "maxItems": 100
+              }
+            },
+            "required": [
+              "grants"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "name",
+          "source",
+          "runtime",
+          "hosting",
+          "access"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentRevision": {
+        "type": "object",
+        "properties": {
+          "deployment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deployment_revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ModelDeploymentSource"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/ModelDeploymentRuntime"
+          },
+          "hosting": {
+            "$ref": "#/components/schemas/ModelDeploymentHosting"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ModelDeploymentCapabilities"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "deployment_id",
+          "deployment_revision_id",
+          "source",
+          "runtime",
+          "hosting",
+          "capabilities",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentServiceInput": {
+        "type": "object",
+        "properties": {
+          "deployment_revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "desired_state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "stopped"
+            ]
+          },
+          "policy": {
+            "$ref": "#/components/schemas/ModelDeploymentServicePolicy"
+          }
+        },
+        "required": [
+          "deployment_revision_id",
+          "desired_state",
+          "policy"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentInfrastructureCost": {
+        "type": "object",
+        "properties": {
+          "period_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "period_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "estimated_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^(0|[1-9][0-9]{0,14})$"
+          },
+          "provider_reported_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^(0|[1-9][0-9]{0,14})$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "estimated",
+              "provider_reported",
+              "external_unknown",
+              "uncertain"
+            ]
+          },
+          "as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "unresolved_liability": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "period_start",
+          "period_end",
+          "estimated_micro_usd",
+          "provider_reported_micro_usd",
+          "status",
+          "as_of",
+          "unresolved_liability"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeployment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deployment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "can_manage": {
+            "type": "boolean"
+          },
+          "desired_state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "stopped"
+            ]
+          },
+          "desired_revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serving_revision_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "stopped",
+              "starting",
+              "ready",
+              "degraded",
+              "stopping",
+              "failed",
+              "cleanup_pending"
+            ]
+          },
+          "admission_open": {
+            "type": "boolean"
+          },
+          "capabilities": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ModelDeploymentCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ModelDeploymentServicePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ready_replicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "cost_policy": {
+            "type": "object",
+            "properties": {
+              "basis": {
+                "type": "string",
+                "enum": [
+                  "deployment"
+                ]
+              },
+              "request_charge_micro_usd": {
+                "type": "string",
+                "enum": [
+                  "0"
+                ]
+              },
+              "infrastructure_cost_included": {
+                "type": "boolean",
+                "const": false
+              }
+            },
+            "required": [
+              "basis",
+              "request_charge_micro_usd",
+              "infrastructure_cost_included"
+            ],
+            "additionalProperties": false
+          },
+          "infrastructure_cost": {
+            "$ref": "#/components/schemas/ModelDeploymentInfrastructureCost"
+          },
+          "failure_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retired": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "deployment_id",
+          "name",
+          "can_manage",
+          "desired_state",
+          "desired_revision_id",
+          "serving_revision_id",
+          "state",
+          "admission_open",
+          "capabilities",
+          "policy",
+          "ready_replicas",
+          "observed_at",
+          "cost_policy",
+          "infrastructure_cost",
+          "failure_code",
+          "retired",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentInspectionInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/ModelDeploymentHuggingFaceSource"
+          },
+          "task": {
+            "type": "string",
+            "enum": [
+              "text_generation"
+            ]
+          },
+          "compute_connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runtime_preferences": {
+            "type": "object",
+            "properties": {
+              "profile_id": {
+                "type": "string",
+                "enum": [
+                  "vllm-0.32.0-text"
+                ]
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/ModelDeploymentRuntimeParameters"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "source",
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentInspection": {
+        "type": "object",
+        "properties": {
+          "supported": {
+            "type": "boolean"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "code",
+                "message"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100
+          },
+          "source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ModelDeploymentHuggingFaceSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runtime_profiles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "profile_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "image": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "parameters": {
+                  "$ref": "#/components/schemas/ModelDeploymentRuntimeParameters"
+                },
+                "capabilities": {
+                  "$ref": "#/components/schemas/ModelDeploymentCapabilities"
+                }
+              },
+              "required": [
+                "profile_id",
+                "image",
+                "parameters",
+                "capabilities"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 10
+          },
+          "hosting_options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "gpu_pool_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "memory_bytes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "hourly_cost_micro_usd": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^(0|[1-9][0-9]{0,14})$"
+                },
+                "region_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "maxItems": 100
+                }
+              },
+              "required": [
+                "gpu_pool_id",
+                "name",
+                "memory_bytes",
+                "hourly_cost_micro_usd",
+                "region_ids"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100
+          },
+          "memory_estimate_bytes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license_acknowledgement_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "supported",
+          "findings",
+          "source",
+          "runtime_profiles",
+          "hosting_options",
+          "memory_estimate_bytes",
+          "license",
+          "license_acknowledgement_required"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelDeployment"
+            },
+            "maxItems": 100
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentRevisionPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelDeploymentRevision"
+            },
+            "maxItems": 100
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentGrantPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelDeploymentGrant"
+            },
+            "maxItems": 100
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "DeploymentBinding": {
+        "$ref": "#/components/schemas/ModelDeploymentBinding"
       }
     },
     "parameters": {

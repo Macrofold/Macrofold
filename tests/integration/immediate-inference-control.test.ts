@@ -76,11 +76,13 @@ it('exposes only current content-free cross-tenant control facts through the res
   expect(observed.rows).toHaveLength(2);
   for (const current of observed.rows) {
     expect(apiKeyActorAuthorized(current)).toBe(true);
+    expect(current.deployment_allowed).toBe(true);
     const source = current.id === first.id ? first : second;
     expect(await transaction(source.organization_id, (tx) => actorAuthorized(tx, source))).toBe(true);
     expect(Object.keys(current).sort()).toEqual([
       'cancel_requested',
       'deadline',
+      'deployment_allowed',
       'email_verified',
       'id',
       'key_bound',

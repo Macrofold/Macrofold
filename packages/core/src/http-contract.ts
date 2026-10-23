@@ -1,7 +1,7 @@
 import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import spec from '../../../docs/api/openapi.json';
-import { assert } from './errors';
+import { AppError, assert } from './errors';
 export type JSONSchema = {
   $ref?: string;
   type?: string | string[];
@@ -146,6 +146,31 @@ export function validateParameters(operation: Operation, request: Request, param
   }
 }
 export function validateBody(operation: Operation, value: unknown, binary: boolean) {
+  if (
+    operation.operationId === 'createInference' &&
+    value &&
+    typeof value === 'object' &&
+    'model_binding' in value
+  ) {
+    const binding = value.model_binding;
+    if (
+      binding &&
+      typeof binding === 'object' &&
+      ('deployment_id' in binding || 'deployment_revision_id' in binding)
+    ) {
+      try {
+        validate(apiSchemas.DeploymentBinding, binding, 'Deployment binding');
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+        throw new AppError(
+          400,
+          'invalid_deployment_binding',
+          'Use a deployment ID and optional revision ID without catalog or endpoint fields.',
+          error.details,
+        );
+      }
+    }
+  }
   if (operation.requestBody && !binary) {
     const schema = operation.requestBody.content['application/json']?.schema;
     if (schema) validate(schema, value, 'Request body');

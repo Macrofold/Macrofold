@@ -28,7 +28,8 @@ pub fn models(&self) -> ModelsResource<'_> {ModelsResource {client:self, options
 pub fn agents(&self) -> AgentsResource<'_> {AgentsResource {client:self, options:RequestOptions::default()}}
 pub fn me(&self) -> MeResource<'_> {MeResource {client:self, options:RequestOptions::default()}}
 pub fn requests(&self) -> RequestsResource<'_> {RequestsResource {client:self, options:RequestOptions::default()}}
-pub fn harnesses(&self) -> HarnessesResource<'_> {HarnessesResource {client:self, options:RequestOptions::default()}} }
+pub fn harnesses(&self) -> HarnessesResource<'_> {HarnessesResource {client:self, options:RequestOptions::default()}}
+pub fn model_deployments(&self) -> ModelDeploymentsResource<'_> {ModelDeploymentsResource {client:self, options:RequestOptions::default()}} }
 
 pub struct TasksResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> TasksResource<'a> {
@@ -1187,5 +1188,86 @@ pub struct HarnessesResource<'a> {client:&'a Client,options:RequestOptions}
 
         crate::apis::harnesses_api::list_harnesses(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
+      }
+    }
+#[derive(Debug,Clone,Default)] pub struct GetModelDeploymentParams {pub workspace_id: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct GetModelDeploymentRevisionParams {pub workspace_id: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListModelDeploymentGrantsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListModelDeploymentRevisionsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListModelDeploymentsParams {pub workspace_id: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
+pub struct ModelDeploymentsResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> ModelDeploymentsResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn create(&self, input: models::ModelDeploymentCreate) -> Result<models::ModelDeployment,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::model_deployments_api::create_model_deployment(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_grant(&self, deployment_id: &str, input: models::ModelDeploymentGrantInput) -> Result<models::ModelDeploymentGrant,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::model_deployments_api::create_model_deployment_grant(self.client.configuration(), deployment_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_revision(&self, deployment_id: &str, input: models::ModelDeploymentRevisionCreate) -> Result<models::ModelDeploymentRevision,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::model_deployments_api::create_model_deployment_revision(self.client.configuration(), deployment_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn delete(&self, deployment_id: &str) -> Result<models::ModelDeployment,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::model_deployments_api::delete_model_deployment(self.client.configuration(), deployment_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn get(&self, deployment_id: &str, params: GetModelDeploymentParams) -> Result<models::ModelDeployment,ClientError> {
+
+
+        crate::apis::model_deployments_api::get_model_deployment(self.client.configuration(), deployment_id, self.options.organization.as_deref(), params.workspace_id.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_revision(&self, deployment_id: &str, revision_id: &str, params: GetModelDeploymentRevisionParams) -> Result<models::ModelDeploymentRevision,ClientError> {
+
+
+        crate::apis::model_deployments_api::get_model_deployment_revision(self.client.configuration(), deployment_id, revision_id, self.options.organization.as_deref(), params.workspace_id.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn inspect(&self, input: models::ModelDeploymentInspectionInput) -> Result<models::ModelDeploymentInspection,ClientError> {
+
+
+        crate::apis::model_deployments_api::inspect_model_deployment(self.client.configuration(), input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_grants(&self, deployment_id: &str, params: ListModelDeploymentGrantsParams) -> Result<models::ModelDeploymentGrantPage,ClientError> {
+
+
+        crate::apis::model_deployments_api::list_model_deployment_grants(self.client.configuration(), deployment_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_revisions(&self, deployment_id: &str, params: ListModelDeploymentRevisionsParams) -> Result<models::ModelDeploymentRevisionPage,ClientError> {
+
+
+        crate::apis::model_deployments_api::list_model_deployment_revisions(self.client.configuration(), deployment_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list(&self, params: ListModelDeploymentsParams) -> Result<models::ModelDeploymentPage,ClientError> {
+
+
+        crate::apis::model_deployments_api::list_model_deployments(self.client.configuration(), self.options.organization.as_deref(), params.workspace_id.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn revoke_grant(&self, deployment_id: &str, grant_id: &str) -> Result<models::ModelDeploymentGrant,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::model_deployments_api::revoke_model_deployment_grant(self.client.configuration(), deployment_id, grant_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn set_service(&self, deployment_id: &str, input: models::ModelDeploymentServiceInput) -> Result<models::ModelDeployment,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::model_deployments_api::set_model_deployment_service(self.client.configuration(), deployment_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
       }
     }

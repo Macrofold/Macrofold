@@ -2,6 +2,16 @@
 
 The five SDKs expose generated resource methods over the existing transports. [SDK architecture](../../features/api/sdks/implementation.md) owns generation and error semantics; [language guides](../../features/api/sdks/README.md) own customer usage.
 
+## Custom model deployment acceptance
+
+At review candidate `d4502bd67b70c5ea7935957ab780b40f0739be26`, [CI run 39874483146](https://github.com/Macrofold/Macrofold/actions/runs/39874483146) passes the full `pnpm test:sdks` with the actual backend/API source, canonical all-language regeneration and the generation-drift gate. Local installable-package verification also passes. That candidate includes the billing-cadence/source validation, shared CLI input, native request-validation and cost-projection fixes; generated interfaces remain unchanged. The fixture owns disposable PostgreSQL, a real loopback API handler, an OpenAI-compatible synthetic upstream and a simulator worker; it preserves the separate running preview.
+
+Every language reads stopped deployment metadata, an immutable revision and application grants, and rejects generation while stopped. Each then completes custom-model JSON and SSE calls, retaining native response attributes, deployment/revision attribution, token usage, a zero separate request charge and null unknown provider costs. Reusing the original mutation key after stopping the service returns the original result. The upstream observes exactly two custom calls per language: one JSON and one SSE; recovery adds none.
+
+TypeScript's immediate and full resource journeys pass. Python passes 231 tests and its Pyright checks with zero errors; the complete Go suite, 22 Rust tests and 22 Java tests pass, with no application cases skipped. Twelve focused generator tests and real Go/Rust/Java JSON regressions protect literal booleans, exact source kinds, closed/required union branches and response-only nullable policies. All five clients regenerate from the pinned contract and generator; strict TypeScript checking passes.
+
+These checks make zero paid provider calls. They establish API/client compatibility against local protocol fixtures, not actual GPU loading, RunPod behavior, hosted SSE delivery, production latency or the later OpenLegend game journey. Browser, CLI, serving-image and live-provider evidence remain in the [deployment verification](../../projects/hugging-face-model-deployments-tech-design.md#12-verification-rollout-and-rollback).
+
 ## File-read acceptance
 
 The focused file-read follow-up passes **49 TypeScript tests**: 15 direct file-read API cases, 18 existing platform integration cases, and 16 SDK unit cases. A disposable PostgreSQL database and encrypted local objects verify exact content and headers, empty files, Unicode/reserved-character paths, tenant/workspace/scope/revocation denial, symlink refusal, the 4 MiB boundary, metadata-first rejection of larger direct reads, complete larger downloads, and published revisions during an actual API-admitted run. The run test checks writer exclusion before returning new fixture bytes through checkpoint publication; each mutable worktree belongs to its test. Missing/corrupt object reads return sanitized errors, and unit tests reject interrupted response bodies without returning partial file contents.

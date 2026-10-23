@@ -467,5 +467,12 @@
     "title": "Host long-running servers",
     "section": "Deploy and operate",
     "description": "Configure disposable Render services and operate their lifecycle and compute budgets."
+  },
+  {
+    "slug": "model-deployments",
+    "source": "docs/features/execution/model-deployments.md",
+    "title": "Custom model deployments",
+    "section": "Models and execution",
+    "description": "Host a model or connect an existing chat endpoint, grant application access and control its service lifecycle."
   }
 ]

@@ -7,6 +7,10 @@ import { promisify } from 'node:util';
 import configuration from './config.json';
 import { metadata } from './metadata';
 import { preserveGoNullableArrays } from './nullable-arrays';
+import { preserveGoSourceKinds } from './go-source-kinds';
+import { preservePythonBooleanConstants } from './python-boolean-constants';
+import { preserveRustBooleanConstants } from './rust-boolean-constants';
+import { preserveJavaDeploymentUnions } from './java-deployment-unions';
 import { generatePythonResources } from './python';
 import { generateGoResources } from './go';
 import { generateRustResources } from './rust';
@@ -110,8 +114,23 @@ try {
     } catch (error) {
       throw new Error(`Could not generate ${language}. Install JDK 21 and set JAVA_HOME.`, { cause: error });
     }
+    if (language === 'python') {
+      await preservePythonBooleanConstants(output);
+      // The vendor's from_dict drops unknown keys before validation, causing
+      // the closed external policy to also match a managed policy's fields.
+      for (const file of [
+        'model_deployment_service_policy_one_of.py',
+        'model_deployment_service_policy_one_of1.py',
+      ])
+        await replaceOnce(
+          path.join(output, 'macrofold/models', file),
+          '        _obj = cls.model_validate({',
+          "        if set(obj) - set(cls.__properties):\n            raise ValueError('Unexpected model deployment policy fields.')\n\n        _obj = cls.model_validate({",
+        );
+    }
     if (language === 'go') {
       await preserveGoNullableArrays(output);
+      await preserveGoSourceKinds(output);
       // A successful zero-byte download still owns a usable temporary file.
       await replaceOnce(
         path.join(output, 'client.go'),
@@ -120,6 +139,7 @@ try {
       );
     }
     if (language === 'java') {
+      await preserveJavaDeploymentUnions(output);
       await replaceOnce(
         path.join(output, 'src/main/java/dev/macrofold/api/WorktreesApi.java'),
         'byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(body);\n      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));',
@@ -127,6 +147,7 @@ try {
       );
     }
     if (language === 'rust') {
+      await preserveRustBooleanConstants(output);
       // Generated urlencode uses form semantics; path segments must encode spaces as %20, not +.
       await replaceOnce(
         path.join(output, 'src/apis/mod.rs'),

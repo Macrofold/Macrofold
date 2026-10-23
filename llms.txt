@@ -93,6 +93,10 @@
 - [Cloud staging](docs/getting-started/local-development/cloud.md): Invoke real agents through a staging API and distinguish complete execution from provider-only tests.
 - [Unified Harness Interface](docs/features/execution/unified-harness-interface.md): Contribute a native harness with the shared adapter contract, runtime integration, and deterministic tests.
 
+## Models and execution
+
+- [Custom model deployments](docs/features/execution/model-deployments.md): Host a model or connect an existing chat endpoint, grant application access and control its service lifecycle.
+
 ## Contracts and contributors
 
 - [OpenAPI](docs/api/openapi.json)

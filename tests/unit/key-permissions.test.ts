@@ -16,8 +16,16 @@ const reads = [
   'organizations:read',
   'triggers:read',
   'workers:read',
+  'model-deployments:read',
 ];
-const administration = ['billing:write', 'keys:write', 'organizations:write', 'workspaces:delete', 'workers:write'];
+const administration = [
+  'billing:write',
+  'keys:write',
+  'organizations:write',
+  'workspaces:delete',
+  'workers:write',
+  'model-deployments:write',
+];
 
 describe('API-key permission shortcuts', () => {
   it('read-only includes every supported read permission and no mutations', () => {
@@ -35,6 +43,7 @@ describe('API-key permission shortcuts', () => {
         'webhooks:write',
         'triggers:write',
         'workers:use',
+        'model-deployments:use',
       ].sort(),
     );
     for (const scope of administration) expect(scopes).not.toContain(scope);

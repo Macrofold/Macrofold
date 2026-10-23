@@ -3,7 +3,7 @@ import type { QueryResult } from 'pg';
 import { id, sealJSON, sha256 } from './crypto';
 import { createJsonPreparation, type JsonPreparation } from './prepared-json';
 import { assert } from './errors';
-import { decisionProtocol } from '../../providers/src/decision-protocols';
+import { inferenceProtocol } from './inference-protocol';
 import { boundedRequest } from './bounded-decisions';
 import { inferenceInputBound } from './decision';
 import { emptyUsage } from './model-protocol';
@@ -122,7 +122,7 @@ function prepareInvocationBody(
       preparation.remember(entry.context);
     }
   }
-  const body = decisionProtocol(provider, configuration.model).prepare(
+  const body = inferenceProtocol(configuration).prepare(
     boundedRequest({
       model: configuration.model,
       stream: configuration.stream,
@@ -143,13 +143,17 @@ function prepareInvocationBody(
   // large contexts should not be serialized separately for each boundary.
   const encoded = preparation.remember(body);
   const { json: serialized, bytes } = encoded;
-  const inputBound = inferenceInputBound(
-    body,
-    provider,
-    configuration.model,
-    configuration.definition.question.kind === 'provider',
-    encoded,
-  );
+  // Deployment native capabilities validate text/media at preparation. Its zero
+  // request fee needs no second token-price/media walk through opaque schemas.
+  const inputBound = configuration.deployment_target
+    ? 0
+    : inferenceInputBound(
+        body,
+        provider,
+        configuration.model,
+        configuration.definition.question.kind === 'provider',
+        encoded,
+      );
   const bound = costForUsage(configuration.rate_card, {
     ...emptyUsage(),
     input: inputBound,

@@ -42,6 +42,7 @@ public AgentsResource agents(){return new AgentsResource(this,RequestOptions.def
 public MeResource me(){return new MeResource(this,RequestOptions.defaults());}
 public RequestsResource requests(){return new RequestsResource(this,RequestOptions.defaults());}
 public HarnessesResource harnesses(){return new HarnessesResource(this,RequestOptions.defaults());}
+public ModelDeploymentsResource modelDeployments(){return new ModelDeploymentsResource(this,RequestOptions.defaults());}
 
 public static final class TasksResource {
       private final Resources client; private final RequestOptions options;
@@ -2004,6 +2005,143 @@ public ListHarnesses200Response list(ListHarnessesParams params) throws ApiExcep
         Objects.requireNonNull(params,"params");
         try {return new HarnessesApi(client).listHarnesses(params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
+      }
+    }
+public static final class GetModelDeploymentParams {
+        private UUID workspaceId;
+        public GetModelDeploymentParams(){}
+        public GetModelDeploymentParams workspaceId(UUID value){this.workspaceId=value;return this;}
+      }
+public static final class GetModelDeploymentRevisionParams {
+        private UUID workspaceId;
+        public GetModelDeploymentRevisionParams(){}
+        public GetModelDeploymentRevisionParams workspaceId(UUID value){this.workspaceId=value;return this;}
+      }
+public static final class ListModelDeploymentGrantsParams {
+        private UUID cursor;
+private Integer limit;
+        public ListModelDeploymentGrantsParams(){}
+        public ListModelDeploymentGrantsParams cursor(UUID value){this.cursor=value;return this;}
+public ListModelDeploymentGrantsParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListModelDeploymentRevisionsParams {
+        private UUID cursor;
+private Integer limit;
+        public ListModelDeploymentRevisionsParams(){}
+        public ListModelDeploymentRevisionsParams cursor(UUID value){this.cursor=value;return this;}
+public ListModelDeploymentRevisionsParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListModelDeploymentsParams {
+        private UUID workspaceId;
+private UUID cursor;
+private Integer limit;
+        public ListModelDeploymentsParams(){}
+        public ListModelDeploymentsParams workspaceId(UUID value){this.workspaceId=value;return this;}
+public ListModelDeploymentsParams cursor(UUID value){this.cursor=value;return this;}
+public ListModelDeploymentsParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ModelDeploymentsResource {
+      private final Resources client; private final RequestOptions options;
+      private ModelDeploymentsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public ModelDeploymentsResource withOptions(RequestOptions options){return new ModelDeploymentsResource(client,Objects.requireNonNull(options));}
+      public ModelDeployment create(ModelDeploymentCreate input) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new ModelDeploymentsApi(client).createModelDeployment(key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ModelDeploymentGrant createGrant(UUID deploymentId,ModelDeploymentGrantInput input) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new ModelDeploymentsApi(client).createModelDeploymentGrant(deploymentId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ModelDeploymentRevision createRevision(UUID deploymentId,ModelDeploymentRevisionCreate input) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new ModelDeploymentsApi(client).createModelDeploymentRevision(deploymentId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ModelDeployment delete(UUID deploymentId) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new ModelDeploymentsApi(client).deleteModelDeployment(deploymentId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ModelDeployment get(UUID deploymentId) throws ApiException {
+        return get(deploymentId,new GetModelDeploymentParams());
+      }
+public ModelDeployment get(UUID deploymentId,GetModelDeploymentParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new ModelDeploymentsApi(client).getModelDeployment(deploymentId,options.organization(),params.workspaceId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ModelDeploymentRevision getRevision(UUID deploymentId,UUID revisionId) throws ApiException {
+        return getRevision(deploymentId,revisionId,new GetModelDeploymentRevisionParams());
+      }
+public ModelDeploymentRevision getRevision(UUID deploymentId,UUID revisionId,GetModelDeploymentRevisionParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new ModelDeploymentsApi(client).getModelDeploymentRevision(deploymentId,revisionId,options.organization(),params.workspaceId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ModelDeploymentInspection inspect(ModelDeploymentInspectionInput input) throws ApiException {
+
+
+
+        try {return new ModelDeploymentsApi(client).inspectModelDeployment(input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ModelDeploymentGrantPage listGrants(UUID deploymentId) throws ApiException {
+        return listGrants(deploymentId,new ListModelDeploymentGrantsParams());
+      }
+public ModelDeploymentGrantPage listGrants(UUID deploymentId,ListModelDeploymentGrantsParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new ModelDeploymentsApi(client).listModelDeploymentGrants(deploymentId,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ModelDeploymentRevisionPage listRevisions(UUID deploymentId) throws ApiException {
+        return listRevisions(deploymentId,new ListModelDeploymentRevisionsParams());
+      }
+public ModelDeploymentRevisionPage listRevisions(UUID deploymentId,ListModelDeploymentRevisionsParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new ModelDeploymentsApi(client).listModelDeploymentRevisions(deploymentId,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ModelDeploymentPage list() throws ApiException {
+        return list(new ListModelDeploymentsParams());
+      }
+public ModelDeploymentPage list(ListModelDeploymentsParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new ModelDeploymentsApi(client).listModelDeployments(options.organization(),params.workspaceId,params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ModelDeploymentGrant revokeGrant(UUID deploymentId,UUID grantId) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new ModelDeploymentsApi(client).revokeModelDeploymentGrant(deploymentId,grantId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ModelDeployment setService(UUID deploymentId,ModelDeploymentServiceInput input) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new ModelDeploymentsApi(client).setModelDeploymentService(deploymentId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
       }
     }
 }

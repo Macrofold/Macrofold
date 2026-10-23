@@ -5,18 +5,24 @@ import { isLocal } from '../../core/src/config';
 import { assert } from '../../core/src/errors';
 
 export function validatePublicURL(value: string) {
-  return validateURL(value, false);
+  return validateURL(value, 'public');
 }
 
 /** Operator-only local exception; never use this policy for webhooks or client metadata.
  * See docs/features/identity-integrations/tools-security.md#local-mcp-servers. */
 export function validateMcpURL(value: string) {
-  return validateURL(value, true);
+  return validateURL(value, 'mcp');
 }
 
-function localMcpOrigins() {
+/** Model-serving exceptions have their own exact-origin policy. Allowing a
+ * local model must not also grant MCP or webhook access to that origin. */
+export function validateModelEndpointURL(value: string) {
+  return validateURL(value, 'model');
+}
+
+function localOrigins(setting: 'LOCAL_MCP_ALLOWED_ORIGINS' | 'LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS') {
   if (!isLocal()) return [];
-  return (process.env.LOCAL_MCP_ALLOWED_ORIGINS || '')
+  return (process.env[setting] || '')
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -32,24 +38,25 @@ function localMcpOrigins() {
           !url.search &&
           !url.hash,
         503,
-        'invalid_local_mcp_origins',
-        'Set LOCAL_MCP_ALLOWED_ORIGINS to comma-separated HTTP(S) origins without credentials, paths, queries or fragments.',
+        setting === 'LOCAL_MCP_ALLOWED_ORIGINS' ? 'invalid_local_mcp_origins' : 'invalid_local_model_origins',
+        `Set ${setting} to comma-separated HTTP(S) origins without credentials, paths, queries or fragments.`,
       );
       return url.origin;
     });
 }
 
-async function validateURL(value: string, mcp: boolean) {
+async function validateURL(value: string, policy: 'public' | 'mcp' | 'model') {
   const url = new URL(value);
-  const local = mcp && localMcpOrigins().includes(url.origin);
+  const setting = policy === 'model' ? 'LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS' : 'LOCAL_MCP_ALLOWED_ORIGINS';
+  const local = policy !== 'public' && localOrigins(setting).includes(url.origin);
   assert(
     !url.username &&
       !url.password &&
       (local || (url.protocol === 'https:' && (!url.port || url.port === '443'))),
     400,
     'unsafe_url',
-    mcp
-      ? 'Use public HTTPS on port 443, or ask your local operator to allow this origin in LOCAL_MCP_ALLOWED_ORIGINS. Embedded credentials are not allowed.'
+    policy !== 'public'
+      ? `Use public HTTPS on port 443, or ask your local operator to allow this origin in ${setting}. Embedded credentials are not allowed.`
       : 'Use a public HTTPS endpoint on port 443 without embedded credentials.',
   );
   const host = url.hostname.replace(/^\[|\]$/g, '');
@@ -65,7 +72,7 @@ async function validateURL(value: string, mcp: boolean) {
     400,
     'unsafe_url',
     local
-      ? 'An allowed local MCP origin must resolve only to loopback or private addresses; metadata and reserved addresses are not allowed.'
+      ? 'An allowed local origin must resolve only to loopback or private addresses; metadata and reserved addresses are not allowed.'
       : 'Private, reserved, or metadata network addresses are not allowed.',
   );
   return { url, addresses };
@@ -77,10 +84,50 @@ export function safeFetch(input: string | URL | Request, init: RequestInit = {})
 export function mcpFetch(input: string | URL | Request, init: RequestInit = {}) {
   return fetchValidated(input, init, validateMcpURL);
 }
+/** The source adapter inspects these fixed-origin redirects before making any
+ * next request. Ordinary consumers retain redirect rejection. */
+export function huggingFaceMetadataFetch(input: string | URL, init: RequestInit = {}) {
+  assert(
+    new URL(String(input)).origin === 'https://huggingface.co',
+    400,
+    'unsafe_url',
+    'Hugging Face metadata must stay on its approved origin.',
+  );
+  return fetchValidated(input, init, validatePublicURL, {
+    timeoutMs: 50000,
+    maximumResponseBytes: 16 * 1024 * 1024,
+    inspectRedirect: true,
+  });
+}
+
+/** Only model calls may use their accepted longer execution window. Other
+ * consumers retain the existing 50-second transport deadline and byte bound. */
+export function modelEndpointFetch(
+  input: string | URL,
+  init: RequestInit,
+  limits: { timeoutMs: number; maximumResponseBytes: number },
+) {
+  assert(
+    Number.isFinite(limits.timeoutMs) &&
+      limits.timeoutMs > 0 &&
+      limits.timeoutMs <= 240000 &&
+      Number.isSafeInteger(limits.maximumResponseBytes) &&
+      limits.maximumResponseBytes > 0 &&
+      limits.maximumResponseBytes <= 16 * 1024 * 1024,
+    500,
+    'invalid_model_transport_limits',
+    'Model transport limits are invalid.',
+  );
+  return fetchValidated(input, init, validateModelEndpointURL, limits);
+}
 async function fetchValidated(
   input: string | URL | Request,
   init: RequestInit,
   validate: typeof validatePublicURL,
+  limits: { timeoutMs: number; maximumResponseBytes: number; inspectRedirect?: boolean } = {
+    timeoutMs: 50000,
+    maximumResponseBytes: 16 * 1024 * 1024,
+  },
 ) {
   if (input instanceof Request)
     init = {
@@ -109,12 +156,15 @@ async function fetchValidated(
       method: init.method || 'GET',
       headers: init.headers as Record<string, string>,
       body: init.body as string | Uint8Array | undefined,
-      signal: AbortSignal.any([AbortSignal.timeout(50000), ...(init.signal ? [init.signal] : [])]),
+      signal: AbortSignal.any([
+        AbortSignal.timeout(Math.ceil(limits.timeoutMs)),
+        ...(init.signal ? [init.signal] : []),
+      ]),
       redirect: 'manual',
       dispatcher,
     });
     assert(
-      response.status < 300 || response.status >= 400 || response.status === 304,
+      limits.inspectRedirect || response.status < 300 || response.status >= 400 || response.status === 304,
       400,
       'redirect_not_allowed',
       'The endpoint redirected. Configure its final URL.',
@@ -138,7 +188,12 @@ async function fetchValidated(
             return;
           }
           size += part.value.length;
-          assert(size <= 16 * 1024 * 1024, 413, 'response_too_large', 'The remote response exceeds 16 MiB.');
+          assert(
+            size <= limits.maximumResponseBytes,
+            413,
+            'response_too_large',
+            'The remote response exceeds its byte limit.',
+          );
           controller.enqueue(part.value);
         } catch (error) {
           controller.error(error);

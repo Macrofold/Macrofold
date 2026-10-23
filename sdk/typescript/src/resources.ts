@@ -2351,6 +2351,174 @@ export class HarnessesResource {
     });
   }
 }
+export type InspectModelDeploymentOptions = NonNullable<
+  operations['inspectModelDeployment']['requestBody']
+>['content']['application/json'];
+export type CreateModelDeploymentOptions = NonNullable<
+  operations['createModelDeployment']['requestBody']
+>['content']['application/json'];
+export type ListModelDeploymentsOptions = {
+  workspace_id?: NonNullable<operations['listModelDeployments']['parameters']['query']>['workspace_id'];
+  cursor?: NonNullable<operations['listModelDeployments']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listModelDeployments']['parameters']['query']>['limit'];
+};
+export type GetModelDeploymentOptions = {
+  workspace_id?: NonNullable<operations['getModelDeployment']['parameters']['query']>['workspace_id'];
+};
+export type CreateModelDeploymentRevisionOptions = NonNullable<
+  operations['createModelDeploymentRevision']['requestBody']
+>['content']['application/json'];
+export type ListModelDeploymentRevisionsOptions = {
+  cursor?: NonNullable<operations['listModelDeploymentRevisions']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listModelDeploymentRevisions']['parameters']['query']>['limit'];
+};
+export type GetModelDeploymentRevisionOptions = {
+  workspace_id?: NonNullable<operations['getModelDeploymentRevision']['parameters']['query']>['workspace_id'];
+};
+export type ListModelDeploymentGrantsOptions = {
+  cursor?: NonNullable<operations['listModelDeploymentGrants']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listModelDeploymentGrants']['parameters']['query']>['limit'];
+};
+export type CreateModelDeploymentGrantOptions = NonNullable<
+  operations['createModelDeploymentGrant']['requestBody']
+>['content']['application/json'];
+export type SetModelDeploymentServiceOptions = NonNullable<
+  operations['setModelDeploymentService']['requestBody']
+>['content']['application/json'];
+export class ModelDeploymentsResource {
+  constructor(private client: Transport) {}
+  inspect(
+    options: InspectModelDeploymentOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'inspectModelDeployment'>> {
+    return this.client.request('inspectModelDeployment', {
+      ...requestOptions,
+
+      body: options,
+    });
+  }
+  create(
+    options: CreateModelDeploymentOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createModelDeployment'>> {
+    return this.client.request('createModelDeployment', {
+      ...requestOptions,
+
+      body: options,
+    });
+  }
+  list(
+    options: ListModelDeploymentsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listModelDeployments'>> {
+    return this.client.request('listModelDeployments', {
+      ...requestOptions,
+      params: { query: { workspace_id: options.workspace_id, cursor: options.cursor, limit: options.limit } },
+    });
+  }
+  get(
+    deploymentId: string,
+    options: GetModelDeploymentOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getModelDeployment'>> {
+    return this.client.request('getModelDeployment', {
+      ...requestOptions,
+      params: { path: { deployment_id: deploymentId }, query: { workspace_id: options.workspace_id } },
+    });
+  }
+  delete(
+    deploymentId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'deleteModelDeployment'>> {
+    return this.client.request('deleteModelDeployment', {
+      ...requestOptions,
+      params: { path: { deployment_id: deploymentId } },
+    });
+  }
+  createRevision(
+    deploymentId: string,
+    options: CreateModelDeploymentRevisionOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createModelDeploymentRevision'>> {
+    return this.client.request('createModelDeploymentRevision', {
+      ...requestOptions,
+      params: { path: { deployment_id: deploymentId } },
+      body: options,
+    });
+  }
+  listRevisions(
+    deploymentId: string,
+    options: ListModelDeploymentRevisionsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listModelDeploymentRevisions'>> {
+    return this.client.request('listModelDeploymentRevisions', {
+      ...requestOptions,
+      params: {
+        path: { deployment_id: deploymentId },
+        query: { cursor: options.cursor, limit: options.limit },
+      },
+    });
+  }
+  getRevision(
+    deploymentId: string,
+    revisionId: string,
+    options: GetModelDeploymentRevisionOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getModelDeploymentRevision'>> {
+    return this.client.request('getModelDeploymentRevision', {
+      ...requestOptions,
+      params: {
+        path: { deployment_id: deploymentId, revision_id: revisionId },
+        query: { workspace_id: options.workspace_id },
+      },
+    });
+  }
+  listGrants(
+    deploymentId: string,
+    options: ListModelDeploymentGrantsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listModelDeploymentGrants'>> {
+    return this.client.request('listModelDeploymentGrants', {
+      ...requestOptions,
+      params: {
+        path: { deployment_id: deploymentId },
+        query: { cursor: options.cursor, limit: options.limit },
+      },
+    });
+  }
+  createGrant(
+    deploymentId: string,
+    options: CreateModelDeploymentGrantOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createModelDeploymentGrant'>> {
+    return this.client.request('createModelDeploymentGrant', {
+      ...requestOptions,
+      params: { path: { deployment_id: deploymentId } },
+      body: options,
+    });
+  }
+  revokeGrant(
+    deploymentId: string,
+    grantId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'revokeModelDeploymentGrant'>> {
+    return this.client.request('revokeModelDeploymentGrant', {
+      ...requestOptions,
+      params: { path: { deployment_id: deploymentId, grant_id: grantId } },
+    });
+  }
+  setService(
+    deploymentId: string,
+    options: SetModelDeploymentServiceOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'setModelDeploymentService'>> {
+    return this.client.request('setModelDeploymentService', {
+      ...requestOptions,
+      params: { path: { deployment_id: deploymentId } },
+      body: options,
+    });
+  }
+}
 export abstract class Resources {
   abstract request<O extends Operation>(operation: O, options?: RequestOptions<O>): Promise<Result<O>>;
   abstract streamInference(
@@ -2395,4 +2563,5 @@ export abstract class Resources {
   readonly me = new MeResource(this);
   readonly requests = new RequestsResource(this);
   readonly harnesses = new HarnessesResource(this);
+  readonly modelDeployments = new ModelDeploymentsResource(this);
 }

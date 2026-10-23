@@ -93,7 +93,9 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-function input(): ResolvedInferenceCreate {
+function input(): ResolvedInferenceCreate & {
+  model_binding: import('../../packages/core/src/decision').DecisionBinding;
+} {
   return {
     workspace_id: workspaceId,
     input: { case_id: 'case-1' },

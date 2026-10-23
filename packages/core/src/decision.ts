@@ -12,6 +12,10 @@ export type InferenceDefinition = Schema['InferenceDefinition'];
 export type ExplicitContext = Schema['ExplicitContext'];
 export type InferenceReceipt = Schema['InferenceReceipt'];
 export type DecisionBinding = Schema['DecisionBinding'];
+export type DeploymentBinding = Schema['DeploymentBinding'];
+export function deploymentBinding(binding: InferenceCreate['model_binding']): binding is DeploymentBinding {
+  return 'deployment_id' in binding;
+}
 export type ResolvedContext = ExplicitContext & {
   organization_id: string;
   workspace_id: string | null;

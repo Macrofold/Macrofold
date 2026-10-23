@@ -122,6 +122,7 @@ pub mod harnesses_api;
 pub mod inferences_api;
 pub mod integrations_api;
 pub mod me_api;
+pub mod model_deployments_api;
 pub mod models_api;
 pub mod operations_api;
 pub mod operator_api;

@@ -9,6 +9,7 @@ import httpx
 import pytest
 from macrofold import ApiError, Client, DEFAULT_ORIGIN, RequestOptions, TransportError
 from macrofold import models, params
+from macrofold.resource_options import decode
 
 ID = '00000000-0000-4000-8000-000000000001'
 WORKSPACE = dict(id=ID, organization_id=ID, name='Research', persistence='persistent', created_at='2026-09-07T00:00:00Z')
@@ -120,6 +121,30 @@ def test_invalid_typed_success_preserves_identity():
         assert error.value.idempotency_key
     finally:
         client.close()
+
+
+def test_deployment_union_decoding_preserves_wire_values_and_closed_policy_constraints():
+    source = decode(models.ModelDeploymentSource, {'kind': 'hugging_face', 'repository': 'Qwen/Qwen3-0.6B', 'revision': 'a' * 40}, 'source-identity')
+    assert isinstance(source.actual_instance, models.ModelDeploymentHuggingFaceSource)
+    assert source.actual_instance.repository == 'Qwen/Qwen3-0.6B'
+    assert source.actual_instance.revision == 'a' * 40
+    managed = {'min_replicas': 1, 'max_replicas': 1, 'max_concurrent_requests': 2, 'max_hourly_cost_micro_usd': '1000000', 'stop_at': None}
+    policy = decode(models.ModelDeploymentServicePolicy, managed, 'policy-identity')
+    assert policy.actual_instance is not None and policy.actual_instance.min_replicas == 1
+    with pytest.raises(TransportError, match='API contract') as error:
+        decode(models.ModelDeploymentServicePolicy, {**managed, 'unexpected': True}, 'policy-identity')
+    assert error.value.idempotency_key == 'policy-identity'
+    with pytest.raises(TransportError, match='API contract'):
+        decode(models.ModelDeploymentCostPolicy, {'basis': 'deployment', 'request_charge_micro_usd': '0', 'infrastructure_cost_included': 'false'}, 'policy-identity')
+
+
+def test_deployment_nullable_response_fields_remain_required_before_generated_decode():
+    cost = {'period_start': None, 'period_end': None, 'estimated_micro_usd': None, 'provider_reported_micro_usd': None, 'status': 'uncertain', 'as_of': None, 'unresolved_liability': False}
+    assert decode(models.ModelDeploymentInfrastructureCost, cost, 'cost-identity').as_of is None
+    del cost['as_of']
+    with pytest.raises(TransportError, match='API contract') as error:
+        decode(models.ModelDeploymentInfrastructureCost, cost, 'cost-identity')
+    assert error.value.idempotency_key == 'cost-identity'
 
 
 def test_typed_stream_replays_and_closes_its_transport(monkeypatch):

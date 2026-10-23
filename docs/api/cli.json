@@ -27,14 +27,112 @@
       "runs:read",
       "runs:write",
       "connections:read",
-      "usage:read"
+      "usage:read",
+      "model-deployments:read",
+      "model-deployments:use"
     ],
-    "additional_consent_scopes": ["connections:write", "workers:read", "workers:use", "workers:write"],
+    "additional_consent_scopes": [
+      "connections:write",
+      "workers:read",
+      "workers:use",
+      "workers:write",
+      "model-deployments:write"
+    ],
     "ci_mode": "environment API key or --api-key-stdin",
     "token_storage": "permission-protected plaintext; no repository credentials",
     "login_flags": ["host", "profile", "scope", "api-key-stdin"]
   },
   "commands": [
+    {
+      "command": "model-deployment inspect",
+      "operation_ids": ["inspectModelDeployment"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment create",
+      "operation_ids": ["createModelDeployment"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment list",
+      "operation_ids": ["listModelDeployments", "getWorkspace", "listWorkspaces"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment show",
+      "operation_ids": ["getModelDeployment", "getWorkspace", "listWorkspaces"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment revisions",
+      "operation_ids": ["listModelDeploymentRevisions"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment revision",
+      "operation_ids": ["getModelDeploymentRevision", "getWorkspace", "listWorkspaces"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment revise",
+      "operation_ids": ["createModelDeploymentRevision"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment grants",
+      "operation_ids": ["listModelDeploymentGrants"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment grant",
+      "operation_ids": ["createModelDeploymentGrant"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment revoke",
+      "operation_ids": ["revokeModelDeploymentGrant"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment start",
+      "operation_ids": ["getModelDeployment", "setModelDeploymentService", "getWorkspace", "listWorkspaces"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment update",
+      "operation_ids": ["getModelDeployment", "setModelDeploymentService", "getWorkspace", "listWorkspaces"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment rollback",
+      "operation_ids": ["getModelDeployment", "setModelDeploymentService", "getWorkspace", "listWorkspaces"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment stop",
+      "operation_ids": ["getModelDeployment", "setModelDeploymentService", "getWorkspace", "listWorkspaces"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "model-deployment delete",
+      "operation_ids": ["deleteModelDeployment"],
+      "local_only": false,
+      "protocol_only": false
+    },
     {
       "command": "worker list",
       "operation_ids": ["listWorkers"],
@@ -329,6 +427,12 @@
       "operation_ids": [],
       "local_only": true,
       "protocol_only": false
+    },
+    {
+      "command": "connection update",
+      "operation_ids": ["updateConnection"],
+      "local_only": false,
+      "protocol_only": false
     }
   ],
   "selection_precedence": ["flags", "local link metadata", "explicit global default"],
@@ -421,7 +525,10 @@
     "triggers:write": "Manage incoming triggers and scheduled tasks",
     "workers:read": "Inspect authorized Worker capacity, lifecycle and compute charges",
     "workers:use": "Target authorized Worker compute without granting data access",
-    "workers:write": "Manage authorized Worker configuration and lifecycle (owner/admin only)"
+    "workers:write": "Manage authorized Worker configuration and lifecycle (owner/admin only)",
+    "model-deployments:read": "Inspect authorized model deployments and serving revisions",
+    "model-deployments:use": "Use a granted ready deployment through direct inference; does not authorize hosting",
+    "model-deployments:write": "Manage owner model sources, hosting policy, application grants and cleanup"
   },
   "json_output_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",

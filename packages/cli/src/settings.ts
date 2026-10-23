@@ -16,6 +16,8 @@ export const defaultScopes = [
   'files:write',
   'runs:read',
   'runs:write',
+  'model-deployments:read',
+  'model-deployments:use',
   'connections:read',
   'usage:read',
 ];

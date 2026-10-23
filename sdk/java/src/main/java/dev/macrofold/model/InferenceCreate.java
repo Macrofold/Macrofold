@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import dev.macrofold.model.DecisionBinding;
 import dev.macrofold.model.DecisionTaskWakeContext;
+import dev.macrofold.model.InferenceBinding;
 import dev.macrofold.model.InferenceCreateDefinition;
 import dev.macrofold.model.InferenceLimits;
 import dev.macrofold.model.ModelParameters;
@@ -68,7 +68,7 @@ public class InferenceCreate {
 
   public static final String JSON_PROPERTY_MODEL_BINDING = "model_binding";
   @javax.annotation.Nonnull
-  private DecisionBinding modelBinding;
+  private InferenceBinding modelBinding;
 
   public static final String JSON_PROPERTY_LIMITS = "limits";
   @javax.annotation.Nullable
@@ -181,7 +181,7 @@ public class InferenceCreate {
   }
 
 
-  public InferenceCreate modelBinding(@javax.annotation.Nonnull DecisionBinding modelBinding) {
+  public InferenceCreate modelBinding(@javax.annotation.Nonnull InferenceBinding modelBinding) {
     this.modelBinding = modelBinding;
     return this;
   }
@@ -193,14 +193,14 @@ public class InferenceCreate {
   @javax.annotation.Nonnull
   @JsonProperty(value = JSON_PROPERTY_MODEL_BINDING, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public DecisionBinding getModelBinding() {
+  public InferenceBinding getModelBinding() {
     return modelBinding;
   }
 
 
   @JsonProperty(value = JSON_PROPERTY_MODEL_BINDING, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setModelBinding(@javax.annotation.Nonnull DecisionBinding modelBinding) {
+  public void setModelBinding(@javax.annotation.Nonnull InferenceBinding modelBinding) {
     this.modelBinding = modelBinding;
   }
 

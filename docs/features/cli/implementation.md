@@ -14,14 +14,14 @@ The npm package targets macOS and Linux with Node 24, pinned dependencies and ge
 
 ## Core commands
 
-| Command                                                               | Behavior                                                                                                  |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Command                                                                   | Behavior                                                                                                  |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | macrofold login [--profile NAME] [--host URL]                             | Browser/device authorization against a selected trusted service                                           |
 | macrofold logout / whoami                                                 | Revoke local authorization where supported; inspect identity/organization                                 |
-| macrofold workspace list / create / show                                    | Discover and manage authorized hosted workspaces                                                            |
-| macrofold link WORKSPACE [--worktree ID]                                   | Associate the local directory with an existing remote workspace                                             |
+| macrofold workspace list / create / show                                  | Discover and manage authorized hosted workspaces                                                          |
+| macrofold link WORKSPACE [--worktree ID]                                  | Associate the local directory with an existing remote workspace                                           |
 | macrofold unlink                                                          | Remove local association without deleting remote data                                                     |
-| macrofold worktree list / create NAME --from REF / use NAME / remove NAME | Manage and select remote isolated worktrees and branches                                                 |
+| macrofold worktree list / create NAME --from REF / use NAME / remove NAME | Manage and select remote isolated worktrees and branches                                                  |
 | macrofold worktree checkout NAME --local PATH                             | Explicitly create a local Git worktree for review from an exported remote Git bundle                      |
 | macrofold chat [--session ID]                                             | Open an interactive continuing remote-agent session                                                       |
 | macrofold run PROMPT [--detach]                                           | Submit one prompt; stream and wait by default                                                             |
@@ -112,7 +112,7 @@ TTY uses Ink; --plain and TERM=dumb use line-oriented text. Respect NO_COLOR and
 
 The shared event renderer labels native `reasoning.started`, `reasoning.delta`, and `reasoning.completed` as thinking progress, preserving interrupted status. Run attachment writes that progress to stderr. Interactive chat separates subsequent answer fragments onto an assistant line rather than appending them to a thinking/tool line. Historical `reasoning.summary` remains readable; neither the saved final answer nor machine-readable output is rewritten.
 
---json uses the schema_version/command/ok/data-or-error/exit_code envelope defined in the command contract and outputs one final result envelope (or immediate run reference with --detach) on stdout, with progress only on stderr. --jsonl streams the normalized event envelope, one JSON object per line; no ANSI, spinners, banners or unsolicited telemetry appear on stdout. Plain non-TTY output prints final assistant text to stdout and progress to stderr. Stdin '-' is supported for prompts/files; reject an invocation that tries to consume stdin simultaneously as both a credential and a prompt. Preserve stable JSON schema versions and documented exit codes. [CLI design guidelines](https://clig.dev/)
+--json uses the schema_version/command/ok/data-or-error/exit_code envelope defined in the command contract and outputs one final result envelope (or immediate run reference with --detach) on stdout, with progress only on stderr. --jsonl streams the normalized event envelope, one JSON object per line; no ANSI, spinners, banners or unsolicited telemetry appear on stdout. Plain non-TTY output prints final assistant text to stdout and progress to stderr. Stdin '-' is supported for prompts/files; reject an invocation that tries to consume stdin simultaneously as both a credential and a prompt. The shared reader preserves UTF-8 across pipe chunks and enforces a 4 MiB original-byte ceiling without rescanning the accumulated input. Noninteractive confirmation requires `--yes`; guidance must not suggest unsupported command flags. Preserve stable JSON schema versions and documented exit codes. [CLI design guidelines](https://clig.dev/)
 
 Exit codes: 0 success/accepted detach; 1 execution or persistence failure; 2 invalid invocation/configuration; 3 authentication/authorization failure; 4 waiting for user input; 5 conflict; 6 insufficient credits/quota; 7 transport unavailable with remote status unknown; 8 timeout; 130 local interrupt/cancel. A completed run succeeds only when execution succeeds and persistence is verified (native) or not required (lightweight). Plain attachment prints the decision receipt for inference and bounded-agent runs; these have no local file transfer or session continuation. A transport failure is not reported as an agent failure. Include run/request IDs and a reconnect command without exposing credentials.
 
@@ -127,6 +127,18 @@ Acceptance uses real CLI subprocesses and Python's POSIX PTY module. It covers c
 ## API security and machine reference
 
 The [machine-readable command contract](../../api/cli.json) maps every command to public operation IDs or explicitly local/OAuth protocol behavior. Its scopes, queues, stream rotation, transfer limits and exits must agree with [OpenAPI](../../api/openapi.json). Object-transfer/download requests never inherit the API Authorization header. GET /operations authorizes the underlying stored operation resource; possessing its ID does not grant content access.
+
+## Model deployment management
+
+`packages/cli/src/model-deployments.ts` uses the generated public operations for source inspection, metadata creation, immutable revision listing/creation, service policy, application grants, status/cost retrieval and retirement. The `model-deployment` topic has local help without an account or network call. It targets deployment UUIDs; read operations pass an explicitly selected or linked workspace to the authorization boundary. `revision` takes `--revision ID`; `revise` creates a new revision.
+
+Full create/revision/grant request bodies use `--config-file FILE`; operating policy uses `--policy-file FILE`. Both accept `-` for bounded stdin and share the protected JSON reader with `connection add`. Provider tokens are never argv flags. The API validates the authored request contract. Normal machine output preserves the API result, including accepted, starting, failed and cleanup-pending states. The human list includes the observed `state`; neither mode reports optimistic readiness.
+
+Default OAuth consent includes deployment read/use scopes; deployment administration still requires explicit `login --scope model-deployments:write`. Connection creation and `connection update ID --config-file FILE` require `connections:write`. Update uses the same protected JSON reader and public operation, including server-side account verification for credential rotation.
+
+Start/update/rollback select a revision and send an explicit policy. When omitted on the command line, the CLI reads their persisted values. Stop uses those same stored values and performs no HF, offer or provider inventory lookup. `--idempotency-key` preserves a chosen mutation identity across CLI processes; uncertain errors retain the identity through the SDK. Current grants and upstream hosting authority remain server-owned. External stop/retirement copy explicitly leaves host shutdown and billing with its operator.
+
+The built subprocess fixture in `tests/cli/model-deployments.test.ts` verifies actual HTTP methods, paths, body preservation, explicit mutation identity, stop/rollback policy, grants and rejected unsafe input against a loopback transport. Browser and application acceptance separately exercise the real domain boundary; protocol fixtures do not establish live hosting.
 
 ## Queue and execution controls
 

@@ -17,7 +17,12 @@ export async function readInferenceStream(response: Response, chat: boolean, out
   const blocks: Record<string, unknown>[] = [];
   const choices = new Map<
     number,
-    { index: number; message: Record<string, unknown>; finish_reason: unknown }
+    {
+      index: number;
+      message: Record<string, unknown>;
+      finish_reason: unknown;
+      logprobs?: Record<string, unknown> | null;
+    }
   >();
   const argumentsByBlock = new Map<number, string>();
   let complete = false;
@@ -61,7 +66,7 @@ export async function readInferenceStream(response: Response, chat: boolean, out
         if (frame.usage) raw.usage = frame.usage;
         for (const item of z.array(object).parse(frame.choices ?? [])) {
           const i = index.parse(item.index);
-          const choice = choices.get(i) ?? {
+          const choice: NonNullable<ReturnType<typeof choices.get>> = choices.get(i) ?? {
             index: i,
             message: { role: 'assistant', content: '' },
             finish_reason: null,
@@ -69,6 +74,27 @@ export async function readInferenceStream(response: Response, chat: boolean, out
           if (!choices.has(i)) emit('output.started', 0, { choice_index: i });
           choices.set(i, choice);
           const delta = object.parse(item.delta ?? {});
+          if (typeof delta.role === 'string') choice.message.role = delta.role;
+          // These are upstream-returned native fields, retained for the final
+          // response without presenting reasoning as assistant answer deltas.
+          // See docs/features/api/streaming-implementation.md#output-completion-and-failure.
+          for (const key of ['reasoning', 'reasoning_content'])
+            if (typeof delta[key] === 'string')
+              choice.message[key] = string(choice.message[key]) + delta[key];
+          if (item.logprobs === null && choice.logprobs === undefined) choice.logprobs = null;
+          else if (item.logprobs !== undefined && item.logprobs !== null) {
+            const logprobs = object.parse(item.logprobs);
+            const accumulated = choice.logprobs ?? {};
+            for (const [key, value] of Object.entries(logprobs)) {
+              if (Array.isArray(value)) {
+                const previous = accumulated[key];
+                if (Array.isArray(previous)) {
+                  for (const entry of value) previous.push(entry);
+                } else accumulated[key] = [...value];
+              } else if (accumulated[key] === undefined) accumulated[key] = value;
+            }
+            choice.logprobs = accumulated;
+          }
           for (const key of ['content', 'refusal']) {
             const text = string(delta[key]);
             if (text) {

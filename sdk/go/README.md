@@ -76,7 +76,7 @@ func main() {
     request := macrofold.NewInferenceCreate(map[string]interface{}{
         "messages": []map[string]string{{"role": "user", "content": "Explain worktrees in two sentences."}},
         "max_tokens": 256,
-    }, *binding)
+    }, macrofold.DecisionBindingAsInferenceBinding(binding))
     request.SetLimits(*macrofold.NewInferenceLimits("100000", 256, 60))
     err = client.Inferences.Stream(context.Background(), request, func(event macrofold.InferenceStreamEvent) error {
         switch event.Type {

@@ -9,6 +9,19 @@ export function initialReceipt(
   invocationId: string,
 ): InferenceReceipt {
   return {
+    ...(configuration.deployment_target
+      ? {
+          deployment: {
+            deployment_id: configuration.deployment_target.deployment_id,
+            deployment_revision_id: configuration.deployment_target.deployment_revision_id,
+          },
+          cost_attribution: {
+            basis: 'deployment' as const,
+            deployment_id: configuration.deployment_target.deployment_id,
+            infrastructure_cost_included: false as const,
+          },
+        }
+      : {}),
     invocation_id: invocationId,
     definition_revision:
       'payload_kind' in configuration ? configuration.definition_revision : configuration.definition.revision,

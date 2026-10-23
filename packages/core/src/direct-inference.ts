@@ -11,7 +11,7 @@ import {
   compactInference,
 } from './runs';
 import { seal, unseal } from './crypto';
-import { decisionProtocol } from '../../providers/src/decision-protocols';
+import { inferenceProtocol } from './inference-protocol';
 import { DecisionProviderError, type InferenceOutputSink, type InferenceReceipt } from './decision';
 import { emptyUsage } from './model-protocol';
 import {
@@ -54,6 +54,7 @@ export const immediateInferencePolicy = {
 } as const;
 
 export type InvocationPermit = {
+  deploymentHeaders?: Record<string, string>;
   run: ExecutableInferenceRunRow;
   call: Invocation;
   body: Record<string, unknown>;
@@ -574,7 +575,7 @@ export async function completeDirectInference(
   let rawResponse: unknown;
   const stopProviderTiming = startPerformanceStage('provider.model');
   try {
-    response = await decisionProtocol(run.config.rate_card.provider, run.config.model).invoke(
+    response = await inferenceProtocol(run.config, permit.deploymentHeaders).invoke(
       permit.body,
       permit.secret,
       controller.signal,

@@ -56,7 +56,9 @@ public class ModelDeploymentCapabilities {
    * Gets or Sets protocol
    */
   public enum ProtocolEnum {
-    OPENAI_CHAT(String.valueOf("openai_chat"));
+    OPENAI_CHAT(String.valueOf("openai_chat")),
+
+    SYSTEMONE(String.valueOf("systemone"));
 
     private String value;
 

@@ -8,10 +8,16 @@ import { Button, ErrorState, Field, Modal, Select } from './ui';
 import { ConnectorBrowser } from './connector-browser';
 import { ProviderLabel, ProviderLogo, providerName } from './provider-logo';
 import { searchProviders, isSearchProvider } from '../../../packages/contracts/search';
+import {
+  ModelHostingConnectionForm,
+  hostingConnectionLabels,
+  type HostingConnectionKind,
+} from './model-hosting-connection';
 
 const kinds = [
   { id: 'composio', label: 'Apps', icon: Globe },
   { id: 'model', label: 'Model key', icon: KeyRound },
+  { id: 'model_hosting', label: 'Model hosting', icon: Box },
   { id: 'claude_subscription', label: 'Claude subscription', icon: ShieldCheck },
   { id: 'codex_subscription', label: 'Codex subscription', icon: ShieldCheck },
   { id: 'mcp_remote', label: 'MCP server', icon: Terminal },
@@ -22,6 +28,8 @@ type Kind = (typeof kinds)[number]['id'];
 const descriptions: Record<Kind, string> = {
   composio: 'Bring the apps you use every day into your agents’ worktree.',
   model: 'Use your own provider account. Your API key stays encrypted on the server.',
+  model_hosting:
+    'Connect RunPod for compute, Hugging Face for private models, or your own model endpoint. Hosting uses account tokens, not app authorization.',
   claude_subscription:
     'Save a named Claude account configuration. Subscription authentication is not yet available; provider approval and isolated runtime validation are required.',
   codex_subscription:
@@ -30,8 +38,15 @@ const descriptions: Record<Kind, string> = {
   mcp_stdio: 'Run a reviewed MCP server inside your agent’s sandbox.',
   search: 'Give your agents up-to-date information from your preferred search provider.',
 };
-export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
-  const [kind, setKind] = useState<Kind>('composio');
+export function AddConnectionDialog({
+  onClose,
+  initialHostingKind,
+}: {
+  onClose: () => void;
+  initialHostingKind?: HostingConnectionKind;
+}) {
+  const [kind, setKind] = useState<Kind>(initialHostingKind ? 'model_hosting' : 'composio');
+  const [hostingKind, setHostingKind] = useState<HostingConnectionKind>(initialHostingKind ?? 'runpod');
   const [selected, setSelected] = useState<Schema['ConnectorCatalogEntry']>();
   const [name, setName] = useState(''),
     [provider, setProvider] = useState('openai'),
@@ -102,6 +117,12 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
               void catalog.refetch();
             }}
             onSelect={(entry) => {
+              // The catalog also has a RunPod tool connector. Default to the hosting
+              // credential, with an explicit route back to app tools below.
+              if (entry.slug === 'runpod') {
+                changeKind('model_hosting');
+                setHostingKind('runpod');
+              }
               setSelected(entry);
               setProvider(entry.slug);
               setName(`${entry.name} account`);
@@ -128,30 +149,84 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
               <span className="connector-logo-tile">
                 <ProviderLogo
                   provider={
-                    kind === 'composio'
-                      ? provider
-                      : kind === 'model'
+                    kind === 'model_hosting'
+                      ? hostingKind === 'hugging_face'
+                        ? 'hf'
+                        : hostingKind
+                      : kind === 'composio'
                         ? provider
-                        : kind === 'search'
+                        : kind === 'model'
                           ? provider
-                          : kind
+                          : kind === 'search'
+                            ? provider
+                            : kind
                   }
-                  name={selected?.name}
+                  name={kind === 'model_hosting' ? hostingConnectionLabels[hostingKind] : selected?.name}
                   size={36}
                 />
               </span>
               <div>
                 <h3>
-                  {kind === 'composio'
-                    ? selected?.name
-                    : kind === 'model'
-                      ? `Connect ${providerName(provider)}`
-                      : kinds.find((item) => item.id === kind)?.label}
+                  {kind === 'model_hosting'
+                    ? 'Model hosting'
+                    : kind === 'composio'
+                      ? selected?.name
+                      : kind === 'model'
+                        ? `Connect ${providerName(provider)}`
+                        : kinds.find((item) => item.id === kind)?.label}
                 </h3>
-                <p>{selected?.description || descriptions[kind]}</p>
+                <p>
+                  {kind === 'model_hosting'
+                    ? descriptions[kind]
+                    : selected?.description || descriptions[kind]}
+                </p>
               </div>
             </div>
-            {kind === 'codex_subscription' ? (
+            {kind === 'model_hosting' ? (
+              <>
+                <Field label="Hosting connection type">
+                  <Select
+                    value={hostingKind}
+                    disabled={busy}
+                    onValueChange={(next) => {
+                      if (next === 'runpod' || next === 'hugging_face' || next === 'external_model')
+                        setHostingKind(next);
+                    }}
+                    options={Object.entries(hostingConnectionLabels).map(([value, label]) => ({
+                      value,
+                      label: (
+                        <ProviderLabel provider={value === 'hugging_face' ? 'hf' : value} name={label} />
+                      ),
+                    }))}
+                  />
+                </Field>
+                <ModelHostingConnectionForm
+                  key={hostingKind}
+                  kind={hostingKind}
+                  onBusyChange={setBusy}
+                  onCreated={() => {
+                    onClose();
+                    toast.success('Connection added');
+                  }}
+                />
+                {hostingKind === 'runpod' && selected?.slug === 'runpod' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      const app = selected;
+                      changeKind('composio');
+                      setSelected(app);
+                      setProvider(app.slug);
+                      setName(`${app.name} account`);
+                    }}
+                  >
+                    Connect RunPod app tools instead
+                  </Button>
+                )}
+              </>
+            ) : kind === 'codex_subscription' ? (
               <div className="subscription-unavailable">
                 <span className="badge">Not yet available</span>
                 <p>

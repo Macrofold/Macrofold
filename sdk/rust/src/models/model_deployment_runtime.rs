@@ -28,6 +28,8 @@ impl Default for ModelDeploymentRuntime {
 pub enum ProfileId {
     #[serde(rename = "vllm-0.32.0-text")]
     Vllm0320Text,
+    #[serde(rename = "kev-systemone-v1")]
+    KevSystemoneV1,
 }
 
 impl Default for ProfileId {

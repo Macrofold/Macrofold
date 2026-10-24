@@ -1,9 +1,66 @@
 import type { components } from '../../contracts/api';
+import { z } from 'zod';
 type Schema = components['schemas'];
 export type ModelDeploymentCapabilities = Schema['ModelDeploymentCapabilities'];
 export type DeploymentSource = Schema['ModelDeploymentSource'];
 export type DeploymentRuntime = Schema['ModelDeploymentRuntime'];
+/** Immutable model data, separate from the reusable runtime image. Hashes are
+ * Hugging Face LFS SHA-256 or ordinary Git blob identities, never file URLs. */
+const modelArtifactSchema = z
+  .object({
+    path: z
+      .string()
+      .min(1)
+      .max(1024)
+      .refine(
+        (value) =>
+          !value.startsWith('/') &&
+          !/[\\\x00-\x20]/.test(value) &&
+          !value.split('/').some((part) => ['.', '..', ''].includes(part)),
+      ),
+    size_bytes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    sha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable(),
+    git_blob_sha1: z
+      .string()
+      .regex(/^[a-f0-9]{40}$/)
+      .nullable(),
+  })
+  .strict()
+  .refine((value) => !!(value.sha256 || value.git_blob_sha1));
+const repository = z
+  .string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/)
+  .refine((value) => !value.includes('..'));
+const commit = z.string().regex(/^[a-f0-9]{40}$/);
+export const nativeModelRecipeSchema = z
+  .object({
+    format: z.literal('kev'),
+    version: z.literal(1),
+    weights: z.enum(['lora', 'full']),
+    checkpoint_files: z.array(modelArtifactSchema).min(1).max(10000),
+    base: z
+      .object({ repository, revision: commit, files: z.array(modelArtifactSchema).min(1).max(10000) })
+      .strict(),
+    licenses: z
+      .array(
+        z
+          .object({ repository, revision: commit, license: z.string().nullable(), gated: z.boolean() })
+          .strict(),
+      )
+      .min(1)
+      .max(2),
+  })
+  .strict();
+export type ModelArtifact = z.infer<typeof modelArtifactSchema>;
+export type NativeModelRecipe = z.infer<typeof nativeModelRecipeSchema>;
 export type DeploymentHosting = Schema['ModelDeploymentHosting'];
+export type ExternalDeploymentHosting = Extract<DeploymentHosting, { endpoint_connection_id: string }>;
+export function isExternalHosting(hosting: DeploymentHosting): hosting is ExternalDeploymentHosting {
+  return hosting.kind === 'external_openai' || hosting.kind === 'external_systemone';
+}
 export type DeploymentPolicy = Schema['ModelDeploymentServicePolicy'];
 export type DeploymentTarget = {
   deployment_id: string;
@@ -86,10 +143,21 @@ export type GpuOffer = {
   hourly_micro_usd: string | null;
   region_ids: string[];
 };
+/** Provider affinity stays behind the port; the shared lifecycle only proves
+ * that this exact live worker returned the configured model identity. */
+export type ModelReadinessTarget = {
+  id: string;
+  /** Empty means this observation cannot establish a reusable incarnation. */
+  generation: string;
+  headers: Record<string, string>;
+  expected_headers: Record<string, string>;
+};
 export type ServingObservation = {
   id: string;
   endpoint_url: string;
+  /** Actual provider readiness only; lifecycle-only providers use probe targets. */
   ready_replicas: number;
+  readiness_targets?: ModelReadinessTarget[];
   workers: { id: string; pool: string | null; started_at: string | null; stopped_at: string | null }[];
   config: Record<string, unknown>;
 };
@@ -106,4 +174,14 @@ export interface ModelHostingProvider {
     start: string,
     end: string,
   ): Promise<{ start: string; end: string; micro_usd: string }[]>;
+}
+/** Only an authoritative rejection before allocation may release an attempt.
+ * Network loss, server errors and malformed success remain ambiguous. */
+export class ModelHostingCreateRejected extends Error {
+  constructor(readonly httpStatus: number) {
+    super(
+      `Hosting creation was rejected (${httpStatus}); correct the provider configuration or credential before starting again.`,
+    );
+    this.name = 'ModelHostingCreateRejected';
+  }
 }

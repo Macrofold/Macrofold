@@ -10,7 +10,7 @@ import {
 } from '../../core/src/decision';
 import type { DeploymentTarget } from '../../core/src/model-deployment-types';
 import { emptyUsage } from '../../core/src/model-protocol';
-import { independentUsage } from './decision-protocols';
+import { independentUsage, nativeSystemOneResponse, prepareSystemOne } from './decision-protocols';
 import { readInferenceStream } from './inference-stream';
 import { modelEndpointFetch } from './network';
 import { requireClientTools } from './model-protocols';
@@ -48,6 +48,33 @@ function requestObject(value: unknown, field: string) {
   const parsed = object.safeParse(value);
   assert(parsed.success, 400, 'invalid_request', `${field} must be an object.`);
   return parsed.data;
+}
+
+/** Preserve native scoring inputs; only the selected model and transport
+ * capabilities belong to Macrofold. No chat prompt or context is injected. */
+export function prepareDeploymentSystemOne(target: DeploymentTarget, request: DecisionRequest) {
+  capability(target.capabilities.protocol === 'systemone', 'This deployment does not serve SystemOne.');
+  capability(request.definition.question.kind === 'provider', 'Custom deployments accept native input.');
+  capability(!request.stream, 'SystemOne deployments do not support streaming.');
+  capability(request.modelParameters === undefined, 'Supply native SystemOne parameters in input.');
+  capability(
+    request.maxOutputTokens <= target.capabilities.max_output_tokens,
+    'The output limit exceeds this deployment’s supported maximum.',
+  );
+  const body = prepareSystemOne({ ...request, model: target.model_alias });
+  // The transport selector is not a native scoring parameter. A caller may
+  // explicitly choose false; never forward it as an unsupported model field.
+  delete body.stream;
+  assert(body.state !== undefined, 400, 'invalid_request', 'Supply native SystemOne state.');
+  const questions = requestObject(body.questions, 'questions');
+  assert(Object.keys(questions).length > 0, 400, 'invalid_request', 'Supply at least one named question.');
+  for (const key of Object.keys(body))
+    capability(
+      ['model', 'state', 'questions', 'stream'].includes(key) ||
+        target.capabilities.accepted_parameters.includes(key),
+      `This deployment does not support the ${key} parameter.`,
+    );
+  return body;
 }
 
 /** Validate the advertised recipe, without implementing the engine's tokenizer
@@ -189,16 +216,18 @@ export function deploymentProtocol(
   timeoutSeconds = 240,
   transport: typeof modelEndpointFetch = modelEndpointFetch,
 ): DecisionProtocol {
+  const systemOne = target.capabilities.protocol === 'systemone';
   return {
-    version: 'deployment-openai-chat/1',
+    version: systemOne ? 'deployment-systemone/1' : 'deployment-openai-chat/1',
     kinds: ['provider'],
     capabilities: {
-      structuredOutput: target.capabilities.json_schema,
+      structuredOutput: !systemOne && target.capabilities.json_schema,
       brokeredTools: false,
-      streaming: target.capabilities.streaming,
+      streaming: !systemOne && target.capabilities.streaming,
       immutableModelRevision: true,
     },
-    prepare: (request) => prepareDeploymentChat(target, request),
+    prepare: (request) =>
+      systemOne ? prepareDeploymentSystemOne(target, request) : prepareDeploymentChat(target, request),
     async invoke(body, _secret, signal, observeResponse, _nativeResponse, output, preparedJSON) {
       let evidence: ProviderEvidence = {
         response: null,
@@ -212,7 +241,7 @@ export function deploymentProtocol(
       };
       try {
         const endpoint = new URL(target.endpoint_url);
-        endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/chat/completions`;
+        endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/${systemOne ? 'systemone' : 'chat/completions'}`;
         const upstream = await transport(
           endpoint,
           {
@@ -229,7 +258,8 @@ export function deploymentProtocol(
           { timeoutMs: timeoutSeconds * 1000, maximumResponseBytes: 8 * 1024 * 1024 },
         );
         evidence.httpStatus = upstream.status;
-        evidence.requestId = upstream.headers.get('x-request-id');
+        evidence.requestId =
+          upstream.headers.get('x-request-id') ?? upstream.headers.get('x-typesafe-request-id');
         let raw: unknown;
         let incomplete: string | undefined;
         if (upstream.ok && body.stream === true) {
@@ -250,7 +280,7 @@ export function deploymentProtocol(
           raw = JSON.parse(text);
         }
         evidence.response = raw;
-        evidence.usage = independentUsage(raw, true, 'deployment');
+        evidence.usage = independentUsage(raw, !systemOne, 'deployment');
         const parsedIdentity = identity.safeParse(raw);
         if (parsedIdentity.success) {
           evidence.requestId = parsedIdentity.data.id ?? evidence.requestId;
@@ -268,7 +298,8 @@ export function deploymentProtocol(
           'decision_provider_failed',
           'The deployment rejected the inference request.',
         );
-        if (!incomplete) {
+        if (systemOne) nativeSystemOneResponse(raw, evidence.usage);
+        else if (!incomplete) {
           const parsed = completion.parse(raw);
           assert(
             parsed.choices.every((choice) => choice.finish_reason !== null),

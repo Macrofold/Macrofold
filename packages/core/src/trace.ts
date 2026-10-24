@@ -18,6 +18,9 @@ export type TraceContext = {
   application_namespace?: string;
   actor_id?: string;
   definition_revision?: string;
+  deployment_id?: string;
+  deployment_revision_id?: string;
+  inference_protocol?: string;
   run_kind: string;
   harness?: string;
   provider?: string;

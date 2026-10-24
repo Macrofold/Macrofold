@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { boundedJSON } from '../../core/src/body';
 import type { ModelHostingProvider } from '../../core/src/model-deployment-types';
+import { ModelHostingCreateRejected } from '../../core/src/model-deployment-types';
 
 const ORIGIN = 'https://api.runpod.io';
 const identifier = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
@@ -55,7 +56,7 @@ const catalogSchema = z.object({
         id: z.string().min(1).max(256),
         name: z.string().min(1).max(256),
         pool: z.string().nullable(),
-        memory: z.number().int().positive().max(8192),
+        memory: z.number().int().nonnegative().max(8192),
         price: z.object({ serverless: z.number().finite().nonnegative().optional() }),
         dataCenters: z
           .array(z.object({ id: z.string() }))
@@ -118,6 +119,9 @@ export function runpodModelHosting(transport: typeof fetch = fetch): ModelHostin
     options: { method?: string; body?: Record<string, unknown>; absent?: boolean; signal?: AbortSignal } = {},
   ): Promise<unknown | null> {
     const signal = options.signal || AbortSignal.timeout(20_000);
+    const body = options.body ? JSON.stringify(options.body) : undefined;
+    const create = path === '/v2/serverless' && options.method === 'POST';
+    if (create && body && Buffer.byteLength(body) > 1024 * 1024) throw new ModelHostingCreateRejected(413);
     const response = await transport(ORIGIN + path, {
       method: options.method || 'GET',
       redirect: 'error',
@@ -127,7 +131,7 @@ export function runpodModelHosting(transport: typeof fetch = fetch): ModelHostin
         accept: 'application/json',
         ...(options.body ? { 'content-type': 'application/json' } : {}),
       },
-      ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+      ...(body ? { body } : {}),
     });
     if (response.status === 404 && options.absent) {
       await response.body?.cancel();
@@ -135,6 +139,11 @@ export function runpodModelHosting(transport: typeof fetch = fetch): ModelHostin
     }
     if (!response.ok) {
       await response.body?.cancel();
+      // Official v2 errors classify these as authentication/access, malformed,
+      // absent target or validation rejection. No resource was allocated.
+      // Never extend this classification to transport loss or upstream 5xx.
+      if (create && [400, 401, 403, 404, 413, 422].includes(response.status))
+        throw new ModelHostingCreateRejected(response.status);
       // Do not retain the raw provider body: env and credentials can be echoed.
       throw new Error(`RunPod management request failed (${response.status}).`);
     }
@@ -152,7 +161,9 @@ export function runpodModelHosting(transport: typeof fetch = fetch): ModelHostin
         await request('/v2/catalog/gpus?include=AVAILABILITY&product=SERVERLESS', secret),
       );
       return catalog.gpus.flatMap((gpu) =>
-        gpu.pool
+        // The live catalog includes a zero-memory "unknown" sentinel. It is
+        // not a serving offer and must not invalidate the usable GPU entries.
+        gpu.pool && gpu.memory > 0
           ? [
               {
                 pool: gpu.pool,
@@ -199,7 +210,18 @@ export function runpodModelHosting(transport: typeof fetch = fetch): ModelHostin
       return {
         id,
         endpoint_url: endpointURL(endpoint),
-        ready_replicas: ready.length,
+        // RUNNING is a scheduling/lifecycle signal, not proof that model
+        // loading finished. Strict affinity prevents a healthy neighbor from
+        // answering another worker's authenticated readiness probe.
+        ready_replicas: 0,
+        readiness_targets: ready.map((worker) => ({
+          id: worker.id,
+          // Without start identity a restart of the same worker ID cannot be
+          // distinguished. Probe it now, but never reuse that proof next pass.
+          generation: worker.startedAt ? `${worker.version ?? ''}:${worker.startedAt}` : '',
+          headers: { 'x-runpod-worker-id': `strict ${worker.id}` },
+          expected_headers: { 'x-runpod-worker-id': worker.id },
+        })),
         workers: observation.workers.map((worker) => ({
           id: worker.id,
           pool: null,

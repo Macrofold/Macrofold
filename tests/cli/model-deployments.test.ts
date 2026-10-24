@@ -216,6 +216,25 @@ describe('built model deployment CLI public transport', () => {
     ]);
   });
 
+  it('selects native decisions explicitly and rejects conflicting task sources', async () => {
+    const result = await command(['model-deployment', 'inspect', 'jaredpalmer/kev-4b', '--task', 'decision']);
+    expect(result.code, result.stderr || result.stdout).toBe(0);
+    expect(calls).toEqual([
+      expect.objectContaining({
+        method: 'POST',
+        path: '/v1/model-deployments/inspect',
+        body: { source: { kind: 'hugging_face', repository: 'jaredpalmer/kev-4b' }, task: 'decision' },
+      }),
+    ]);
+    calls.length = 0;
+    const conflict = await command(
+      ['model-deployment', 'inspect', '--config-file', '-', '--task', 'decision'],
+      '{}',
+    );
+    expect(conflict.code).not.toBe(0);
+    expect(calls).toHaveLength(0);
+  });
+
   it('preserves full create JSON, empty application grants and an explicit recovery key', async () => {
     const input = {
       name: 'CLI fixture',

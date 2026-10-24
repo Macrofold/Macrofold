@@ -39,8 +39,8 @@ class ModelDeploymentHostingOneOf1(BaseModel):
     @field_validator('kind')
     def kind_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['external_openai']):
-            raise ValueError("must be one of enum values ('external_openai')")
+        if value not in set(['external_openai', 'external_systemone']):
+            raise ValueError("must be one of enum values ('external_openai', 'external_systemone')")
         return value
 
     @field_validator('lifecycle')

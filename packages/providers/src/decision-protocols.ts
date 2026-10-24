@@ -33,6 +33,7 @@ const response = z
 // each response. Usage remains independently validated even when an answer fails.
 const identitySchema = z.object({ id: z.string().optional(), model: z.string().optional() });
 const objectSchema = z.record(z.string(), z.unknown());
+const nativeSystemOneSchema = response.extend({ answers: objectSchema });
 const suppliedUsageSchema = z.object({ usage: z.unknown().optional() });
 const independentUsageSchema = z.object({ usage: objectSchema.nullish() });
 const cachedTokensSchema = z.object({ cached_tokens: count.optional() }).nullish();
@@ -72,6 +73,51 @@ const endpoints: Record<DecisionBinding['provider'], string> = {
   typesafe: 'https://api.typesafe.ai/v1/systemone',
   openrouter: 'https://openrouter.ai/api/alpha/decisions',
 };
+
+/** SystemOne is a scoring protocol, regardless of whether its host is the
+ * original provider or an owner-delegated private deployment. */
+export function prepareSystemOne(request: DecisionRequest): Record<string, unknown> {
+  if (request.definition.question.kind === 'provider') return nativeInferenceBody(request, 'typesafe', true);
+  validateModelParameters(request.modelParameters, 'typesafe', request.model);
+  const question = request.definition.question;
+  assert(
+    question.kind !== 'json',
+    400,
+    'unsupported_decision',
+    'Decision models support choice and score; select a generative provider for JSON output.',
+  );
+  return {
+    model: request.model,
+    state: { input: request.input, context: request.context },
+    questions: {
+      decision: {
+        type: question.kind,
+        instructions: request.definition.prompt,
+        criteria: question.criteria,
+      },
+    },
+  };
+}
+
+/** Validate the native envelope without narrowing arbitrary question names or
+ * losing provider extensions, probabilities, truncation or timing evidence. */
+export function nativeSystemOneResponse(raw: unknown, normalizedUsage: ModelUsage): DecisionResponse {
+  const supplied = suppliedUsageSchema.safeParse(raw);
+  assert(
+    !supplied.success || supplied.data.usage == null || normalizedUsage.complete,
+    502,
+    'invalid_provider_usage',
+    'The provider returned malformed usage.',
+  );
+  const parsed = nativeSystemOneSchema.parse(raw);
+  return {
+    value: raw,
+    refused: false,
+    requestId: parsed.id ?? null,
+    modelRevision: parsed.model ?? null,
+    usage: normalizedUsage,
+  };
+}
 function responseIdentity(raw: unknown, headerRequestId: string | null) {
   const identity = identitySchema.safeParse(raw);
   return {
@@ -258,6 +304,17 @@ function normalizeResponse(
     'The provider returned malformed usage.',
   );
   if (nativeResponse) {
+    if (!chat && provider !== 'anthropic') {
+      const normalized = nativeSystemOneResponse(raw, normalizedUsage);
+      return {
+        ...normalized,
+        requestId:
+          normalized.requestId ||
+          upstream.headers.get('x-generation-id') ||
+          upstream.headers.get('x-request-id') ||
+          upstream.headers.get('x-typesafe-request-id'),
+      };
+    }
     const parsed = response.parse(chat ? { ...objectSchema.parse(raw), usage: undefined } : raw);
     return {
       value: raw,
@@ -385,29 +442,7 @@ const typesafe: DecisionProtocol = {
     streaming: false,
     immutableModelRevision: false,
   },
-  prepare(request) {
-    if (request.definition.question.kind === 'provider')
-      return nativeInferenceBody(request, 'typesafe', true);
-    validateModelParameters(request.modelParameters, 'typesafe', request.model);
-    const question = request.definition.question;
-    assert(
-      question.kind !== 'json',
-      400,
-      'unsupported_decision',
-      'Decision models support choice and score; select a generative provider for JSON output.',
-    );
-    return {
-      model: request.model,
-      state: { input: request.input, context: request.context },
-      questions: {
-        decision: {
-          type: question.kind,
-          instructions: request.definition.prompt,
-          criteria: question.criteria,
-        },
-      },
-    };
-  },
+  prepare: prepareSystemOne,
   invoke: (body, secret, signal, observeResponse, nativeResponse, output, preparedJSON) =>
     invoke('typesafe', body, secret, signal, observeResponse, false, nativeResponse, output, preparedJSON),
 };

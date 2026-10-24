@@ -56,7 +56,7 @@ export function ConnectionsView() {
     else next.delete(name);
     router.replace(`/connections${next.size ? `?${next}` : ''}`, { scroll: false });
   }
-  const [open, setOpen] = useState(false),
+  const [adding, setAdding] = useState<'apps' | 'runpod'>(),
     [selected, setSelected] = useState<Schema['Connection']>(),
     [editing, setEditing] = useState<Schema['Connection']>(),
     [remove, setRemove] = useState<Schema['Connection']>();
@@ -71,7 +71,7 @@ export function ConnectionsView() {
         action={
           <Button
             onClick={() => {
-              setOpen(true);
+              setAdding('apps');
             }}
           >
             <Plus size={17} />
@@ -144,7 +144,7 @@ export function ConnectionsView() {
                 Clear filters
               </Button>
             ) : (
-              <Button variant="secondary" onClick={() => setOpen(true)}>
+              <Button variant="secondary" onClick={() => setAdding('apps')}>
                 <Plus size={15} /> Add connection
               </Button>
             )
@@ -173,7 +173,9 @@ export function ConnectionsView() {
                         : c.kind === 'model'
                           ? `${providerName(c.provider || '')} · Your API key`
                           : c.kind === 'composio'
-                            ? `${providerName(c.provider || '')} · Connected app`
+                            ? c.provider === 'runpod'
+                              ? 'RunPod app tools · Separate from model hosting'
+                              : `${providerName(c.provider || '')} · Connected app`
                             : c.kind === 'search'
                               ? `${providerName(c.provider || '')} · ${c.auth_method === 'api_key' ? 'Your API key' : 'Managed usage'}`
                               : c.kind === 'mcp_stdio'
@@ -204,7 +206,9 @@ export function ConnectionsView() {
               ) : (
                 !credentialKinds.includes(c.kind) && <p className="form-hint">No matching access</p>
               )}
-              {c.approved_tools?.length === 0 && <p className="form-hint">No tools enabled</p>}
+              {!credentialKinds.includes(c.kind) && c.approved_tools?.length === 0 && (
+                <p className="form-hint">No tools enabled</p>
+              )}
               {c.owner_subject_id === identity.data?.user_id && (
                 <div className="connection-card-actions">
                   <Button
@@ -242,7 +246,8 @@ export function ConnectionsView() {
                         }
                       }}
                     >
-                      Connect <ArrowUpRight size={13} />
+                      {c.kind === 'composio' && c.provider === 'runpod' ? 'Connect app tools' : 'Connect'}{' '}
+                      <ArrowUpRight size={13} />
                     </Button>
                   ) : !credentialKinds.includes(c.kind) ? (
                     <Button variant="secondary" onClick={() => setSelected(c)}>
@@ -250,6 +255,11 @@ export function ConnectionsView() {
                       Tools
                     </Button>
                   ) : null}
+                  {c.kind === 'composio' && c.provider === 'runpod' && (
+                    <Button variant="secondary" onClick={() => setAdding('runpod')}>
+                      Use for model hosting
+                    </Button>
+                  )}
                   {!credentialKinds.includes(c.kind) && (
                     <Button variant="secondary" onClick={() => setAccessConnection(c)}>
                       Access
@@ -272,7 +282,12 @@ export function ConnectionsView() {
         </div>
       )}
       <More query={query} label="More connections" />
-      {open && <AddConnectionDialog onClose={() => setOpen(false)} />}
+      {adding && (
+        <AddConnectionDialog
+          initialHostingKind={adding === 'runpod' ? 'runpod' : undefined}
+          onClose={() => setAdding(undefined)}
+        />
+      )}
       {accessConnection && (
         <ConnectionAccess connection={accessConnection} onClose={() => setAccessConnection(undefined)} />
       )}

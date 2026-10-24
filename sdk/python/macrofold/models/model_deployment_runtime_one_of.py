@@ -35,8 +35,8 @@ class ModelDeploymentRuntimeOneOf(BaseModel):
     @field_validator('profile_id')
     def profile_id_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['vllm-0.32.0-text']):
-            raise ValueError("must be one of enum values ('vllm-0.32.0-text')")
+        if value not in set(['vllm-0.32.0-text', 'kev-systemone-v1']):
+            raise ValueError("must be one of enum values ('vllm-0.32.0-text', 'kev-systemone-v1')")
         return value
 
     model_config = ConfigDict(

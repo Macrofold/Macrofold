@@ -43,7 +43,9 @@ public class ModelDeploymentInspectionInputRuntimePreferences {
    * Gets or Sets profileId
    */
   public enum ProfileIdEnum {
-    VLLM_0_32_0_TEXT(String.valueOf("vllm-0.32.0-text"));
+    VLLM_0_32_0_TEXT(String.valueOf("vllm-0.32.0-text")),
+
+    KEV_SYSTEMONE_V1(String.valueOf("kev-systemone-v1"));
 
     private String value;
 

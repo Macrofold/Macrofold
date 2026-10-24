@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { pool, transaction, type Tx } from '../../db';
 import { runpodModelHosting } from '../../providers/src/runpod-model-hosting';
 import { modelEndpointFetch } from '../../providers/src/network';
-import { boundedJSON } from './body';
 import { config } from './config';
 import { id, seal, token, unseal, canonical, sha256 } from './crypto';
 import { AppError, assert } from './errors';
@@ -10,6 +9,13 @@ import { mapConcurrent } from './concurrent';
 import { revisionRow } from './model-deployments';
 import { quoteManagedService } from './model-deployment-service';
 import { matchesDeploymentResource } from './model-deployment-resource';
+import {
+  isExternalHosting,
+  nativeModelRecipeSchema,
+  ModelHostingCreateRejected,
+} from './model-deployment-types';
+import { managedRuntimeProfile } from './model-deployment-profiles';
+import { probeModelReadiness } from './model-deployment-readiness';
 import type {
   DeploymentRow,
   DeploymentRevisionRow,
@@ -19,7 +25,10 @@ import type {
   GpuOffer,
 } from './model-deployment-types';
 
-const LEASE_MS = 120_000;
+// The longest observation can use 150s of bounded provider I/O (including
+// source/policy rotation, readiness and both billing readers). Leave 30s for
+// its short SQL work; slow recovery never authorizes another create.
+const LEASE_MS = 180_000;
 const STARTUP_MS = 20 * 60_000;
 const DRAIN_MS = 270_000;
 const MAX_FAILURES = 8;
@@ -187,13 +196,14 @@ async function resourceCredential(
       'deployment_unavailable',
       'The resource cleanup credential is unavailable.',
     );
-    return unseal<string>(resource.cleanup_secret_ciphertext);
+    return { key: unseal<string>(resource.cleanup_secret_ciphertext) };
   }
   const selected = await transaction(org, async (tx) => {
     const revision = await revisionRow(tx, row.id, resource.revision_id);
     return connection(tx, row, revision, resource.connection_id, 'runpod');
   });
   const key = secret(selected);
+  let verifiedObservation: ServingObservation | undefined;
   if (selected.secret_ciphertext !== resource.cleanup_secret_ciphertext) {
     assert(
       provider && resource.provider_id,
@@ -222,8 +232,9 @@ async function resourceCredential(
         [resource.id, selected.secret_ciphertext],
       );
     });
+    verifiedObservation = observation;
   }
-  return key;
+  return { key, verifiedObservation };
 }
 
 async function reconcileAttempt(
@@ -297,7 +308,7 @@ async function stopDuplicateResources(
   if (!candidate) return;
   // Discovery (up to 60s) happens in a separate pass. Inspect uses two 20s
   // requests; adding scale-down/delete costs at most 80s. Confirm absence in a
-  // later pass, leaving room within the 120s lease for billing refresh.
+  // later pass, leaving room within the lease for billing refresh and SQL.
   const observed = await provider.inspect(key, candidate.id);
   let state: 'unverified' | 'deleted' | 'stopping' = 'stopping';
   if (observed === null) state = 'deleted';
@@ -474,7 +485,7 @@ async function stopOwnedResource(
   provider: ModelHostingProvider,
 ) {
   if (!(await drain(org, current, resource.revision_id))) return;
-  const key = await resourceCredential(org, current.row, resource, true);
+  const { key } = await resourceCredential(org, current.row, resource, true);
   if (resource.config.cleanup_candidates !== undefined) {
     await stopDuplicateResources(org, current, resource, key, provider);
     return;
@@ -503,6 +514,7 @@ async function stopOwnedResource(
       await tx.query(
         `UPDATE model_deployments SET serving_revision_id=NULL,ready_replicas=0,drain_started_at=NULL,
         state=CASE WHEN failure_code='service_recovery_exhausted' THEN 'failed' WHEN desired_state='running' AND retired=false THEN 'starting' ELSE 'stopped' END,
+        failure_code=CASE WHEN failure_code='service_recovery_exhausted' THEN failure_code ELSE NULL END,
         observed_at=now() WHERE id=$1`,
         [row.id],
       );
@@ -530,20 +542,15 @@ async function external(
   revision: DeploymentRevisionRow,
   fetchEndpoint: ExternalFetch,
 ) {
+  const hosting = revision.hosting;
   assert(
-    revision.hosting.kind === 'external_openai',
+    isExternalHosting(hosting),
     500,
     'invalid_model_deployment',
     'External hosting selection is required.',
   );
   const selected = await mutate(org, current, async (tx, row) => {
-    const value = await connection(
-      tx,
-      row,
-      revision,
-      revision.hosting.kind === 'external_openai' ? revision.hosting.endpoint_connection_id : '',
-      'external_model',
-    );
+    const value = await connection(tx, row, revision, hosting.endpoint_connection_id, 'external_model');
     assert(
       value.url && value.url === revision.source_evidence.endpoint_url,
       409,
@@ -555,22 +562,18 @@ async function external(
     return { url: value.url, headers };
   });
   if (!selected) return;
-  const response = await fetchEndpoint(
-    selected.url + '/models',
-    { headers: selected.headers, method: 'GET' },
-    { timeoutMs: 10_000, maximumResponseBytes: 1024 * 1024 },
+  const readiness = await probeModelReadiness(
+    {
+      url: selected.url + '/models',
+      headers: selected.headers,
+      alias: hosting.model_alias,
+      protocol: revision.capabilities.protocol,
+      providerReadyReplicas: 1,
+    },
+    fetchEndpoint,
   );
-  if (!response.ok) {
-    await response.body?.cancel();
-    assert(false, 503, 'deployment_unavailable', 'The external model endpoint is not ready.');
-  }
-  const models = z
-    .object({ data: z.array(z.object({ id: z.string() })).max(1000) })
-    .parse(await boundedJSON(response, 1024 * 1024));
   assert(
-    models.data.some(
-      (model) => revision.hosting.kind === 'external_openai' && model.id === revision.hosting.model_alias,
-    ),
+    readiness.readyReplicas > 0,
     503,
     'deployment_unavailable',
     'The external endpoint is not serving the configured model alias.',
@@ -606,6 +609,11 @@ function providerConfig(
     'The immutable wrapper image is unavailable.',
   );
   const source = revision.source;
+  const profile = managedRuntimeProfile(revision.runtime.profile_id);
+  const native =
+    profile.protocol === 'systemone'
+      ? nativeModelRecipeSchema.parse(revision.source_evidence.native_recipe)
+      : undefined;
   const memory = revision.source_evidence.memory_estimate_bytes;
   assert(
     typeof memory === 'string' && /^[0-9]+$/.test(memory),
@@ -617,7 +625,10 @@ function providerConfig(
     name: `macrofold-${row.id}`,
     type: 'LOAD_BALANCER',
     image,
-    cmd: ['python3', '/opt/macrofold-model/server.py'],
+    // RunPod CMD is passed to the image ENTRYPOINT, rather than replacing it.
+    // Select the protected wrapper explicitly and avoid duplicate script args.
+    entrypoint: ['python3', '/opt/macrofold-model/server.py'],
+    cmd: [],
     disk: Math.max(20, Math.ceil((Number(memory) / 1e9) * 2)),
     ports: ['8000/http'],
     env: {
@@ -627,11 +638,13 @@ function providerConfig(
       MF_ATTEMPT_ID: attemptId,
       MF_REVISION_ID: revision.id,
       MF_MODEL_CONFIG: JSON.stringify({
+        ...(native ? { profile_id: revision.runtime.profile_id } : {}),
         source: {
           repository: source.repository,
           revision: source.revision,
           weight_files: source.weight_files,
           ...(source.tokenizer ? { tokenizer: source.tokenizer } : {}),
+          ...(native ? { native } : {}),
         },
         parameters: revision.runtime.parameters,
         served_alias: `macrofold-${revision.id}`,
@@ -640,7 +653,7 @@ function providerConfig(
     gpu: {
       pools: revision.hosting.placement.gpu_pool_ids,
       count: revision.hosting.placement.gpu_count,
-      minCudaVersion: '13.0',
+      minCudaVersion: profile.cuda,
     },
     dataCenterIds: revision.hosting.placement.region_ids,
     workers: { min: row.policy.min_replicas, max: row.policy.max_replicas, idleTimeout: 10 },
@@ -748,6 +761,35 @@ async function startResource(
       },
     });
   } catch (cause) {
+    if (cause instanceof ModelHostingCreateRejected) {
+      const failureCode = `provider_create_rejected_${cause.httpStatus}`;
+      await transaction(org, async (tx) => {
+        // A definite pre-allocation rejection needs no retained cleanup key or
+        // uncertain bill. Keep its attempt history and an honest zero estimate,
+        // not fabricated provider-reported usage. Never apply this to lost ACKs.
+        await tx.query(
+          `UPDATE model_deployment_resources SET state='deleted',deleted_at=clock_timestamp(),stopped_at=created_at,
+          cleanup_secret_ciphertext=NULL,last_error=$2,observed_at=clock_timestamp()
+          WHERE id=$1 AND provider_id IS NULL`,
+          [reservation.resource.id, failureCode],
+        );
+        await tx.query(
+          `INSERT INTO model_deployment_cost_observations(organization_id,resource_id,period_start,period_end,estimated_micro_usd)
+          SELECT organization_id,id,created_at,greatest(deleted_at,created_at+interval '1 microsecond'),0
+          FROM model_deployment_resources WHERE id=$1 AND provider_id IS NULL AND state='deleted'
+          ON CONFLICT DO NOTHING`,
+          [reservation.resource.id],
+        );
+      });
+      await mutate(org, current, async (tx, row) => {
+        await tx.query(
+          `UPDATE model_deployments SET state='failed',serving_revision_id=NULL,ready_replicas=0,
+          failure_code=$2,failure_attempts=failure_attempts+1,startup_at=NULL,observed_at=clock_timestamp() WHERE id=$1`,
+          [row.id, failureCode],
+        );
+      });
+      return;
+    }
     await transaction(org, async (tx) => {
       await tx.query(
         "UPDATE model_deployment_resources SET state='ambiguous',last_error='provider_create_unconfirmed',observed_at=now() WHERE id=$1 AND provider_id IS NULL",
@@ -770,12 +812,16 @@ async function observeManaged(
   revision: DeploymentRevisionRow,
   resource: DeploymentResourceRow,
   provider: ModelHostingProvider,
+  fetchEndpoint: ExternalFetch,
 ) {
-  const key = await resourceCredential(org, current.row, resource, false, provider);
+  const credential = await resourceCredential(org, current.row, resource, false, provider);
+  const key = credential.key;
   const known = await reconcileAttempt(org, current, resource, key, provider);
   if (!known?.provider_id) return;
   if (!resource.provider_id) return;
-  const observation = await provider.inspect(key, known.provider_id);
+  // Rotation just established this exact resource using the current key; reuse
+  // that bounded observation rather than immediately repeating two HTTP reads.
+  const observation = credential.verifiedObservation ?? (await provider.inspect(key, known.provider_id));
   if (!observation) {
     await mutate(org, current, async (tx, row) => {
       const failures = row.failure_attempts + 1;
@@ -878,10 +924,31 @@ async function observeManaged(
       timeout: 240_000,
     });
   }
+  const readiness = await probeModelReadiness(
+    {
+      url: observation.endpoint_url + '/v1/models',
+      alias: `macrofold-${revision.id}`,
+      protocol: revision.capabilities.protocol,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'x-macrofold-endpoint-secret': unseal<string>(known.secret_ciphertext),
+      },
+      providerReadyReplicas: observation.ready_replicas,
+      targets: observation.readiness_targets,
+      previous: known.config.readiness,
+    },
+    fetchEndpoint,
+  );
   await mutate(org, current, async (tx, row) => {
-    const ready = observation.ready_replicas > 0;
+    const ready = readiness.readyReplicas > 0;
     const expired = !ready && row.startup_at && Date.now() - row.startup_at.getTime() >= STARTUP_MS;
-    const failures = ready ? 0 : row.serving_revision_id ? row.failure_attempts + 1 : row.failure_attempts;
+    // A bounded partial health pass is not evidence that unprobed workers failed.
+    // Startup's existing wall-clock bound still prevents indefinite paid recovery.
+    const failures = ready
+      ? 0
+      : row.serving_revision_id && readiness.complete
+        ? row.failure_attempts + 1
+        : row.failure_attempts;
     const exhausted = expired || failures >= MAX_FAILURES;
     await tx.query(
       `UPDATE model_deployments SET state=$2,serving_revision_id=$3,ready_replicas=$4,observed_at=now(),failure_attempts=$5,
@@ -890,15 +957,21 @@ async function observeManaged(
         row.id,
         exhausted ? 'failed' : ready ? 'ready' : row.serving_revision_id ? 'degraded' : 'starting',
         ready || (row.serving_revision_id && !exhausted) ? revision.id : null,
-        observation.ready_replicas,
+        readiness.readyReplicas,
         failures,
-        exhausted ? 'service_recovery_exhausted' : ready ? null : 'model_loading',
+        exhausted ? 'service_recovery_exhausted' : ready ? null : readiness.failureCode,
         ready,
       ],
     );
     await tx.query(
-      'UPDATE model_deployment_resources SET state=$2,observed_at=now(),accepted_rates=coalesce($3::jsonb,accepted_rates) WHERE id=$1',
-      [known.id, ready ? 'ready' : 'starting', rates ? JSON.stringify(rates) : null],
+      `UPDATE model_deployment_resources SET state=$2,observed_at=now(),accepted_rates=coalesce($3::jsonb,accepted_rates),
+        config=CASE WHEN $4::jsonb IS NULL THEN config ELSE jsonb_set(config,'{readiness}',$4::jsonb) END WHERE id=$1`,
+      [
+        known.id,
+        ready ? 'ready' : 'starting',
+        rates ? JSON.stringify(rates) : null,
+        readiness.evidence ? JSON.stringify(readiness.evidence) : null,
+      ],
     );
   });
   await observeCosts(org, current, known, key, provider).catch(() => {});
@@ -922,7 +995,7 @@ export async function advanceModelDeployment(
     );
     const scheduledStop =
       !!current.row.policy?.stop_at && Date.parse(current.row.policy.stop_at) <= Date.now();
-    const failed = current.row.failure_code === 'service_recovery_exhausted';
+    const failed = current.row.state === 'failed';
     const stopped = current.row.desired_state === 'stopped' || current.row.retired || scheduledStop || failed;
     if (scheduledStop)
       await mutate(org, current, async (tx) => {
@@ -944,11 +1017,13 @@ export async function advanceModelDeployment(
         return true;
       await mutate(org, current, async (tx) => {
         await tx.query(
-          "UPDATE model_deployments SET state=CASE WHEN failure_code='service_recovery_exhausted' THEN 'failed' ELSE 'stopped' END,serving_revision_id=NULL,ready_replicas=0,observed_at=now() WHERE id=$1",
+          `UPDATE model_deployments SET state=CASE WHEN state='failed' THEN 'failed' ELSE 'stopped' END,
+          failure_code=CASE WHEN state='failed' OR failure_code='service_recovery_exhausted' THEN failure_code ELSE NULL END,
+          serving_revision_id=NULL,ready_replicas=0,observed_at=now() WHERE id=$1`,
           [deploymentId],
         );
       });
-    } else if (revision.hosting.kind === 'external_openai') {
+    } else if (isExternalHosting(revision.hosting)) {
       if (
         current.row.serving_revision_id &&
         current.row.serving_revision_id !== revision.id &&
@@ -959,7 +1034,7 @@ export async function advanceModelDeployment(
     } else if (!resource) {
       await startResource(org, current, revision, provider);
     } else {
-      await observeManaged(org, current, revision, resource, provider);
+      await observeManaged(org, current, revision, resource, provider, externalFetch);
     }
   } catch (cause) {
     await mutate(org, current, async (tx, row) => {
@@ -997,7 +1072,7 @@ export async function advanceModelDeployment(
       await tx.query(
         `UPDATE model_deployments SET lease_id=NULL,lease_until=NULL,
         next_check_at=CASE WHEN generation<>$3 THEN next_check_at
-          WHEN (desired_state='running' AND failure_code IS DISTINCT FROM 'service_recovery_exhausted')
+          WHEN (desired_state='running' AND state<>'failed')
             OR state NOT IN ('stopped','failed') OR EXISTS(SELECT 1 FROM model_deployment_resources r
               WHERE r.deployment_id=model_deployments.id AND r.deleted_at IS NULL)
             THEN clock_timestamp()+(least(300,5*power(2,least(6,failure_attempts)))::integer*interval '1 second')

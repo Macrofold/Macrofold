@@ -28,6 +28,10 @@ Resource streaming calls the maintained incremental helper. Organization selecti
 
 The dashboard explicitly selects TypeScript's `sessionAuth: true` for same-origin login cookies. This bypasses environment-key lookup and bearer-token validation in both construction and requests; normal SDK clients still reject absent or empty credentials. Session mode cannot be combined with an explicit API key or token. A custom fetch alone does not select session authentication, and an empty token is not a substitute. The server continues to authorize every stream and history request; 401/403 errors stop automatic reconnection.
 
+## Custom model deployments
+
+All five generated clients accept inspection task `decision` and managed profile `kev-systemone-v1`, alongside existing `text_generation`/vLLM chat. The ordinary model-deployment methods own inspection, creation, immutable revisions, grants, service policy, status/cost and deletion. Native SystemOne uses the same `inferences.create` method and preserves complete named answers, probabilities, metadata and usage in `result.inference.value`. It has no streaming helper or separate native SDK pipeline; the API rejects unsupported streaming before admission. See the [managed native setup and API example](../../execution/model-deployments.md#native-kev--jev-decisions).
+
 ## Text and completion helpers
 
 Maintained run helpers compose generated resource/transport calls; they introduce no HTTP endpoint, queue, or backend streaming system. `events` exposes the existing typed stream, including native `reasoning.started/delta/completed` envelopes described by the generated `ReasoningEventData` model, while `stream_text`/`streamText` filters only nonempty string values from normalized `output.delta` events. It never emits tool payloads, reasoning, status data, or completed-message copies. Underlying sequence cursors provide reconnect/replay deduplication; identical text at different sequences is still legitimate output.

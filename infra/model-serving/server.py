@@ -119,7 +119,10 @@ async def supervise(app: Starlette, config: ModelConfig):
         directory = Path(temporary)
         try:
             async with asyncio.timeout(STARTUP_SECONDS):
-                if importlib.metadata.version("vllm") != "0.32.0":
+                if config.profile_id == "kev-systemone-v1":
+                    if importlib.metadata.version("kev") != "0.1.0" or importlib.metadata.version("torch").split("+")[0] != "2.8.0":
+                        raise RuntimeError("Wrong registered native engine version")
+                elif importlib.metadata.version("vllm") != "0.32.0":
                     raise RuntimeError("Wrong registered engine version")
                 download_environment = child_environment(dict(os.environ))
                 download_environment.pop("HF_HUB_OFFLINE")
@@ -135,7 +138,13 @@ async def supervise(app: Starlette, config: ModelConfig):
                     raise RuntimeError("Model download or verification failed")
                 prepared = json.loads((directory / "prepared.json").read_text())
                 app.state.startup = "loading"
-                process = await asyncio.create_subprocess_exec(*config.engine_arguments(**prepared), env=child_environment(dict(os.environ)), start_new_session=True)
+                environment = child_environment(dict(os.environ))
+                if config.profile_id == "kev-systemone-v1":
+                    environment.update({"MF_NATIVE_CONFIG": os.environ["MF_MODEL_CONFIG"], "MF_PREPARED_CONFIG": str(directory / "prepared.json")})
+                    arguments = [sys.executable, str(Path(__file__).with_name("kev_engine.py"))]
+                else:
+                    arguments = config.engine_arguments(**prepared)
+                process = await asyncio.create_subprocess_exec(*arguments, env=environment, start_new_session=True)
                 while True:
                     if process.returncode is not None:
                         raise RuntimeError("Model engine exited during loading")
@@ -149,8 +158,13 @@ async def supervise(app: Starlette, config: ModelConfig):
             app.state.startup = "ready"
             await process.wait()
             raise RuntimeError("Model engine stopped")
+        except Exception:
+            app.state.failure_code = f"model_{app.state.startup}_failed"
+            app.state.startup = "failed"
+            raise
         finally:
-            app.state.startup = "stopped"
+            if app.state.startup != "failed":
+                app.state.startup = "stopped"
             await stop_process(process)
 
 
@@ -166,6 +180,7 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
             limits=httpx.Limits(max_connections=config.parameters["max_concurrent_requests"] + 4, max_keepalive_connections=16),
         )
         app.state.startup = "loading" if manage_engine else "ready"
+        app.state.failure_code = None
         task = asyncio.create_task(supervise(app, config)) if manage_engine else None
         app.state.engine_task = task
         try:
@@ -180,6 +195,10 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
     async def health(request):
         if request.method != "GET":
             return error(405, "method_not_allowed")
+        # RunPod distinguishes initialization from failure by HTTP status. Keep
+        # application readiness strict; 503 on /ping would replace loading workers.
+        if request.url.path == "/ping" and request.app.state.startup in {"downloading", "loading"}:
+            return Response(status_code=204)
         if request.app.state.startup != "ready":
             return JSONResponse({"ready": False}, status_code=503)
         try:
@@ -198,7 +217,7 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
         if request.url.query:
             return error(400, "query_parameters_not_supported")
         if request.app.state.startup != "ready":
-            return error(503, "model_loading")
+            return error(503, request.app.state.failure_code or "model_loading")
         deadline = asyncio.get_running_loop().time() + MAX_EXECUTION_SECONDS
         supplied = request.headers.getlist(DEADLINE_HEADER)
         if supplied:
@@ -232,12 +251,17 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
                     if native.get("truncate_prompt_tokens") is not None or any(k in native for k in ["chat_template", "prompt_embeds", "mm_processor_kwargs", "media_io_kwargs"]):
                         return error(400, "unsupported_model_parameter")
                     streaming = native.get("stream", False)
+                    if config.profile_id == "kev-systemone-v1" and streaming:
+                        return error(422, "streaming_not_supported")
                 else:
                     # Drain an empty GET body before the disconnect watcher owns receive.
                     async for chunk in request.stream():
                         if chunk:
                             return error(400, "unexpected_body")
-                upstream_request = request.app.state.client.build_request(request.method, ENGINE_ORIGIN + request.url.path, content=bytes(body) if body else None, headers={"content-type": "application/json", "accept": "text/event-stream" if streaming else "application/json", "accept-encoding": "identity"})
+                forwarded_headers = {"content-type": "application/json", "accept": "text/event-stream" if streaming else "application/json", "accept-encoding": "identity"}
+                if config.profile_id == "kev-systemone-v1":
+                    forwarded_headers[DEADLINE_HEADER] = str(int((time.time() + deadline - asyncio.get_running_loop().time()) * 1000))
+                upstream_request = request.app.state.client.build_request(request.method, ENGINE_ORIGIN + request.url.path, content=bytes(body) if body else None, headers=forwarded_headers)
                 upstream = await connected(request, request.app.state.client.send(upstream_request, stream=True))
                 content_type = upstream.headers.get("content-type", "").split(";")[0].lower()
                 if 300 <= upstream.status_code < 400 or content_type not in {"application/json", "text/event-stream"}:
@@ -258,7 +282,12 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
                         await upstream.aclose()
 
                 result = await connected(request, read_response())
-                return Response(result, status_code=upstream.status_code, media_type=content_type, headers={"cache-control": "no-store"})
+                response_headers = {"cache-control": "no-store"}
+                for header in ["x-typesafe-request-id", "server-timing"]:
+                    value = upstream.headers.get(header)
+                    if value and len(value) <= 1024:
+                        response_headers[header] = value
+                return Response(result, status_code=upstream.status_code, media_type=content_type, headers=response_headers)
         except TimeoutError:
             return error(504, "model_deadline_exceeded")
         except ClientDisconnect:
@@ -266,7 +295,8 @@ def create_app(config: ModelConfig, secret: str, *, client: httpx.AsyncClient | 
         except (httpx.HTTPError, ValueError):
             return error(502, "model_transport_failed")
 
-    return Starlette(routes=[Route("/ping", health, methods=["GET"]), Route("/health", health, methods=["GET"]), Route("/v1/models", proxy, methods=["GET"]), Route("/v1/chat/completions", proxy, methods=["POST"])], lifespan=lifespan)
+    inference_path = "/v1/systemone" if config.profile_id == "kev-systemone-v1" else "/v1/chat/completions"
+    return Starlette(routes=[Route("/ping", health, methods=["GET"]), Route("/health", health, methods=["GET"]), Route("/v1/models", proxy, methods=["GET"]), Route(inference_path, proxy, methods=["POST"])], lifespan=lifespan)
 
 
 async def main():

@@ -41,6 +41,8 @@ impl ModelDeploymentHostingOneOf1 {
 pub enum Kind {
     #[serde(rename = "external_openai")]
     ExternalOpenai,
+    #[serde(rename = "external_systemone")]
+    ExternalSystemone,
 }
 
 impl Default for Kind {

@@ -24,6 +24,8 @@ Method spelling follows each language's conventions. Use `streamText` / `stream_
 
 Use [immediate inference](../decisions/README.md) for a single model-native LLM request, classification or score. `inferences.create` returns the finalized result directly; `inferences.stream` delivers output deltas followed by the same saved result. Both preserve a Run for accounting and recovery, without a workspace file tree, sandbox or worker queue. HTTP 202 is an exceptional recovery receipt, not ordinary queued delivery.
 
+To use your own Hugging Face model or existing chat/SystemOne server, configure a [model deployment](../execution/model-deployments.md) and supply its `deployment_id` through the same inference API. SystemOne returns complete decisions and rejects streaming before admission.
+
 ## Optional integration paths
 
 The core API exposes reusable workspaces, worktrees, presets, sessions, runs and connections. **Integration paths** package those capabilities for a particular use case without replacing them. [Customer agents](../customer-agents/README.md) adds customer ownership resolution, atomic setup and embedded connection consent under `/v1/integration-paths/customer-agents`. Choose it when each app customer needs an assistant; use the core API directly for a different resource layout. OpenAPI marks these operations with `x-platform-layer: integration-path` and the `customerAgents` tag.

@@ -5415,7 +5415,7 @@ export interface components {
         };
         ModelDeploymentCapabilities: {
             /** @enum {string} */
-            protocol: "openai_chat";
+            protocol: "openai_chat" | "systemone";
             input_modalities: "text"[];
             chat_completions: boolean;
             json_object: boolean;
@@ -5478,7 +5478,7 @@ export interface components {
         ModelDeploymentSource: components["schemas"]["ModelDeploymentHuggingFaceSource"] | components["schemas"]["ModelDeploymentExternalSource"];
         ModelDeploymentRuntime: {
             /** @enum {string} */
-            profile_id: "vllm-0.32.0-text";
+            profile_id: "vllm-0.32.0-text" | "kev-systemone-v1";
             parameters: components["schemas"]["ModelDeploymentRuntimeParameters"];
         } | {
             /** @enum {string} */
@@ -5498,7 +5498,7 @@ export interface components {
             };
         } | {
             /** @enum {string} */
-            kind: "external_openai";
+            kind: "external_openai" | "external_systemone";
             /** Format: uuid */
             endpoint_connection_id: string;
             model_alias: string;
@@ -5657,12 +5657,12 @@ export interface components {
         ModelDeploymentInspectionInput: {
             source: components["schemas"]["ModelDeploymentHuggingFaceSource"];
             /** @enum {string} */
-            task: "text_generation";
+            task: "text_generation" | "decision";
             /** Format: uuid */
             compute_connection_id?: string;
             runtime_preferences?: {
                 /** @enum {string} */
-                profile_id?: "vllm-0.32.0-text";
+                profile_id?: "vllm-0.32.0-text" | "kev-systemone-v1";
                 parameters?: components["schemas"]["ModelDeploymentRuntimeParameters"];
             };
         };

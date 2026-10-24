@@ -104,6 +104,10 @@ const workerFlags = {
 };
 const specialFlags: Record<string, Interfaces.FlagInput> = {
   'model-deployment inspect': {
+    task: Flags.string({
+      options: ['text_generation', 'decision'],
+      description: 'Chat generation or native decision scoring',
+    }),
     'config-file': Flags.string({ description: 'Inspection JSON file, or - for stdin' }),
     revision: Flags.string({ description: 'Hugging Face ref; resolved to an immutable commit' }),
     'source-connection': Flags.string({ description: 'Owner Hugging Face connection ID' }),
@@ -213,7 +217,7 @@ const noArgs = new Set([
 ]);
 const examples: Record<string, string> = {
   'model-deployment inspect':
-    'macrofold model-deployment inspect Qwen/Qwen3-0.6B\nmacrofold model-deployment inspect --config-file inspection.json --json',
+    'macrofold model-deployment inspect jaredpalmer/kev-4b --task decision\nmacrofold model-deployment inspect Qwen/Qwen3-0.6B\nmacrofold model-deployment inspect --config-file inspection.json --json',
   'model-deployment create': 'macrofold model-deployment create --config-file deployment.json --json',
   'model-deployment revise':
     'macrofold model-deployment revise DEPLOYMENT_ID --config-file revision.json --json',

@@ -38,6 +38,8 @@ impl ModelDeploymentInspectionInput {
 pub enum Task {
     #[serde(rename = "text_generation")]
     TextGeneration,
+    #[serde(rename = "decision")]
+    Decision,
 }
 
 impl Default for Task {

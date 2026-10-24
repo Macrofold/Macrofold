@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import { huggingFaceMetadataFetch } from './network';
 import { assert, AppError } from '../../core/src/errors';
-import { boundedBody } from '../../core/src/body';
+import { boundedBody, boundedJSON } from '../../core/src/body';
 import type { components } from '../../contracts/api';
 import {
   defaultRuntimeParameters,
   runtimeCapabilities,
   servingImage,
 } from '../../core/src/model-deployment-profiles';
+import { inspectNativeHuggingFace } from './model-deployment-native-source';
+import type { NativeModelRecipe } from '../../core/src/model-deployment-types';
 type Source = components['schemas']['ModelDeploymentHuggingFaceSource'];
 type Inspection = components['schemas']['ModelDeploymentInspection'];
 const byteSize = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -25,12 +27,26 @@ const infoSchema = z
         z.object({
           rfilename: z.string(),
           size: byteSize.optional(),
-          lfs: z.object({ size: byteSize }).passthrough().optional(),
+          blobId: z
+            .string()
+            .regex(/^[a-f0-9]{40}$/)
+            .optional(),
+          lfs: z
+            .object({
+              size: byteSize,
+              sha256: z
+                .string()
+                .regex(/^[a-f0-9]{64}$/)
+                .optional(),
+            })
+            .passthrough()
+            .optional(),
         }),
       )
       .max(20000),
   })
   .passthrough();
+export type HuggingFaceModelInfo = z.infer<typeof infoSchema>;
 const configSchema = z
   .object({
     architectures: z.array(z.string()).optional(),
@@ -129,10 +145,15 @@ export function normalizeHuggingFaceSource(input: Source): Source {
     );
   return { ...input, repository, ...(revision ? { revision } : {}) };
 }
-async function metadata(path: string, secret?: string, optional = false, text = false): Promise<unknown> {
+export async function huggingFaceModelMetadata(
+  path: string,
+  secret?: string,
+  optional = false,
+  text = false,
+): Promise<unknown> {
   const signal = AbortSignal.timeout(15000);
   const pinned =
-    /^([^/]+\/[^/]+)\/resolve\/([a-f0-9]{40})\/(config\.json|tokenizer_config\.json|chat_template\.jinja)$/.exec(
+    /^([^/]+\/[^/]+)\/resolve\/([a-f0-9]{40})\/(config\.json|tokenizer_config\.json|chat_template\.jinja|adapter_config\.json|provenance\.json|training_config\.json)$/.exec(
       path,
     );
   let url = new URL(`https://huggingface.co/${path}`);
@@ -178,24 +199,48 @@ async function metadata(path: string, secret?: string, optional = false, text = 
   );
   return text
     ? (await boundedBody(response.body, 64 * 1024, 15000, signal)).toString('utf8')
-    : response.json();
+    : boundedJSON(response, 8 * 1024 * 1024, signal);
 }
-export async function inspectHuggingFace(
+export async function huggingFaceModelInfo(repository: string, revision: string, secret?: string) {
+  return infoSchema.parse(
+    await huggingFaceModelMetadata(
+      `api/models/${repository}/revision/${encodeURIComponent(revision)}?blobs=true`,
+      secret,
+    ),
+  );
+}
+export async function prepareHuggingFaceSource(
   input: components['schemas']['ModelDeploymentInspectionInput'],
   secret?: string,
-): Promise<Inspection> {
+): Promise<{ inspection: Inspection; nativeRecipe?: NativeModelRecipe }> {
   const source = normalizeHuggingFaceSource(input.source);
   try {
-    const info = infoSchema.parse(
-      await metadata(
-        `api/models/${source.repository}/revision/${encodeURIComponent(source.revision || 'main')}?blobs=true`,
-        secret,
-      ),
-    );
+    const info = await huggingFaceModelInfo(source.repository, source.revision || 'main', secret);
     const pinned = { ...source, revision: info.sha };
+    if (input.task === 'decision')
+      return await inspectNativeHuggingFace(
+        input,
+        pinned,
+        info,
+        {
+          metadata: huggingFaceModelMetadata,
+          info: huggingFaceModelInfo,
+        },
+        secret,
+      );
+    assert(
+      !input.runtime_preferences?.profile_id || input.runtime_preferences.profile_id === 'vllm-0.32.0-text',
+      422,
+      'unsupported_model_capability',
+      'Use the text-generation runtime for text generation.',
+    );
     const [rawConfig, tokenizer] = await Promise.all([
-      metadata(`${source.repository}/resolve/${info.sha}/config.json`, secret, true),
-      metadata(`${source.repository}/resolve/${info.sha}/tokenizer_config.json`, secret, true),
+      huggingFaceModelMetadata(`${source.repository}/resolve/${info.sha}/config.json`, secret, true),
+      huggingFaceModelMetadata(
+        `${source.repository}/resolve/${info.sha}/tokenizer_config.json`,
+        secret,
+        true,
+      ),
     ]);
     const findings: Inspection['findings'] = [];
     const add = (code: string, message: string) => findings.push({ code, message });
@@ -249,14 +294,14 @@ export async function inspectHuggingFace(
     if (source.tokenizer) {
       const normalized = normalizeHuggingFaceSource({ kind: 'hugging_face', ...source.tokenizer });
       const ti = infoSchema.parse(
-        await metadata(
+        await huggingFaceModelMetadata(
           `api/models/${normalized.repository}/revision/${encodeURIComponent(normalized.revision || 'main')}?blobs=true`,
           secret,
         ),
       );
       pinned.tokenizer = { repository: normalized.repository, revision: ti.sha };
       tokenizerSource = { repository: normalized.repository, revision: ti.sha, siblings: ti.siblings };
-      tokenizerConfig = await metadata(
+      tokenizerConfig = await huggingFaceModelMetadata(
         `${normalized.repository}/resolve/${ti.sha}/tokenizer_config.json`,
         secret,
         true,
@@ -293,7 +338,7 @@ export async function inspectHuggingFace(
       !usableTemplate &&
       tokenizerSource.siblings.some((file) => file.rfilename === 'chat_template.jinja')
     ) {
-      const standalone = await metadata(
+      const standalone = await huggingFaceModelMetadata(
         `${tokenizerSource.repository}/resolve/${tokenizerSource.revision}/chat_template.jinja`,
         secret,
         true,
@@ -348,23 +393,25 @@ export async function inspectHuggingFace(
       ? info.cardData.license.join(', ')
       : info.cardData?.license || null;
     return {
-      supported: !findings.length,
-      findings,
-      source: pinned,
-      runtime_profiles: findings.length
-        ? []
-        : [
-            {
-              profile_id: 'vllm-0.32.0-text',
-              image: servingImage,
-              parameters,
-              capabilities: runtimeCapabilities({ profile_id: 'vllm-0.32.0-text', parameters }),
-            },
-          ],
-      hosting_options: [],
-      memory_estimate_bytes: memory?.toString() ?? null,
-      license,
-      license_acknowledgement_required: !!info.gated || !!license,
+      inspection: {
+        supported: !findings.length,
+        findings,
+        source: pinned,
+        runtime_profiles: findings.length
+          ? []
+          : [
+              {
+                profile_id: 'vllm-0.32.0-text',
+                image: servingImage,
+                parameters,
+                capabilities: runtimeCapabilities({ profile_id: 'vllm-0.32.0-text', parameters }),
+              },
+            ],
+        hosting_options: [],
+        memory_estimate_bytes: memory?.toString() ?? null,
+        license,
+        license_acknowledgement_required: !!info.gated || !!license,
+      },
     };
   } catch (error) {
     if (error instanceof AppError) throw error;
@@ -374,4 +421,10 @@ export async function inspectHuggingFace(
       'Hugging Face returned incomplete metadata or did not respond within the inspection deadline.',
     );
   }
+}
+export async function inspectHuggingFace(
+  input: components['schemas']['ModelDeploymentInspectionInput'],
+  secret?: string,
+): Promise<Inspection> {
+  return (await prepareHuggingFaceSource(input, secret)).inspection;
 }

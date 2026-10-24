@@ -14,6 +14,7 @@ import {
   modelServingImage,
   defaultRuntimeParameters,
   runtimeMemoryFits,
+  managedRuntimeProfile,
 } from './model-deployment-profiles';
 import type {
   DeploymentPolicy,
@@ -22,10 +23,41 @@ import type {
   GpuOffer,
   ModelHostingProvider,
 } from './model-deployment-types';
-import { inspectHuggingFace } from '../../providers/src/model-deployment-source';
+import { inspectHuggingFace, prepareHuggingFaceSource } from '../../providers/src/model-deployment-source';
 import { runpodModelHosting } from '../../providers/src/runpod-model-hosting';
 import { validateModelEndpointURL } from '../../providers/src/network';
+import { isExternalHosting } from './model-deployment-types';
 type Schema = components['schemas'];
+
+/** RunPod selects a member of a pool, not one advertised GPU model. Inspection
+ * and quotation therefore share its memory floor and worst complete rate. */
+export function modelHostingPools(offers: GpuOffer[]) {
+  const pools = new Map<string, Omit<GpuOffer, 'id' | 'name'>>();
+  for (const offer of offers) {
+    const current = pools.get(offer.pool);
+    if (!current) {
+      pools.set(offer.pool, {
+        pool: offer.pool,
+        memory_bytes: offer.memory_bytes,
+        hourly_micro_usd: offer.hourly_micro_usd,
+        region_ids: [...offer.region_ids],
+      });
+      continue;
+    }
+    if (BigInt(offer.memory_bytes) < BigInt(current.memory_bytes)) current.memory_bytes = offer.memory_bytes;
+    current.hourly_micro_usd =
+      current.hourly_micro_usd === null || offer.hourly_micro_usd === null
+        ? null
+        : BigInt(offer.hourly_micro_usd) > BigInt(current.hourly_micro_usd)
+          ? offer.hourly_micro_usd
+          : current.hourly_micro_usd;
+    current.region_ids = [...new Set([...current.region_ids, ...offer.region_ids])];
+  }
+  return [...pools.values()].map((pool) => ({
+    ...pool,
+    name: `${pool.pool} (at least ${Number(BigInt(pool.memory_bytes) / 1024n ** 3n)} GiB per GPU)`,
+  }));
+}
 
 export async function ownedDeploymentConnection(
   tx: Tx,
@@ -76,15 +108,18 @@ export async function inspect(
       assert(c.secret_ciphertext, 403, 'permission_denied', 'The compute connection has no credential.');
       return unseal<string>(c.secret_ciphertext);
     });
-    result.hosting_options = (await provider.catalog(secret))
+    result.hosting_options = modelHostingPools(await provider.catalog(secret))
       .filter(
         (o) =>
-          result.memory_estimate_bytes === null ||
-          runtimeMemoryFits(
-            o.memory_bytes,
-            result.memory_estimate_bytes,
-            body.runtime_preferences?.parameters ?? defaultRuntimeParameters,
-          ),
+          o.hourly_micro_usd !== null &&
+          (result.memory_estimate_bytes === null ||
+            runtimeMemoryFits(
+              o.memory_bytes,
+              result.memory_estimate_bytes,
+              result.runtime_profiles[0]?.parameters ??
+                body.runtime_preferences?.parameters ??
+                defaultRuntimeParameters,
+            )),
       )
       .map((o) => ({
         gpu_pool_id: o.pool,
@@ -101,7 +136,8 @@ export async function prepareRevision(
   body: Schema['ModelDeploymentRevisionCreate'],
 ): Promise<deployments.PreparedDeploymentRevision> {
   managementPrincipal(p);
-  if (body.hosting.kind === 'external_openai') {
+  if (isExternalHosting(body.hosting)) {
+    const hosting = body.hosting;
     assert(
       body.source.kind === 'external' &&
         'kind' in body.runtime &&
@@ -111,19 +147,34 @@ export async function prepareRevision(
       'invalid_model_deployment',
       'Confirm external hosting responsibility and declare the endpoint capabilities and external runtime.',
     );
+    const capabilities = body.source.capabilities;
+    assert(
+      capabilities.max_output_tokens <= capabilities.context_window_tokens &&
+        (hosting.kind === 'external_systemone'
+          ? capabilities.protocol === 'systemone' &&
+            !capabilities.chat_completions &&
+            !capabilities.json_object &&
+            !capabilities.json_schema &&
+            !capabilities.tools &&
+            !capabilities.streaming &&
+            !capabilities.stream_usage &&
+            capabilities.schema_keywords.length === 0 &&
+            capabilities.schema_dialect === null
+          : capabilities.protocol === 'openai_chat' &&
+            capabilities.chat_completions &&
+            (!capabilities.stream_usage || capabilities.streaming)),
+      422,
+      'unsupported_model_capability',
+      'Declare capabilities matching the selected external protocol and consistent output/context limits.',
+    );
     const connection = await transaction(p.organizationId, (tx) =>
-      ownedDeploymentConnection(
-        tx,
-        p,
-        body.hosting.kind === 'external_openai' ? body.hosting.endpoint_connection_id : '',
-        'external_model',
-      ),
+      ownedDeploymentConnection(tx, p, hosting.endpoint_connection_id, 'external_model'),
     );
     assert(
       connection.url,
       400,
       'invalid_model_deployment',
-      'Configure the exact OpenAI base URL on the endpoint connection.',
+      'Configure the exact model API base URL on the endpoint connection.',
     );
     await validateModelEndpointURL(connection.url);
     const url = new URL(connection.url);
@@ -131,14 +182,7 @@ export async function prepareRevision(
       !url.search && !url.hash && !url.pathname.endsWith('/'),
       400,
       'invalid_model_deployment',
-      'Use an exact OpenAI base URL without a trailing slash, query or fragment, usually ending in /v1.',
-    );
-    assert(
-      body.source.capabilities.chat_completions &&
-        body.source.capabilities.max_output_tokens <= body.source.capabilities.context_window_tokens,
-      422,
-      'unsupported_model_capability',
-      'Declare a compatible text chat endpoint with consistent output/context limits.',
+      'Use an exact model API base URL without a trailing slash, query or fragment, usually ending in /v1.',
     );
     return {
       source: body.source,
@@ -154,11 +198,15 @@ export async function prepareRevision(
     'invalid_model_deployment',
     'Managed hosting requires a Hugging Face source and reviewed runtime profile.',
   );
-  const result = await inspect(p, {
-    source: body.source,
-    task: 'text_generation',
-    runtime_preferences: body.runtime,
-  });
+  const preparedSource = await prepareHuggingFaceSource(
+    {
+      source: body.source,
+      task: managedRuntimeProfile(body.runtime.profile_id).task,
+      runtime_preferences: body.runtime,
+    },
+    await sourceSecret(p, body.source.source_connection_id),
+  );
+  const result = preparedSource.inspection;
   assert(
     result.supported && result.source,
     422,
@@ -186,8 +234,9 @@ export async function prepareRevision(
     hosting: body.hosting,
     capabilities: runtimeCapabilities(body.runtime),
     source_evidence: {
-      runtime_image: modelServingImage(),
+      runtime_image: modelServingImage(body.runtime.profile_id),
       memory_estimate_bytes: result.memory_estimate_bytes,
+      ...(preparedSource.nativeRecipe ? { native_recipe: preparedSource.nativeRecipe } : {}),
       license: result.license,
       license_acknowledged_by: p.userId,
       license_acknowledged_at: new Date().toISOString(),
@@ -303,7 +352,7 @@ export async function quoteManagedService(
   );
   const offers = currentOffers ?? (await provider.catalog(secret));
   const pools = revision.hosting.placement.gpu_pool_ids;
-  const selected = offers.filter((o) => pools.includes(o.pool));
+  const selected = modelHostingPools(offers).filter((o) => pools.includes(o.pool));
   assert(
     pools.every((pool) => selected.some((o) => o.pool === pool)) &&
       selected.every((o) => o.hourly_micro_usd !== null),
@@ -418,15 +467,14 @@ export async function prepareService(
       const revision = await deployments.revisionRow(tx, row.id, body.deployment_revision_id);
       validateServicePolicy(revision, body.policy, body.desired_state);
       if (body.desired_state === 'running') {
-        const connectionId =
-          revision.hosting.kind === 'external_openai'
-            ? revision.hosting.endpoint_connection_id
-            : revision.hosting.compute_connection_id;
+        const connectionId = isExternalHosting(revision.hosting)
+          ? revision.hosting.endpoint_connection_id
+          : revision.hosting.compute_connection_id;
         await ownedDeploymentConnection(
           tx,
           p,
           connectionId,
-          revision.hosting.kind === 'external_openai' ? 'external_model' : 'runpod',
+          isExternalHosting(revision.hosting) ? 'external_model' : 'runpod',
         );
       }
       // Explicit recovery or a new selected revision starts a fresh bounded

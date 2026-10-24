@@ -46,7 +46,9 @@ public class ModelDeploymentHostingOneOf1 {
    * Gets or Sets kind
    */
   public enum KindEnum {
-    EXTERNAL_OPENAI(String.valueOf("external_openai"));
+    EXTERNAL_OPENAI(String.valueOf("external_openai")),
+
+    EXTERNAL_SYSTEMONE(String.valueOf("external_systemone"));
 
     private String value;
 

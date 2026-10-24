@@ -23,7 +23,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
-RUNTIME = Path(os.environ.get("MF_MODEL_RUNTIME_PATH", str(Path(__file__).resolve().parents[2] / "infra" / "model-serving")))
+RUNTIME = Path(os.environ["MF_MODEL_RUNTIME_PATH"]) if "MF_MODEL_RUNTIME_PATH" in os.environ else Path(__file__).resolve().parents[2] / "infra" / "model-serving"
 sys.path.insert(0, str(RUNTIME))
 config_module = importlib.import_module("config")
 runtime = importlib.import_module("server")
@@ -99,6 +99,8 @@ class ConfigurationTests(unittest.TestCase):
             self.assertNotIn(name, child)
         self.assertEqual(child["HF_HUB_OFFLINE"], "1")
         self.assertEqual(child["VLLM_PLUGINS"], "")
+        self.assertNotIn("TORCH_FORCE_WEIGHTS_ONLY_LOAD", child)
+        self.assertNotIn("USE_HUB_KERNELS", child)
 
     def test_source_cache_integrity_selected_weights_and_template(self):
         calls = []
@@ -172,7 +174,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
 
         async def engine(request):
             if request.url.path == "/health":
-                return JSONResponse({"engine_diagnostic": "not public"})
+                return JSONResponse({"engine_diagnostic": "not public"}, status_code=503 if self.mode == "unhealthy" else 200)
             if request.url.path == "/v1/models":
                 return JSONResponse({"data": [{"id": "revision-fixture"}]})
             body = await request.json()
@@ -238,12 +240,31 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("authorization", self.calls[0]["headers"])
         self.assertNotIn(config_module.ENDPOINT_SECRET_HEADER, self.calls[0]["headers"])
 
+    async def test_runpod_initializing_status_never_masks_readiness_or_engine_failure(self):
+        for state in ["downloading", "loading"]:
+            self.wrapper.state.startup = state
+            response = await self.client.get("/ping")
+            self.assertEqual(response.status_code, 204)
+            self.assertEqual(response.content, b"")
+            self.assertEqual((await self.client.get("/health")).status_code, 503)
+            self.assertEqual((await self.post()).status_code, 503)
+        for state in ["failed", "stopped"]:
+            self.wrapper.state.startup = state
+            self.assertEqual((await self.client.get("/ping")).status_code, 503)
+            self.assertEqual((await self.client.get("/health")).status_code, 503)
+        self.wrapper.state.startup = "ready"
+        self.assertEqual((await self.client.get("/ping")).status_code, 200)
+        self.mode = "unhealthy"
+        self.assertEqual((await self.client.get("/ping")).status_code, 503)
+        self.assertEqual((await self.client.get("/health")).status_code, 503)
+        self.assertEqual(self.calls, [])
+
     async def test_incompatible_model_truncation_loading_and_expired_deadline_do_not_dispatch(self):
         for body in [{"model": "different"}, {"model": "revision-fixture", "truncate_prompt_tokens": 1}, {"model": "revision-fixture", "chat_template": "injected"}]:
             self.assertEqual((await self.post(body)).status_code, 400)
         self.wrapper.state.startup = "loading"
         self.assertEqual((await self.post()).status_code, 503)
-        self.assertEqual((await self.client.get("/ping")).json(), {"ready": False})
+        self.assertEqual((await self.client.get("/ping")).status_code, 204)
         self.wrapper.state.startup = "ready"
         response = await self.post(headers={config_module.ENDPOINT_SECRET_HEADER: SECRET, config_module.DEADLINE_HEADER: str(int(time.time() * 1000) - 1)})
         self.assertEqual(response.status_code, 408)

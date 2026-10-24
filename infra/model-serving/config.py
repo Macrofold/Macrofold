@@ -49,12 +49,19 @@ class ModelConfig:
     source: dict
     parameters: dict
     served_alias: str
+    profile_id: str = "vllm-0.32.0-text"
 
     @classmethod
     def parse(cls, raw: str) -> ModelConfig:
         if len(raw.encode()) > 8 * 1024 * 1024:
             raise ValueError("Model configuration is too large")
-        value = object_fields(json.loads(raw), {"source", "parameters", "served_alias"}, {"source", "parameters", "served_alias"})
+        value = json.loads(raw)
+        if isinstance(value, dict) and value.get("profile_id") == "kev-systemone-v1":
+            from native_config import parse_native_config
+            return parse_native_config(value)
+        value = object_fields(value, {"source", "parameters", "served_alias", "profile_id"}, {"source", "parameters", "served_alias"})
+        if value.get("profile_id", "vllm-0.32.0-text") != "vllm-0.32.0-text":
+            raise ValueError("Unsupported serving profile")
         source = object_fields(value["source"], {"repository", "revision", "weight_files", "tokenizer", "chat_template"}, {"repository", "revision", "weight_files"})
         repository(source["repository"])
         commit(source["revision"])

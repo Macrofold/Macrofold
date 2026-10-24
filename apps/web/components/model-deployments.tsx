@@ -8,12 +8,22 @@ import { request, useData, useDataPages } from '../lib/dashboard-data';
 import { money, type Schema } from '../lib/client';
 import { Badge, Button, Empty, ErrorState, Field, Loading, Modal, More, PageHeading, Select } from './ui';
 import { CopyButton } from './copy-button';
+import {
+  ModelHostingConnectionForm,
+  hostingConnectionLabels,
+  type HostingConnectionKind,
+} from './model-hosting-connection';
 
 type Deployment = Schema['ModelDeployment'];
 type Revision = Schema['ModelDeploymentRevision'];
 type Inspection = Schema['ModelDeploymentInspection'];
 type Policy = Schema['ModelDeploymentServiceInput']['policy'];
-const runtimeProfile = 'vllm-0.32.0-text';
+type RuntimeProfile = Extract<Schema['ModelDeploymentRuntime'], { profile_id: string }>['profile_id'];
+type ModelTask = Schema['ModelDeploymentInspectionInput']['task'];
+const runtimeProfiles: Record<ModelTask, { id: RuntimeProfile; label: string }> = {
+  decision: { id: 'kev-systemone-v1', label: 'Native Kev · SystemOne decisions' },
+  text_generation: { id: 'vllm-0.32.0-text', label: 'vLLM · chat generation' },
+};
 const dtypes = ['auto', 'half', 'bfloat16', 'float'] as const;
 const quantizations = ['awq', 'gptq', 'fp8', 'compressed-tensors'] as const;
 const toolParsers = ['hermes', 'llama3_json', 'mistral'] as const;
@@ -49,27 +59,15 @@ function ConnectionPicker({
   onChange,
   optional = false,
 }: {
-  kind: 'hugging_face' | 'runpod' | 'external_model';
+  kind: HostingConnectionKind;
   value: string;
   onChange: (value: string) => void;
   optional?: boolean;
 }) {
-  const client = useQueryClient();
   const identity = useData({ operation: 'getIdentity' });
   const connections = useDataPages({ operation: 'listConnections', params: { query: { limit: 100 } } });
-  const [create, setCreate] = useState(false),
-    [name, setName] = useState(''),
-    [secret, setSecret] = useState(''),
-    [url, setUrl] = useState('');
-  const [anonymous, setAnonymous] = useState(false),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
-  const label =
-    kind === 'runpod'
-      ? 'RunPod account'
-      : kind === 'hugging_face'
-        ? 'Hugging Face account'
-        : 'External endpoint';
+  const [create, setCreate] = useState(false);
+  const label = hostingConnectionLabels[kind];
   const owned =
     connections.data?.data.filter(
       (item) => item.kind === kind && item.owner_subject_id === identity.data?.user_id,
@@ -100,102 +98,21 @@ function ConnectionPicker({
           provider account; changing accounts requires a new connection.
         </p>
       )}
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => {
-          setCreate(!create);
-          setSecret('');
-          setError('');
-        }}
-        disabled={busy}
-      >
-        {create ? 'Cancel connection setup' : `Add ${label.toLowerCase()}`}
-      </Button>
-      {create && (
+      {create ? (
         <div className="panel">
-          <Field label="Connection name">
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              autoComplete="off"
-              maxLength={100}
-            />
-          </Field>
-          {kind === 'external_model' && (
-            <>
-              <Field
-                label="Endpoint base URL"
-                hint="Use the exact reachable OpenAI-compatible base URL. Cloud hosting cannot reach a laptop through localhost."
-              >
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  autoComplete="off"
-                />
-              </Field>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={anonymous}
-                  onChange={(event) => setAnonymous(event.target.checked)}
-                />{' '}
-                Endpoint requires no authentication
-              </label>
-            </>
-          )}
-          {!anonymous && (
-            <Field label={kind === 'external_model' ? 'Endpoint bearer token' : 'Account API token'}>
-              <input
-                type="password"
-                value={secret}
-                onChange={(event) => setSecret(event.target.value)}
-                autoComplete="new-password"
-              />
-            </Field>
-          )}
-          <p className="form-hint">Adding a connection does not start compute or generate tokens.</p>
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <Button
-            type="button"
-            busy={busy}
-            disabled={!name.trim() || (!anonymous && !secret) || (kind === 'external_model' && !url)}
-            onClick={async () => {
-              setBusy(true);
-              setError('');
-              try {
-                const connection = await request('createConnection', {
-                  body: {
-                    name: name.trim(),
-                    kind,
-                    provider: kind === 'hugging_face' ? 'hf' : kind === 'runpod' ? 'runpod' : 'openai',
-                    auth_method: kind === 'external_model' ? (anonymous ? 'none' : 'bearer') : 'api_key',
-                    ...(kind === 'external_model' ? { url } : {}),
-                    ...(!anonymous ? { secret } : {}),
-                  },
-                });
-                setSecret('');
-                setCreate(false);
-                onChange(connection.id);
-                await client.invalidateQueries({
-                  predicate: (query) =>
-                    typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/v1/connections'),
-                });
-              } catch (failure) {
-                setError(failureMessage(failure));
-              } finally {
-                setBusy(false);
-              }
+          <ModelHostingConnectionForm
+            kind={kind}
+            onCreated={(connection) => {
+              setCreate(false);
+              onChange(connection.id);
             }}
-          >
-            Save connection
-          </Button>
+            onCancel={() => setCreate(false)}
+          />
         </div>
+      ) : (
+        <Button type="button" variant="ghost" onClick={() => setCreate(true)}>
+          Add {label.toLowerCase()}
+        </Button>
       )}
     </div>
   );
@@ -212,31 +129,47 @@ function DeploymentForm({
 }) {
   const initialHf = initial?.source.kind === 'hugging_face' ? initial.source : undefined;
   const initialManaged = initial?.hosting.kind === 'runpod_serverless' ? initial.hosting : undefined;
-  const initialExternal = initial?.hosting.kind === 'external_openai' ? initial.hosting : undefined;
+  const initialExternal =
+    initial && 'endpoint_connection_id' in initial.hosting ? initial.hosting : undefined;
   const initialParameters =
     initial?.runtime && 'profile_id' in initial.runtime ? initial.runtime.parameters : undefined;
   const initialCapabilities = initial?.source.kind === 'external' ? initial.source.capabilities : undefined;
   const [kind, setKind] = useState(initialExternal ? 'external' : 'managed');
+  const [protocol, setProtocol] = useState<Schema['ModelDeploymentCapabilities']['protocol']>(
+    initialCapabilities?.protocol ?? 'openai_chat',
+  );
   const [name, setName] = useState(''),
     [repository, setRepository] = useState(initialHf?.repository ?? ''),
     [revision, setRevision] = useState(initialHf?.revision ?? '');
   const [sourceConnection, setSourceConnection] = useState(initialHf?.source_connection_id ?? ''),
     [computeConnection, setComputeConnection] = useState(initialManaged?.compute_connection_id ?? ''),
     [endpoint, setEndpoint] = useState(initialExternal?.endpoint_connection_id ?? '');
-  const [profile, setProfile] = useState<typeof runtimeProfile | ''>(
+  const [task, setTask] = useState<ModelTask>(
+    initial?.runtime && 'profile_id' in initial.runtime
+      ? initial.runtime.profile_id === 'kev-systemone-v1'
+        ? 'decision'
+        : 'text_generation'
+      : 'decision',
+  );
+  const native = kind === 'managed' && task === 'decision';
+  const [profile, setProfile] = useState<RuntimeProfile | ''>(
     initial?.runtime && 'profile_id' in initial.runtime ? initial.runtime.profile_id : '',
   );
   const [context, setContext] = useState(
       String(initialParameters?.context_window_tokens ?? initialCapabilities?.context_window_tokens ?? 8192),
     ),
     [output, setOutput] = useState(
-      String(initialParameters?.max_output_tokens ?? initialCapabilities?.max_output_tokens ?? 2048),
+      String(
+        initialParameters?.max_output_tokens ??
+          initialCapabilities?.max_output_tokens ??
+          (native ? 1024 : 2048),
+      ),
     ),
     [concurrency, setConcurrency] = useState(
       String(initialParameters?.max_concurrent_requests ?? initialCapabilities?.max_concurrent_requests ?? 1),
     );
   const [dtype, setDtype] = useState<NonNullable<typeof initialParameters>['dtype']>(
-      initialParameters?.dtype ?? 'auto',
+      initialParameters?.dtype ?? (native ? 'bfloat16' : 'auto'),
     ),
     [quantization, setQuantization] = useState<NonNullable<typeof initialParameters>['quantization']>(
       initialParameters?.quantization,
@@ -297,11 +230,11 @@ function DeploymentForm({
     max_output_tokens: Number(output),
     max_concurrent_requests: Number(concurrency),
     dtype,
-    ...(quantization ? { quantization } : {}),
-    tensor_parallel_size: Number(parallel),
+    ...(!native && quantization ? { quantization } : {}),
+    tensor_parallel_size: native ? 1 : Number(parallel),
     gpu_memory_utilization: Number(gpuMemory),
-    ...(toolParser ? { tool_call_parser: toolParser } : {}),
-    ...(reasoningParser ? { reasoning_parser: reasoningParser } : {}),
+    ...(!native && toolParser ? { tool_call_parser: toolParser } : {}),
+    ...(!native && reasoningParser ? { reasoning_parser: reasoningParser } : {}),
   };
   const source: Schema['ModelDeploymentSource'] =
     kind === 'managed'
@@ -310,8 +243,8 @@ function DeploymentForm({
           repository,
           ...(revision ? { revision } : {}),
           ...(sourceConnection ? { source_connection_id: sourceConnection } : {}),
-          ...(weightFiles ? { weight_files: values(weightFiles) } : {}),
-          ...(tokenizer
+          ...(!native && weightFiles ? { weight_files: values(weightFiles) } : {}),
+          ...(!native && tokenizer
             ? {
                 tokenizer: {
                   repository: tokenizer,
@@ -319,7 +252,7 @@ function DeploymentForm({
                 },
               }
             : {}),
-          ...(template ? { chat_template: template } : {}),
+          ...(!native && template ? { chat_template: template } : {}),
           license_acknowledged: license,
         }
       : {
@@ -327,17 +260,31 @@ function DeploymentForm({
           repository: externalRepository || null,
           revision: externalRevision || null,
           capabilities: {
-            protocol: 'openai_chat',
+            protocol,
             input_modalities: ['text'],
-            chat_completions: true,
-            json_object: jsonObject,
-            json_schema: jsonSchema,
-            tools,
-            streaming,
-            stream_usage: streamUsage,
-            schema_keywords: values(schemaKeywords),
-            accepted_parameters: values(acceptedParameters),
-            schema_dialect: schemaDialect || null,
+            ...(protocol === 'systemone'
+              ? {
+                  chat_completions: false,
+                  json_object: false,
+                  json_schema: false,
+                  tools: false,
+                  streaming: false,
+                  stream_usage: false,
+                  schema_keywords: [],
+                  accepted_parameters: ['state', 'questions'],
+                  schema_dialect: null,
+                }
+              : {
+                  chat_completions: true,
+                  json_object: jsonObject,
+                  json_schema: jsonSchema,
+                  tools,
+                  streaming,
+                  stream_usage: streamUsage,
+                  schema_keywords: values(schemaKeywords),
+                  accepted_parameters: values(acceptedParameters),
+                  schema_dialect: schemaDialect || null,
+                }),
             context_window_tokens: Number(context),
             max_output_tokens: Number(output),
             max_concurrent_requests: Number(concurrency),
@@ -365,7 +312,7 @@ function DeploymentForm({
                 : source,
             runtime:
               kind === 'managed'
-                ? { profile_id: runtimeProfile, parameters }
+                ? { profile_id: profile as RuntimeProfile, parameters }
                 : { kind: 'external', engine: engine || null, version: engineVersion || null },
             hosting:
               kind === 'managed'
@@ -375,11 +322,11 @@ function DeploymentForm({
                     placement: {
                       region_ids: values(regions),
                       gpu_pool_ids: values(gpuPools),
-                      gpu_count: Number(gpuCount),
+                      gpu_count: native ? 1 : Number(gpuCount),
                     },
                   }
                 : {
-                    kind: 'external_openai',
+                    kind: protocol === 'systemone' ? 'external_systemone' : 'external_openai',
                     endpoint_connection_id: endpoint,
                     model_alias: alias,
                     lifecycle: 'external',
@@ -419,12 +366,39 @@ function DeploymentForm({
           }}
           options={[
             { value: 'managed', label: 'Host a Hugging Face model with RunPod' },
-            { value: 'external', label: 'Use an existing OpenAI-compatible endpoint' },
+            { value: 'external', label: 'Use an existing model endpoint' },
           ]}
         />
       </Field>
       {kind === 'managed' ? (
         <>
+          <Field
+            label="Model task"
+            hint="Native decisions use the publisher's scoring head, not chat generation."
+          >
+            <Select
+              value={task}
+              onValueChange={(value) => {
+                if (value !== 'decision' && value !== 'text_generation') return;
+                setTask(value);
+                setProfile('');
+                if (value === 'decision') setGpuCount('1');
+                setDtype(value === 'decision' ? 'bfloat16' : 'auto');
+                setOutput(value === 'decision' ? '1024' : '2048');
+                invalidateInspection();
+              }}
+              options={[
+                { value: 'decision', label: 'Native decisions · Kev / Jev-compatible' },
+                { value: 'text_generation', label: 'Chat generation' },
+              ]}
+            />
+          </Field>
+          {native && (
+            <p className="form-hint">
+              Start with <code>jaredpalmer/kev-4b</code>. Inspection pins its base model, adapter, scoring
+              head and calibration. Community checkpoints must match the supported native format.
+            </p>
+          )}
           <Field
             label="Hugging Face model"
             hint="Repository ID or huggingface.co model URL. Inspection creates no compute."
@@ -432,7 +406,7 @@ function DeploymentForm({
             <input
               required
               value={repository}
-              placeholder="Qwen/Qwen3-0.6B"
+              placeholder={native ? 'jaredpalmer/kev-4b' : 'Qwen/Qwen3-0.6B'}
               onChange={(event) => {
                 setRepository(event.target.value);
                 invalidateInspection();
@@ -468,6 +442,16 @@ function DeploymentForm({
         </>
       ) : (
         <>
+          <Field label="Endpoint protocol">
+            <Select
+              value={protocol}
+              onValueChange={(next) => setProtocol(next === 'systemone' ? 'systemone' : 'openai_chat')}
+              options={[
+                { value: 'openai_chat', label: 'OpenAI-compatible chat' },
+                { value: 'systemone', label: 'SystemOne decisions (Kev / Jev)' },
+              ]}
+            />
+          </Field>
           <ConnectionPicker kind="external_model" value={endpoint} onChange={setEndpoint} />
           <Field label="Served model alias">
             <input value={alias} onChange={(event) => setAlias(event.target.value)} required />
@@ -509,7 +493,14 @@ function DeploymentForm({
             }}
           />
         </Field>
-        <Field label="Maximum output (tokens)">
+        <Field
+          label="Maximum output (tokens)"
+          hint={
+            native
+              ? 'Bounds the serialized decision result; native scoring does not generate answer tokens.'
+              : undefined
+          }
+        >
           <input
             type="number"
             min="1"
@@ -538,85 +529,99 @@ function DeploymentForm({
         <>
           <details>
             <summary>Model and runtime settings</summary>
-            <Field label="Exact weight files (comma-separated, optional)">
-              <input
-                value={weightFiles}
-                onChange={(event) => {
-                  setWeightFiles(event.target.value);
-                  invalidateInspection();
-                }}
-              />
-            </Field>
-            <Field label="Tokenizer repository (optional)">
-              <input
-                value={tokenizer}
-                onChange={(event) => {
-                  setTokenizer(event.target.value);
-                  invalidateInspection();
-                }}
-              />
-            </Field>
-            <Field label="Tokenizer revision (optional)">
-              <input
-                value={tokenizerRevision}
-                onChange={(event) => {
-                  setTokenizerRevision(event.target.value);
-                  invalidateInspection();
-                }}
-              />
-            </Field>
-            <Field label="Reviewed chat template (optional)">
-              <Select
-                value={template ?? '__default'}
-                onValueChange={(value) => {
-                  setTemplate(value === 'tokenizer' ? 'tokenizer' : undefined);
-                  invalidateInspection();
-                }}
-                options={[
-                  { value: '__default', label: 'Runtime default' },
-                  { value: 'tokenizer', label: 'Pinned tokenizer template' },
-                ]}
-              />
-            </Field>
+            {!native && (
+              <>
+                <Field label="Exact weight files (comma-separated, optional)">
+                  <input
+                    value={weightFiles}
+                    onChange={(event) => {
+                      setWeightFiles(event.target.value);
+                      invalidateInspection();
+                    }}
+                  />
+                </Field>
+                <Field label="Tokenizer repository (optional)">
+                  <input
+                    value={tokenizer}
+                    onChange={(event) => {
+                      setTokenizer(event.target.value);
+                      invalidateInspection();
+                    }}
+                  />
+                </Field>
+                <Field label="Tokenizer revision (optional)">
+                  <input
+                    value={tokenizerRevision}
+                    onChange={(event) => {
+                      setTokenizerRevision(event.target.value);
+                      invalidateInspection();
+                    }}
+                  />
+                </Field>
+                <Field label="Reviewed chat template (optional)">
+                  <Select
+                    value={template ?? '__default'}
+                    onValueChange={(value) => {
+                      setTemplate(value === 'tokenizer' ? 'tokenizer' : undefined);
+                      invalidateInspection();
+                    }}
+                    options={[
+                      { value: '__default', label: 'Runtime default' },
+                      { value: 'tokenizer', label: 'Pinned tokenizer template' },
+                    ]}
+                  />
+                </Field>
+              </>
+            )}
             <Field label="Dtype">
               <Select
+                key={native ? 'native-dtype' : 'chat-dtype'}
                 value={dtype}
                 onValueChange={(next) => {
-                  setDtype(dtypes.find((item) => item === next));
+                  const selected = dtypes.find((item) => item === next);
+                  if (!selected) return;
+                  setDtype(selected);
                   invalidateInspection();
                 }}
-                options={dtypes.map((value) => ({ value, label: value }))}
+                options={(native ? (['bfloat16', 'float'] as const) : dtypes).map((value) => ({
+                  value,
+                  label: value,
+                }))}
               />
             </Field>
-            <Field label="Quantization (optional)">
-              <Select
-                value={quantization ?? '__default'}
-                onValueChange={(next) => {
-                  setQuantization(quantizations.find((item) => item === next));
-                  invalidateInspection();
-                }}
-                options={[
-                  { value: '__default', label: 'Model default' },
-                  ...quantizations.map((value) => ({ value, label: value })),
-                ]}
-              />
-            </Field>
-            <Field label="Tensor parallel size">
-              <input
-                type="number"
-                min="1"
-                value={parallel}
-                onChange={(event) => {
-                  setParallel(event.target.value);
-                  invalidateInspection();
-                }}
-              />
-            </Field>
+            {!native && (
+              <>
+                <Field label="Quantization (optional)">
+                  <Select
+                    value={quantization ?? '__default'}
+                    onValueChange={(next) => {
+                      setQuantization(quantizations.find((item) => item === next));
+                      invalidateInspection();
+                    }}
+                    options={[
+                      { value: '__default', label: 'Model default' },
+                      ...quantizations.map((value) => ({ value, label: value })),
+                    ]}
+                  />
+                </Field>
+                <Field label="Tensor parallel size">
+                  <input
+                    type="number"
+                    min="1"
+                    value={parallel}
+                    onChange={(event) => {
+                      setParallel(event.target.value);
+                      invalidateInspection();
+                    }}
+                  />
+                </Field>
+              </>
+            )}
             <Field label="GPU memory utilization">
               <input
                 type="number"
-                min="0.01"
-                max="0.99"
+                min="0.1"
+                max="0.95"
                 step="0.01"
                 value={gpuMemory}
                 onChange={(event) => {
@@ -625,32 +630,36 @@ function DeploymentForm({
                 }}
               />
             </Field>
-            <Field label="Tool call parser (optional)">
-              <Select
-                value={toolParser ?? '__none'}
-                onValueChange={(next) => {
-                  setToolParser(toolParsers.find((item) => item === next));
-                  invalidateInspection();
-                }}
-                options={[
-                  { value: '__none', label: 'No parser' },
-                  ...toolParsers.map((value) => ({ value, label: value })),
-                ]}
-              />
-            </Field>
-            <Field label="Reasoning parser (optional)">
-              <Select
-                value={reasoningParser ?? '__none'}
-                onValueChange={(next) => {
-                  setReasoningParser(reasoningParsers.find((item) => item === next));
-                  invalidateInspection();
-                }}
-                options={[
-                  { value: '__none', label: 'No parser' },
-                  ...reasoningParsers.map((value) => ({ value, label: value })),
-                ]}
-              />
-            </Field>
+            {!native && (
+              <>
+                <Field label="Tool call parser (optional)">
+                  <Select
+                    value={toolParser ?? '__none'}
+                    onValueChange={(next) => {
+                      setToolParser(toolParsers.find((item) => item === next));
+                      invalidateInspection();
+                    }}
+                    options={[
+                      { value: '__none', label: 'No parser' },
+                      ...toolParsers.map((value) => ({ value, label: value })),
+                    ]}
+                  />
+                </Field>
+                <Field label="Reasoning parser (optional)">
+                  <Select
+                    value={reasoningParser ?? '__none'}
+                    onValueChange={(next) => {
+                      setReasoningParser(reasoningParsers.find((item) => item === next));
+                      invalidateInspection();
+                    }}
+                    options={[
+                      { value: '__none', label: 'No parser' },
+                      ...reasoningParsers.map((value) => ({ value, label: value })),
+                    ]}
+                  />
+                </Field>
+              </>
+            )}
           </details>
           <Button
             type="button"
@@ -667,15 +676,18 @@ function DeploymentForm({
                 const result = await request('inspectModelDeployment', {
                   body: {
                     source,
-                    task: 'text_generation',
+                    task,
                     ...(computeConnection ? { compute_connection_id: computeConnection } : {}),
                     runtime_preferences: { ...(profile ? { profile_id: profile } : {}), parameters },
                   },
                 });
                 if (generation !== inspectionGeneration.current) return;
                 setInspection(result);
-                if (!profile && result.runtime_profiles.some((item) => item.profile_id === runtimeProfile))
-                  setProfile(runtimeProfile);
+                setProfile(
+                  result.runtime_profiles.some((item) => item.profile_id === runtimeProfiles[task].id)
+                    ? runtimeProfiles[task].id
+                    : '',
+                );
               } catch (failure) {
                 if (generation === inspectionGeneration.current) setError(failureMessage(failure));
               } finally {
@@ -710,10 +722,12 @@ function DeploymentForm({
               <Field label="Runtime profile">
                 <Select
                   value={profile}
-                  onValueChange={(value) => setProfile(value === runtimeProfile ? runtimeProfile : '')}
+                  onValueChange={(value) =>
+                    setProfile(value === runtimeProfiles[task].id ? runtimeProfiles[task].id : '')
+                  }
                   options={inspection.runtime_profiles.map((item) => ({
                     value: item.profile_id,
-                    label: item.profile_id,
+                    label: runtimeProfiles[task].label,
                   }))}
                 />
               </Field>
@@ -735,7 +749,7 @@ function DeploymentForm({
                   inspection.hosting_options.find((offer) => offer.gpu_pool_id === id),
                 );
                 const prices = selected.map((offer) => offer?.hourly_cost_micro_usd);
-                const count = Number(gpuCount);
+                const count = native ? 1 : Number(gpuCount);
                 if (
                   !selected.length ||
                   prices.some((price) => price === null || price === undefined) ||
@@ -780,12 +794,16 @@ function DeploymentForm({
           >
             <input value={gpuPools} required onChange={(event) => setGpuPools(event.target.value)} />
           </Field>
-          <Field label="GPU count per replica">
+          <Field
+            label="GPU count per replica"
+            hint={native ? 'Native Kev uses one GPU per replica. Increase replicas to scale.' : undefined}
+          >
             <input
               type="number"
               min="1"
               required
-              value={gpuCount}
+              value={native ? '1' : gpuCount}
+              readOnly={native}
               onChange={(event) => setGpuCount(event.target.value)}
             />
           </Field>
@@ -798,39 +816,48 @@ function DeploymentForm({
         </>
       ) : (
         <>
-          <fieldset>
-            <legend>Declared endpoint capabilities</legend>
-            {[
-              ['JSON object', jsonObject, setJsonObject],
-              ['JSON schema', jsonSchema, setJsonSchema],
-              ['Tool calls', tools, setTools],
-              ['Streaming', streaming, setStreaming],
-              ['Streaming usage', streamUsage, setStreamUsage],
-            ].map(([label, checked, change]) => (
-              <label key={String(label)}>
+          {protocol === 'systemone' ? (
+            <p className="form-hint">
+              Send state and named questions for native noul, choice and score answers. This protocol returns
+              a complete decision response and does not stream.
+            </p>
+          ) : (
+            <>
+              <fieldset>
+                <legend>Declared endpoint capabilities</legend>
+                {[
+                  ['JSON object', jsonObject, setJsonObject],
+                  ['JSON schema', jsonSchema, setJsonSchema],
+                  ['Tool calls', tools, setTools],
+                  ['Streaming', streaming, setStreaming],
+                  ['Streaming usage', streamUsage, setStreamUsage],
+                ].map(([label, checked, change]) => (
+                  <label key={String(label)}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(checked)}
+                      onChange={(event) => {
+                        if (typeof change === 'function') change(event.target.checked);
+                      }}
+                    />{' '}
+                    {String(label)}
+                  </label>
+                ))}
+              </fieldset>
+              <Field label="Accepted native parameters (comma-separated)">
                 <input
-                  type="checkbox"
-                  checked={Boolean(checked)}
-                  onChange={(event) => {
-                    if (typeof change === 'function') change(event.target.checked);
-                  }}
-                />{' '}
-                {String(label)}
-              </label>
-            ))}
-          </fieldset>
-          <Field label="Accepted native parameters (comma-separated)">
-            <input
-              value={acceptedParameters}
-              onChange={(event) => setAcceptedParameters(event.target.value)}
-            />
-          </Field>
-          <Field label="Supported schema keywords (comma-separated)">
-            <input value={schemaKeywords} onChange={(event) => setSchemaKeywords(event.target.value)} />
-          </Field>
-          <Field label="Schema dialect (optional)">
-            <input value={schemaDialect} onChange={(event) => setSchemaDialect(event.target.value)} />
-          </Field>
+                  value={acceptedParameters}
+                  onChange={(event) => setAcceptedParameters(event.target.value)}
+                />
+              </Field>
+              <Field label="Supported schema keywords (comma-separated)">
+                <input value={schemaKeywords} onChange={(event) => setSchemaKeywords(event.target.value)} />
+              </Field>
+              <Field label="Schema dialect (optional)">
+                <input value={schemaDialect} onChange={(event) => setSchemaDialect(event.target.value)} />
+              </Field>
+            </>
+          )}
           <label>
             <input
               type="checkbox"
@@ -911,7 +938,7 @@ export function ModelDeploymentsView() {
         <Empty
           icon={<Box />}
           title="No model deployments"
-          description="Inspect a Hugging Face model or connect an existing OpenAI-compatible endpoint."
+          description="Inspect a Hugging Face model or connect an existing chat or SystemOne endpoint."
         />
       ) : (
         <>
@@ -1389,7 +1416,7 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
   const initial = listedRevision ?? desiredRevision.data;
   const availableRevisions =
     initial && !listedRevision ? [initial, ...(revisions.data?.data ?? [])] : (revisions.data?.data ?? []);
-  const external = initial?.hosting.kind === 'external_openai';
+  const external = initial?.source.kind === 'external';
   const cost = current.infrastructure_cost;
   async function saved(message: string) {
     setDialog(undefined);

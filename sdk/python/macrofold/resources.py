@@ -2386,7 +2386,7 @@ class ModelDeploymentsResource:
         )
         return decode(models.ModelDeploymentRevision, result, identity)
 
-    def inspect(self, *, source: params.ModelDeploymentHuggingFaceSourceParams, task: Literal["text_generation"], compute_connection_id: str | UUID | Omit = OMIT, runtime_preferences: params.InspectModelDeploymentRuntimePreferencesParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeploymentInspection:
+    def inspect(self, *, source: params.ModelDeploymentHuggingFaceSourceParams, task: Literal["text_generation", "decision"], compute_connection_id: str | UUID | Omit = OMIT, runtime_preferences: params.InspectModelDeploymentRuntimePreferencesParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ModelDeploymentInspection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("inspectModelDeployment",

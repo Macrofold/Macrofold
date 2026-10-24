@@ -51,7 +51,9 @@ public class ModelDeploymentInspectionInput {
    * Gets or Sets task
    */
   public enum TaskEnum {
-    TEXT_GENERATION(String.valueOf("text_generation"));
+    TEXT_GENERATION(String.valueOf("text_generation")),
+
+    DECISION(String.valueOf("decision"));
 
     private String value;
 

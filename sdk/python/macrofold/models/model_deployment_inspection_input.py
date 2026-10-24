@@ -40,8 +40,8 @@ class ModelDeploymentInspectionInput(BaseModel):
     @field_validator('task')
     def task_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['text_generation']):
-            raise ValueError("must be one of enum values ('text_generation')")
+        if value not in set(['text_generation', 'decision']):
+            raise ValueError("must be one of enum values ('text_generation', 'decision')")
         return value
 
     model_config = ConfigDict(

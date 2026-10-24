@@ -2,7 +2,7 @@
 
 | Status      | Current progress                                                                                                                                                          | Last updated |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| In progress | Macrofold API, service lifecycle, inference, runtime and operator surfaces are implemented locally; release verification and live provider qualification remain separate. | 2026-10-22   |
+| In progress | Macrofold API, service lifecycle, inference, runtime and operator surfaces are implemented locally; release verification and live provider qualification remain separate. | 2026-10-23   |
 
 ## Purpose and document ownership
 
@@ -14,26 +14,27 @@ The approved implementation supersedes the historical design-only restriction. C
 
 1. **A deployment is a reusable service.** Starting it authorizes continued hosting within its operator-selected capacity and hourly cost limits. It has no mandatory expiration, per-experiment activation or repeated approval ritual. An optional stop time supports temporary use.
 2. **Macrofold owns hosting; the application owns behavior.** Source resolution, serving infrastructure, provider credentials and health belong to Macrofold. OpenLegend owns permitted character context, task schemas, game rules and application of model-proposed actions. Hosting choices never become world laws.
-3. **Use maintained serving software.** The first managed adapter uses RunPod Serverless Load Balancer REST v2 and a pinned vLLM runtime. Native provider scaling and vLLM batching do the scheduling. A small protected HTTP wrapper exists only where needed to secure the exposed routes.
+3. **Use maintained serving software.** Managed hosting uses RunPod Serverless Load Balancer REST v2 with separate pinned native Kev and vLLM runtimes. Native decisions are the first required hosting use case. Provider scaling and each runtime’s maintained batching own scheduling. A small protected HTTP wrapper exists only where needed to secure the exposed routes.
 4. **Applications select a stable deployment.** Production calls normally follow its currently serving revision. An optional revision pin supports deliberate rollout control or comparisons. Every accepted request records the exact revision it used.
 5. **Normal recovery is automatic.** A replacement worker running the same model revision can resume service under existing authorization. A process restart, new machine, secret rotation or changed diagnostic identifier does not invalidate a valid completed answer. Changes to actual model or serving configuration require a deliberate revision selection.
 6. **Capacity is explicit and extensible.** Default to one warm replica for interactive use; operators can choose supported minimum/maximum replicas and request concurrency. A larger replica count is configuration within provider and cost limits, not a new architecture project.
 7. **Use the customer's provider account initially.** No GPU resale, platform-funded fallback or invented token price is required. Provider infrastructure expense remains separate from Macrofold's initially zero deployment request fee.
-8. **Existing endpoints are a production path.** An operator can register a compatible OpenAI-chat endpoint, including local or alternative engines. Supported protocol, authorization and application validation determine usability. A custom provenance wrapper or experimental certificate is not required.
+8. **Existing endpoints are a production path.** An operator can register a compatible OpenAI-chat or native SystemOne decision endpoint, including local or alternative engines. Supported protocol, authorization and application validation determine usability. A custom provenance wrapper or experimental certificate is not required.
 
 ## What “any Hugging Face model” means
 
 Any repository may be inspected. Deployability depends on the actual task, architecture, weight format, tokenizer/template and available hardware; a Hugging Face URL alone does not establish those properties.
 
-| Candidate                                                                                    | Initial behavior                                                                                                                 |
-| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Compatible text-generation model and safetensors                                             | Resolve the source to immutable commits, prepare a vLLM configuration and offer compatible capacity. Loading must still succeed. |
-| Supported quantization                                                                       | Keep the exact files and supported runtime settings; no silent conversion or weight substitution.                                |
-| GGUF, MLX or another serving engine                                                          | Use a registered compatible external endpoint. Add a managed runtime only when an actual use case needs it.                      |
-| Private or gated repository                                                                  | Use the owner's authorized Hugging Face connection and required upstream acceptance.                                             |
-| Unsupported task/architecture, missing template, adapter-only source or required remote code | Explain the concrete blocker and retain the candidate; do not execute repository code or silently choose another model.          |
+| Candidate                                                                                               | Initial behavior                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Compatible text-generation model and safetensors                                                        | Resolve the source to immutable commits, prepare a vLLM configuration and offer compatible capacity. Loading must still succeed.                      |
+| Official Kev-compatible adapter/full checkpoint plus native scoring head                                | Resolve checkpoint and base model to immutable commits, retain calibration and serve native SystemOne decisions. Never generate chat as a substitute. |
+| Supported quantization                                                                                  | Keep the exact files and supported runtime settings; no silent conversion or weight substitution.                                                     |
+| GGUF, MLX or another serving engine                                                                     | Use a registered compatible external endpoint. Add a managed runtime only when an actual use case needs it.                                           |
+| Private or gated repository                                                                             | Use the owner's authorized Hugging Face connection and required upstream acceptance.                                                                  |
+| Unsupported task/architecture, missing template, incompatible native checkpoint or required remote code | Explain the concrete blocker and retain the candidate; do not execute repository code or silently choose another model.                               |
 
-The initial managed profile is text generation with remote code disabled. It does not imply embeddings, image/audio generation, native agent harness compatibility or Jev scoring. The [research](hugging-face-model-deployments-research.md) records maintained runtime alternatives.
+Managed profiles cover native Kev scoring (`kev-systemone-v1`) and chat (`vllm-0.32.0-text`), with remote repository code disabled. Both reuse the same deployment controller, grants, direct-inference path and accounting. The native image reuses the publisher’s pinned loader/server, base model, adapter, scoring head and calibration. It downloads checksum-verified artifacts directly from Hugging Face at worker startup, then reuses one warm loaded model and its bounded caches. It does not imply embeddings, image/audio generation or native agent harness compatibility. Community checkpoints must match the supported native format; a mismatched head is an explicit incompatibility, never a chat fallback. The [research](hugging-face-model-deployments-research.md) records maintained runtime alternatives.
 
 “Uncensored” and “low refusal” describe model-author claims or measured behavior, not authority. Macrofold preserves customer prompts and supported native output formats. OpenLegend continues validating proposals against the game's rules regardless of model choice.
 
@@ -53,7 +54,7 @@ The first revision-change operation drains the old service and starts the select
 
 ### Use an existing endpoint
 
-The owner registers an exact origin, connection, served model and supported limits/capabilities. Macrofold uses the same production inference path and current permissions. Plain text, schema output, tool formatting and streaming are separately supported; compatibility does not require a universal evaluation suite.
+The owner registers an exact origin, connection, served model, protocol and supported limits/capabilities. Macrofold uses the same production inference path and current permissions. Chat's plain text, schema output, tool formatting and streaming are separately supported; SystemOne accepts native state/questions and returns complete noul/choice/score answers without streaming. Compatibility does not require a universal evaluation suite.
 
 An external endpoint's source/runtime claims may be operator-declared. Show that honestly, without treating a missing artifact hash or boot ID as a reason to reject usable output. Trust in the operator-configured endpoint is the same kind of operational boundary used for ordinary model providers. Unsupported context/schema behavior remains a real limitation.
 
@@ -110,10 +111,10 @@ Deployment-backed request billing starts at zero under the current BYOK policy. 
 
 Local implementation covers the contract, source inspection, service policy/reconciliation, direct native chat and operator surfaces. Disposable-database and HTTP fixtures verify authority, concurrency, idempotent recovery, old-result publication, exact rates and cleanup uncertainty. The built Linux AMD64 wrapper passes CPU transport/source tests; those tests do not load a model on a GPU. A public HF metadata inspection resolves Qwen/Qwen3-0.6B to an immutable commit without credentials, weight downloads or generation.
 
-The technical design records the actual checks and source/image identities. Real RunPod credentials and authorized capacity, registry publication of the wrapper image, GPU loading, provider ingress/streaming/cancellation/replacement, measured costs and confirmed cloud teardown remain live release gates. OpenLegend's actual serializer and real-game acceptance await its subsequent consumer implementation; this does not block independent Macrofold verification. Optional model comparisons remain independent.
+The technical design records imported chat/native GPU checks and the subsequent [completed managed native acceptance](hugging-face-model-deployments-tech-design.md#corrected-managed-native-acceptance). The native image is public and anonymously pullable; real API-created official Kev serving, ingress authentication, recovery, cancellation, two loaded workers, tracing and normal deletion pass. The separate chat image/capabilities, final provider invoices and hosted application rollout remain release gates. OpenLegend's actual serializer and real-game acceptance await its subsequent consumer implementation; this does not block independent Macrofold verification. Optional model comparisons remain independent.
 
 ## Scope and remaining decisions
 
-The production architecture is selected. Initial limits are managed vLLM text serving, BYOK infrastructure, imported compatible endpoints and graceful revision changes with a visible loading interruption. No custom scheduler, model marketplace, fine-tuning system, GPU resale or automatic cross-model fallback is needed. Additional runtimes/providers fit behind the existing serving/provider boundaries when required by an actual model or operating workload.
+The production architecture is selected. Initial scope is managed native Kev and vLLM chat serving, BYOK infrastructure, imported compatible endpoints and graceful revision changes with a visible loading interruption. No custom scheduler, model marketplace, fine-tuning system, GPU resale or automatic cross-model fallback is needed. Additional runtimes/providers fit behind the existing serving/provider boundaries when required by an actual model or operating workload.
 
 Concrete model choice, account access, published wrapper digest, capacity/rate policy and workload tuning are operator inputs. RunPod ingress authentication, actual GPU/model fit, restart behavior, cancellation and billing observations require live evidence before enabling the managed backend. These checks establish normal service reliability; they do not require a permanent experimental approval system.

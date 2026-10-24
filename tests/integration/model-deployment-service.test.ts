@@ -7,9 +7,12 @@ import { createKey } from '../../packages/core/src/keys';
 import { handleApi } from '../../packages/core/src/http';
 import * as resources from '../../packages/core/src/resources';
 import * as deployments from '../../packages/core/src/model-deployments';
+import * as sourceProvider from '../../packages/providers/src/model-deployment-source';
 import {
   quoteManagedService,
+  modelHostingPools,
   policyExpands,
+  prepareRevision,
   prepareService,
   validateServicePolicy,
 } from '../../packages/core/src/model-deployment-service';
@@ -111,9 +114,122 @@ beforeAll(async () => {
 afterEach(() => {
   config.allowPaid = initialPaid;
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
+
+it('creates an external SystemOne revision through the public API without contacting a host', async () => {
+  vi.stubEnv('LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS', 'http://127.0.0.1:31337');
+  const connection = await transaction(owner.organizationId, (tx) =>
+    resources.create(tx, 'connections', owner.organizationId, {
+      name: 'Local SystemOne fixture',
+      kind: 'external_model',
+      url: 'http://127.0.0.1:31337/v1',
+      auth_method: 'none',
+      owner_subject_id: owner.userId,
+      status: 'healthy',
+    }),
+  );
+  const capabilities = {
+    ...runtimeCapabilities(runtime),
+    protocol: 'systemone',
+    chat_completions: false,
+    json_object: false,
+    json_schema: false,
+    tools: false,
+    streaming: false,
+    stream_usage: false,
+    schema_keywords: [],
+    schema_dialect: null,
+    accepted_parameters: [],
+  };
+  const response = await handleApi(
+    new Request(`${config.origin}/v1/model-deployments`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${ownerKey}`,
+        'content-type': 'application/json',
+        'idempotency-key': id(),
+      },
+      body: JSON.stringify({
+        name: 'External SystemOne',
+        source: { kind: 'external', capabilities },
+        runtime: { kind: 'external', engine: 'kev' },
+        hosting: {
+          kind: 'external_systemone',
+          endpoint_connection_id: connection.id,
+          model_alias: 'kev-latest',
+          lifecycle: 'external',
+          external_hosting_acknowledged: true,
+        },
+        access: { grants: [] },
+      }),
+    }),
+  );
+  expect(response.status).toBe(201);
+  const created = await response.json();
+  expect(created).toMatchObject({
+    desired_state: 'stopped',
+    admission_open: false,
+    capabilities: null,
+    infrastructure_cost: { status: 'external_unknown' },
+  });
+  const revision = await handleApi(
+    new Request(
+      `${config.origin}/v1/model-deployments/${created.deployment_id}/revisions/${created.desired_revision_id}`,
+      { headers: { authorization: `Bearer ${ownerKey}` } },
+    ),
+  );
+  expect(revision.status).toBe(200);
+  expect(await revision.json()).toMatchObject({
+    hosting: { kind: 'external_systemone' },
+    capabilities,
+    source: { kind: 'external', capabilities },
+  });
 });
 afterAll(async () => {
   await Promise.all([pool.end(), authPool.end()]);
+});
+
+it.each([
+  { protocol: 'openai_chat' as const },
+  { chat_completions: true },
+  { json_object: true },
+  { json_schema: true },
+  { tools: true },
+  { streaming: true },
+  { stream_usage: true },
+  { schema_keywords: ['type'] },
+  { schema_dialect: 'https://json-schema.org/draft/2020-12/schema' },
+])('rejects contradictory external SystemOne capabilities before endpoint access: %j', async (overrides) => {
+  await expect(
+    prepareRevision(owner, {
+      source: {
+        kind: 'external',
+        capabilities: {
+          ...runtimeCapabilities(runtime),
+          protocol: 'systemone',
+          chat_completions: false,
+          json_object: false,
+          json_schema: false,
+          tools: false,
+          streaming: false,
+          stream_usage: false,
+          schema_keywords: [],
+          schema_dialect: null,
+          accepted_parameters: [],
+          ...overrides,
+        },
+      },
+      runtime: { kind: 'external' },
+      hosting: {
+        kind: 'external_systemone',
+        endpoint_connection_id: id(),
+        model_alias: 'kev-latest',
+        lifecycle: 'external',
+        external_hosting_acknowledged: true,
+      },
+    }),
+  ).rejects.toMatchObject({ status: 422, code: 'unsupported_model_capability' });
 });
 
 it('quotes the maximum of every allowed offer, all GPUs/replicas and exact container disk cost', async () => {
@@ -361,4 +477,152 @@ it('rechecks management authority after the real provider quotation wait and rol
   expect(unchanged.policy).toMatchObject({ max_replicas: 3 });
   expect(unchanged.generation).toBe('0');
   expect(adapter.create).not.toHaveBeenCalled();
+});
+
+it('creates a managed native revision through the public contract, freezing its recipe/image without buying compute', async () => {
+  const nativeImage = `fixture/native@sha256:${'b'.repeat(64)}`;
+  vi.stubEnv('MODEL_DECISION_SERVING_IMAGE', nativeImage);
+  vi.stubEnv('MODEL_SERVING_IMAGE', `fixture/chat@sha256:${'c'.repeat(64)}`);
+  const compute = await transaction(owner.organizationId, (tx) =>
+    resources.create(tx, 'connections', owner.organizationId, {
+      name: 'Native RunPod fixture',
+      kind: 'runpod',
+      auth_method: 'api_key',
+      owner_subject_id: owner.userId,
+      secret_ciphertext: seal('private-fixture-provider-key'),
+      status: 'healthy',
+    }),
+  );
+  const runtime: Schema['ModelDeploymentRuntime'] = {
+    profile_id: 'kev-systemone-v1',
+    parameters: {
+      context_window_tokens: 8192,
+      max_output_tokens: 1024,
+      max_concurrent_requests: 4,
+      dtype: 'bfloat16',
+    },
+  };
+  const source: Schema['ModelDeploymentHuggingFaceSource'] = {
+    kind: 'hugging_face',
+    repository: 'fixture/kev',
+    revision: 'a'.repeat(40),
+    weight_files: ['adapter_model.safetensors'],
+    license_acknowledged: true,
+  };
+  const artifact = { path: 'head.pt', size_bytes: 5000000, sha256: 'd'.repeat(64), git_blob_sha1: null };
+  const recipe = {
+    format: 'kev' as const,
+    version: 1 as const,
+    weights: 'lora' as const,
+    checkpoint_files: [artifact, { ...artifact, path: 'adapter_model.safetensors' }],
+    base: {
+      repository: 'fixture/base',
+      revision: 'e'.repeat(40),
+      files: [{ ...artifact, path: 'model.safetensors' }],
+    },
+    licenses: [{ repository: 'fixture/kev', revision: 'a'.repeat(40), license: 'apache-2.0', gated: false }],
+  };
+  const inspect = vi.spyOn(sourceProvider, 'prepareHuggingFaceSource').mockResolvedValue({
+    inspection: {
+      supported: true,
+      findings: [],
+      source,
+      runtime_profiles: [
+        {
+          profile_id: 'kev-systemone-v1',
+          image: nativeImage,
+          parameters: runtime.parameters,
+          capabilities: runtimeCapabilities(runtime),
+        },
+      ],
+      hosting_options: [],
+      memory_estimate_bytes: '18000000000',
+      license: 'apache-2.0',
+      license_acknowledgement_required: true,
+    },
+    nativeRecipe: recipe,
+  });
+  const response = await handleApi(
+    new Request(`${config.origin}/v1/model-deployments`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${ownerKey}`,
+        'content-type': 'application/json',
+        'idempotency-key': id(),
+      },
+      body: JSON.stringify({
+        name: 'Managed Kev',
+        source,
+        runtime,
+        hosting: {
+          kind: 'runpod_serverless',
+          compute_connection_id: compute.id,
+          placement: { region_ids: ['fixture-region'], gpu_pool_ids: ['pool-a'], gpu_count: 1 },
+        },
+        access: { grants: [] },
+      }),
+    }),
+  );
+  expect(response.status).toBe(201);
+  const created = await response.json();
+  expect(created).toMatchObject({ desired_state: 'stopped', admission_open: false });
+  expect(inspect).toHaveBeenCalledWith({ source, task: 'decision', runtime_preferences: runtime }, undefined);
+  const frozen = await transaction(owner.organizationId, (tx) =>
+    deployments.revisionRow(tx, created.deployment_id, created.desired_revision_id),
+  );
+  expect(frozen).toMatchObject({
+    capabilities: { protocol: 'systemone', streaming: false },
+    source_evidence: { runtime_image: nativeImage, native_recipe: recipe },
+  });
+  expect(JSON.stringify(frozen.source_evidence)).not.toContain('private-fixture-provider-key');
+  const allocations = await transaction(owner.organizationId, (tx) =>
+    tx.query('SELECT id FROM model_deployment_resources WHERE deployment_id=$1', [created.deployment_id]),
+  );
+  expect(allocations.rows).toEqual([]);
+});
+
+it('uses one pool offer with worst memory, complete maximum price and unioned regions for inspection and quotation', async () => {
+  const mixed: GpuOffer[] = [
+    {
+      ...offers()[0],
+      pool: 'mixed',
+      id: 'gpu-20',
+      memory_bytes: (20n * 1024n ** 3n).toString(),
+      hourly_micro_usd: '1000000',
+      region_ids: ['region-a'],
+    },
+    {
+      ...offers()[0],
+      pool: 'mixed',
+      id: 'gpu-16',
+      memory_bytes: (16n * 1024n ** 3n).toString(),
+      hourly_micro_usd: '1200000',
+      region_ids: ['region-b'],
+    },
+  ];
+  expect(modelHostingPools(mixed)).toEqual([
+    {
+      pool: 'mixed',
+      name: 'mixed (at least 16 GiB per GPU)',
+      memory_bytes: (16n * 1024n ** 3n).toString(),
+      hourly_micro_usd: '1200000',
+      region_ids: ['region-a', 'region-b'],
+    },
+  ]);
+  const record = revision();
+  record.hosting = {
+    kind: 'runpod_serverless',
+    compute_connection_id: id(),
+    placement: { region_ids: [], gpu_pool_ids: ['mixed'], gpu_count: 1 },
+  };
+  record.source_evidence.memory_estimate_bytes = (18n * 1024n ** 3n).toString();
+  await expect(quoteManagedService(record, policy(), 'fixture-key', provider(mixed))).rejects.toMatchObject({
+    code: 'invalid_hosting_policy',
+  });
+  mixed[1].hourly_micro_usd = null;
+  expect(modelHostingPools(mixed)[0].hourly_micro_usd).toBeNull();
+  record.source_evidence.memory_estimate_bytes = '1000000000';
+  await expect(quoteManagedService(record, policy(), 'fixture-key', provider(mixed))).rejects.toMatchObject({
+    code: 'invalid_hosting_policy',
+  });
 });

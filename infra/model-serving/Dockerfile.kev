@@ -1,0 +1,29 @@
+# One reviewed runtime artifact serves every compatible immutable Kev checkpoint.
+FROM python:3.12.15-slim-trixie@sha256:e8a38829209aea82774882e5157e1f7c3e8c8393ff53a697b3580896e57f345c
+LABEL org.opencontainers.image.source="https://github.com/Macrofold/Macrofold" \
+    org.opencontainers.image.description="Macrofold protected native Kev SystemOne runtime; model weights configured separately"
+
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/macrofold-model
+COPY infra/model-serving/kev-source.json infra/model-serving/fetch_kev_source.py ./
+COPY infra/model-serving/requirements.txt infra/model-serving/security-requirements.txt infra/model-serving/native-security-requirements.txt ./
+RUN python3 fetch_kev_source.py \
+    && python3 -m pip install --no-cache-dir uv==0.9.28 \
+    && cd /opt/kev && uv sync --frozen --extra serve --no-dev --python /usr/local/bin/python3 \
+    && uv pip install --python /opt/kev/.venv/bin/python --no-deps -r /opt/macrofold-model/requirements.txt \
+    && uv pip install --python /opt/kev/.venv/bin/python --no-deps --require-hashes --only-binary=:all: -r /opt/macrofold-model/security-requirements.txt \
+    && uv pip install --python /opt/kev/.venv/bin/python --no-deps --require-hashes --only-binary=:all: -r /opt/macrofold-model/native-security-requirements.txt \
+    && uv pip check --python /opt/kev/.venv/bin/python \
+    && python3 -m pip uninstall -y uv pip \
+    && rm -rf /root/.cache /usr/local/lib/python3.12/ensurepip
+COPY infra/model-serving/*.py ./
+COPY LICENSE NOTICE /usr/local/share/licenses/macrofold/
+RUN useradd --create-home --uid 10001 model && mkdir /models && chown model:model /models
+USER model
+ENV PATH=/opt/kev/.venv/bin:$PATH HF_HOME=/models/huggingface HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_DISABLE_IMPLICIT_TOKEN=1 DO_NOT_TRACK=1 \
+    NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64 \
+    USE_HUB_KERNELS=NO TORCH_FORCE_WEIGHTS_ONLY_LOAD=1
+EXPOSE 8000
+ENTRYPOINT ["/opt/kev/.venv/bin/python", "/opt/macrofold-model/server.py"]

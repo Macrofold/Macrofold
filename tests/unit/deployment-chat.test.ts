@@ -1,5 +1,9 @@
 import { expect, it, vi } from 'vitest';
-import { deploymentProtocol, prepareDeploymentChat } from '../../packages/providers/src/deployment-chat';
+import {
+  deploymentProtocol,
+  prepareDeploymentChat,
+  prepareDeploymentSystemOne,
+} from '../../packages/providers/src/deployment-chat';
 import type {
   DeploymentTarget,
   ModelDeploymentCapabilities,
@@ -76,6 +80,179 @@ function response(extra: Record<string, unknown> = {}) {
     ...extra,
   };
 }
+
+function systemOneTarget(): DeploymentTarget {
+  return target({
+    protocol: 'systemone',
+    chat_completions: false,
+    json_object: false,
+    json_schema: false,
+    tools: false,
+    streaming: false,
+    stream_usage: false,
+    schema_keywords: [],
+    accepted_parameters: [],
+    schema_dialect: null,
+  });
+}
+function systemOneRequest(
+  input: Record<string, unknown> = {},
+): DecisionRequest & { input: Record<string, unknown> } {
+  return {
+    ...request(),
+    input: {
+      state: { food: 2, hunger: 8 },
+      questions: {
+        'arbitrary choice': { type: 'choice', criteria: { eat: 'Use available food', wait: 'Do nothing' } },
+        'needs food': { type: 'noul', instructions: 'Is food needed?' },
+        urgency: { type: 'score', criteria: ['Routine', 'Urgent'] },
+      },
+      ...input,
+    },
+  };
+}
+
+it('accepts explicit nonstreaming without forwarding a transport field to native scoring', () => {
+  const native = systemOneRequest({ stream: false });
+  const protocol = deploymentProtocol(systemOneTarget(), {});
+  expect(protocol.prepare(native)).not.toHaveProperty('stream');
+  expect(native.input.stream).toBe(false);
+  expect(() => protocol.prepare({ ...native, stream: true })).toThrow();
+});
+
+it('preserves native SystemOne state, question names and prepared bytes without chat fields', async () => {
+  const native = systemOneRequest();
+  const before = structuredClone(native.input);
+  const raw = {
+    model: 'pinned-model',
+    answers: {
+      'arbitrary choice': {
+        type: 'choice',
+        choice: 'eat',
+        confidence: 0.9,
+        probabilities: { eat: 0.9, wait: 0.1 },
+      },
+      'needs food': { type: 'noul', noul: 0.95 },
+      urgency: { type: 'score', score: 0.8, probabilities: { '0': 0.2, '1': 0.8 } },
+    },
+    usage: { input_tokens: 42, output_tokens: 0 },
+    latency_ms: 12.5,
+    truncated: false,
+  };
+  const transport = vi.fn(async () =>
+    Response.json(raw, { headers: { 'x-typesafe-request-id': 'systemone-request' } }),
+  );
+  const protocol = deploymentProtocol(
+    systemOneTarget(),
+    { Authorization: 'Bearer fixture-systemone' },
+    30,
+    transport,
+  );
+  const body = protocol.prepare(native);
+  const encoded = JSON.stringify(body, null, 2);
+  expect(body).toEqual({ ...before, model: 'pinned-model' });
+  expect(native.input).toEqual(before);
+  expect(body).not.toHaveProperty('messages');
+  const result = await protocol.invoke(
+    body,
+    '',
+    new AbortController().signal,
+    undefined,
+    true,
+    undefined,
+    encoded,
+  );
+  expect(result).toMatchObject({
+    value: raw,
+    requestId: 'systemone-request',
+    modelRevision: systemOneTarget().deployment_revision_id,
+    usage: { input: 42, output: 0, complete: true },
+  });
+  expect(transport).toHaveBeenCalledOnce();
+  expect(transport).toHaveBeenCalledWith(
+    new URL('https://models.example.test/v1/systemone'),
+    expect.objectContaining({
+      method: 'POST',
+      redirect: 'error',
+      headers: expect.objectContaining({ Authorization: 'Bearer fixture-systemone' }),
+      body: encoded,
+    }),
+    { timeoutMs: 30000, maximumResponseBytes: 8 * 1024 * 1024 },
+  );
+});
+
+it.each([{ stream: true }, { modelParameters: { reasoning: { effort: 'low' as const } } }])(
+  'rejects unsupported SystemOne options before transport: %j',
+  (overrides) => {
+    const transport = vi.fn();
+    const protocol = deploymentProtocol(systemOneTarget(), {}, 30, transport);
+    expect(() => protocol.prepare({ ...systemOneRequest(), ...overrides })).toThrow(
+      expect.objectContaining({ code: 'unsupported_model_capability' }),
+    );
+    expect(protocol.capabilities.streaming).toBe(false);
+    expect(transport).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  { questions: {} },
+  { questions: null },
+  { state: undefined },
+  { model: 'another-model' },
+  { messages: [{ role: 'user', content: 'Not a scoring request' }] },
+])('rejects invalid SystemOne requests before transport: %j', (input) => {
+  expect(() => prepareDeploymentSystemOne(systemOneTarget(), systemOneRequest(input))).toThrow();
+});
+
+it.each([
+  { usage: { input_tokens: 42, output_tokens: 'invalid' }, code: 'invalid_provider_usage' },
+  { answers: 'invalid', code: 'invalid_provider_response' },
+])('retains independently known SystemOne usage after invalid output: %j', async ({ code, ...invalid }) => {
+  const raw = {
+    model: 'pinned-model',
+    answers: {},
+    usage: { input_tokens: 42, output_tokens: 0 },
+    ...invalid,
+  };
+  const transport = vi.fn(async () => Response.json(raw));
+  const protocol = deploymentProtocol(systemOneTarget(), {}, 30, transport);
+  await expect(
+    protocol.invoke(protocol.prepare(systemOneRequest()), '', new AbortController().signal),
+  ).rejects.toMatchObject({
+    code,
+    evidence: { response: raw, complete: true, usage: { input: 42, known: { input: true } } },
+  });
+  expect(transport).toHaveBeenCalledOnce();
+});
+
+it('keeps missing SystemOne usage unknown instead of inventing free complete execution', async () => {
+  const transport = vi.fn(async () => Response.json({ model: 'pinned-model', answers: {} }));
+  const protocol = deploymentProtocol(systemOneTarget(), {}, 30, transport);
+  const result = await protocol.invoke(
+    protocol.prepare(systemOneRequest()),
+    '',
+    new AbortController().signal,
+  );
+  expect(result.usage.complete).toBe(false);
+  expect(result.usage.known).toBeUndefined();
+});
+
+it('retains malformed SystemOne JSON privately without retrying', async () => {
+  const raw = '{"private":"truncated';
+  const transport = vi.fn(async () => new Response(raw));
+  const protocol = deploymentProtocol(systemOneTarget(), {}, 30, transport);
+  let failure: unknown;
+  try {
+    await protocol.invoke(protocol.prepare(systemOneRequest()), '', new AbortController().signal);
+  } catch (error) {
+    failure = error;
+  }
+  expect(failure).toBeInstanceOf(DecisionProviderError);
+  if (!(failure instanceof DecisionProviderError)) throw new Error('Expected private provider evidence.');
+  expect(failure.evidence).toMatchObject({ response: raw, complete: true, usage: { complete: false } });
+  expect(JSON.stringify(failure)).not.toContain('private');
+  expect(transport).toHaveBeenCalledOnce();
+});
 
 it('preserves native messages, schemas and tool calls with aggregate output limits', () => {
   const native = request({

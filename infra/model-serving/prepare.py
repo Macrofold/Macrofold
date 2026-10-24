@@ -9,6 +9,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from config import ModelConfig
+from diagnostics import failure
 
 TOKENIZER_FILES = [
     "config.json", "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json",
@@ -87,12 +88,16 @@ if __name__ == "__main__":
     try:
         config = ModelConfig.parse(os.environ["MF_MODEL_CONFIG"])
         directory = Path(os.environ["MF_PREPARE_DIRECTORY"])
-        prepared = prepare(config, directory, os.environ.pop("HF_TOKEN", None))
+        if config.profile_id == "kev-systemone-v1":
+            from native_prepare import prepare_native
+            prepared = prepare_native(config, directory, os.environ.pop("HF_TOKEN", None))
+        else:
+            prepared = prepare(config, directory, os.environ.pop("HF_TOKEN", None))
         output = directory / "prepared.json.tmp"
         output.write_text(json.dumps(prepared))
         output.chmod(0o600)
         output.replace(directory / "prepared.json")
-    except Exception:
+    except Exception as error:
         # Hub exceptions can contain private URLs; parent reports the safe startup stage.
-        print("Model snapshot preparation failed", file=sys.stderr)
+        failure(error, "prepare", "snapshot_preparation_failed")
         sys.exit(1)

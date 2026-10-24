@@ -68,6 +68,8 @@ impl ModelDeploymentCapabilities {
 pub enum Protocol {
     #[serde(rename = "openai_chat")]
     OpenaiChat,
+    #[serde(rename = "systemone")]
+    Systemone,
 }
 
 impl Default for Protocol {

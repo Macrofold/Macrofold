@@ -7,6 +7,7 @@ import { assert } from './errors';
 import { id, unseal } from './crypto';
 import * as resources from './resources';
 import { actorAuthorizationQueries, actorAuthorizationFromResults } from './actor-authorization';
+import { isExternalHosting } from './model-deployment-types';
 import type {
   DeploymentTarget,
   DeploymentRow,
@@ -196,7 +197,7 @@ export async function resolveDeploymentTargetTx(
     )
   ).rows[0];
   assert(revision, 503, 'deployment_unavailable', 'The serving revision metadata is unavailable.');
-  if (revision.hosting.kind === 'external_openai') {
+  if (isExternalHosting(revision.hosting)) {
     const endpoint = revision.endpoint_url;
     assert(
       typeof endpoint === 'string',
@@ -327,7 +328,7 @@ async function revisionConnections(tx: Tx, p: Principal, prepared: PreparedDeplo
   if (prepared.source.kind === 'hugging_face' && prepared.source.source_connection_id)
     selected.push({ id: prepared.source.source_connection_id, kind: 'hugging_face' });
   selected.push(
-    prepared.hosting.kind === 'external_openai'
+    isExternalHosting(prepared.hosting)
       ? { id: prepared.hosting.endpoint_connection_id, kind: 'external_model' }
       : { id: prepared.hosting.compute_connection_id, kind: 'runpod' },
   );
@@ -353,7 +354,7 @@ async function insertRevision(
 ) {
   const connections = await revisionConnections(tx, p, prepared);
   const evidence = { ...prepared.source_evidence };
-  if (prepared.hosting.kind === 'external_openai') {
+  if (isExternalHosting(prepared.hosting)) {
     const connection = await resources.get(tx, 'connections', prepared.hosting.endpoint_connection_id);
     assert(
       connection.url && (!evidence.endpoint_url || evidence.endpoint_url === connection.url),
@@ -723,7 +724,7 @@ async function projections(
         status:
           cost?.unresolved || cost?.partially_reported
             ? 'uncertain'
-            : revision?.hosting.kind === 'external_openai'
+            : revision && isExternalHosting(revision.hosting)
               ? 'external_unknown'
               : cost?.reported !== undefined && cost.reported !== null
                 ? 'provider_reported'

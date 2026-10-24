@@ -43,6 +43,8 @@ context again. Native roots retain their prompt/instructions. Export network I/O
 remains asynchronous; capture, redaction and SDK serialization still consume
 local CPU and must be included in latency measurements.
 
+Deployment-backed direct inference copies deployment/revision/protocol identity from its admitted immutable target into `TraceContext`. This adds no database or provider read; resource/time hosting expense stays separate from generation charges.
+
 Each observation receives the dimensions and low-cardinality tags in the [guide](README.md). Queries use the owning transaction's tenant authorization; tool output cannot override identity. Names remain stable (`model.generate`, `decision.generate`, `tool.<name>`, `context.read`, `billing.model`, `billing.compute`, `run.<kind>`). Decision normalization failures preserve bounded raw evidence and independently valid usage in the existing encrypted invocation checkpoint; the generation carries normalized outcome and settled charge. Successful native payloads are not duplicated. Direct deltas bypass replay storage; bounded/native deltas retain their existing replay stream. Neither becomes per-token spans.
 
 ## Cost ownership

@@ -34,6 +34,7 @@ Every observation carries the dimensions available for that run:
 | `customer_id`, `customer_binding_id`, `agent_key`                     | Customer-agent integration binding, when that path was used               |
 | `agent_id`, `agent_version`, `harness`                                | Native agent preset and runtime                                           |
 | `task_id`, `application_namespace`, `actor_id`, `definition_revision` | Explicit-context decision/task identity                                   |
+| `deployment_id`, `deployment_revision_id`, `inference_protocol`       | Admitted custom-model service, immutable revision and native protocol     |
 | `provider`, `model`, `billing_mode`, `client_type`                    | Model route, billing and caller category                                  |
 
 IDs are metadata, not a proliferation of tags. Tags group common dimensions: `kind:inference`, `provider:openrouter`, `billing:managed`, `harness:codex`, `client:api`, and `integration:customer-agents`, for example. Unknown or inapplicable dimensions are omitted. An explicit decision actor is recorded as `actor_id`; it is not assumed to be a customer-agent binding.
@@ -55,6 +56,8 @@ Provider-reported amounts are separate metadata, available on each generation an
 | `upstream_inference_cost_usd`   | OpenRouter's separately reported upstream inference cost, omitted when unknown; do not add it to the account charge         |
 
 OpenRouter's completed JSON/streaming usage supplies these values for native agents and direct inference/decision calls. Missing or invalid amounts remain unknown, including interrupted requests without reported cost. Direct OpenAI/Anthropic usage does not report a dollar amount, so rate-card estimates and reported amounts remain distinct. No additional provider request or trace-network wait is added. Historical traces are not backfilled.
+
+Managed custom-model generations record the admitted deployment/revision/protocol without another metadata lookup. Their request charge remains zero under the initial BYOK policy; GPU startup/idle/execution costs belong to deployment resource/time accounting, not invented per-token request prices.
 
 BYOK model generations have a zero Macrofold model charge in Langfuse's native cost field; their provider-reported cost, estimate and budget consumption remain separate. To report BYOK provider expense, filter **generation** observations by `billing_mode=byok`, sum known `provider_reported_cost_usd` values, and report the count with `provider_reported_cost_status=unavailable` separately. Use Langfuse's native total cost for Macrofold charges. Do not sum parent/billing-event copies of metadata with generations. Connector fees and sandbox compute are separate observations. Parent run totals are metadata only, so summing observation costs does not count the same charge twice. Langfuse is diagnostic: Macrofold's [billing ledger](../billing/README.md) and durable run receipts remain authoritative.
 

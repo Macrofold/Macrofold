@@ -6,13 +6,35 @@ export const servingImage =
   'vllm/vllm-openai:v0.32.0@sha256:6ee133356d49ed24cee03dd0cda3d3980279a11c107ce3e752c89e76540f41c9';
 // The application wrapper must be built from this repository before enabling
 // managed starts. Never send credentials to the unwrapped upstream image.
-export function modelServingImage() {
-  const image = process.env.MODEL_SERVING_IMAGE;
+export function managedRuntimeProfile(profileId: string) {
+  assert(
+    ['vllm-0.32.0-text', 'kev-systemone-v1'].includes(profileId),
+    422,
+    'unsupported_model_source',
+    'Choose a reviewed model-serving runtime.',
+  );
+  return profileId === 'kev-systemone-v1'
+    ? {
+        task: 'decision' as const,
+        protocol: 'systemone' as const,
+        imageSetting: 'MODEL_DECISION_SERVING_IMAGE',
+        cuda: '12.8',
+      }
+    : {
+        task: 'text_generation' as const,
+        protocol: 'openai_chat' as const,
+        imageSetting: 'MODEL_SERVING_IMAGE',
+        cuda: '13.0',
+      };
+}
+export function modelServingImage(profileId = 'vllm-0.32.0-text') {
+  const profile = managedRuntimeProfile(profileId);
+  const image = process.env[profile.imageSetting];
   assert(
     image && /^\S+@sha256:[a-f0-9]{64}$/.test(image),
     503,
     'model_runtime_unconfigured',
-    'Build and configure the qualified immutable Macrofold model-serving image.',
+    `Configure the qualified immutable Macrofold model-serving image in ${profile.imageSetting}.`,
   );
   return image;
 }
@@ -24,6 +46,38 @@ export const defaultRuntimeParameters: components['schemas']['ModelDeploymentRun
   tensor_parallel_size: 1,
   gpu_memory_utilization: 0.9,
 };
+export const defaultDecisionRuntimeParameters: components['schemas']['ModelDeploymentRuntimeParameters'] = {
+  context_window_tokens: 8192,
+  max_output_tokens: 1024,
+  max_concurrent_requests: 4,
+  dtype: 'bfloat16',
+  tensor_parallel_size: 1,
+  gpu_memory_utilization: 0.9,
+};
+export function validateRuntimeParameters(runtime: DeploymentRuntime) {
+  assert('profile_id' in runtime, 422, 'unsupported_model_source', 'Choose a reviewed managed runtime.');
+  managedRuntimeProfile(runtime.profile_id);
+  const p = runtime.parameters;
+  assert(
+    p.max_output_tokens <= p.context_window_tokens,
+    422,
+    'invalid_model_deployment',
+    'Output capacity must fit the selected context window.',
+  );
+  if (runtime.profile_id === 'kev-systemone-v1')
+    assert(
+      p.context_window_tokens <= 65536 &&
+        p.max_concurrent_requests <= 64 &&
+        (p.tensor_parallel_size ?? 1) === 1 &&
+        !p.quantization &&
+        !p.tool_call_parser &&
+        !p.reasoning_parser &&
+        ['auto', 'bfloat16', 'float'].includes(p.dtype ?? 'auto'),
+      422,
+      'unsupported_model_capability',
+      'The native Kev runtime supports one GPU, bf16 or float32, up to 65,536 packed tokens and 64 concurrent requests; quantization and chat parsers are unsupported.',
+    );
+}
 export function runtimeMemoryFits(
   memoryBytes: string,
   estimatedBytes: string,
@@ -61,19 +115,26 @@ export const chatParameters = [
   'top_logprobs',
 ];
 export function runtimeCapabilities(runtime: DeploymentRuntime): ModelDeploymentCapabilities {
-  assert(
-    'profile_id' in runtime && runtime.profile_id === 'vllm-0.32.0-text',
-    422,
-    'unsupported_model_source',
-    'Choose the reviewed text-generation runtime.',
-  );
+  validateRuntimeParameters(runtime);
+  assert('profile_id' in runtime, 422, 'unsupported_model_source', 'Choose a managed runtime.');
   const p = runtime.parameters;
-  assert(
-    p.max_output_tokens <= p.context_window_tokens,
-    422,
-    'invalid_model_deployment',
-    'Output capacity must fit the selected context window.',
-  );
+  if (runtime.profile_id === 'kev-systemone-v1')
+    return {
+      protocol: 'systemone',
+      input_modalities: ['text'],
+      chat_completions: false,
+      json_object: false,
+      json_schema: false,
+      tools: false,
+      streaming: false,
+      stream_usage: false,
+      schema_keywords: [],
+      accepted_parameters: ['state', 'questions'],
+      schema_dialect: null,
+      context_window_tokens: p.context_window_tokens,
+      max_output_tokens: p.max_output_tokens,
+      max_concurrent_requests: p.max_concurrent_requests,
+    };
   return {
     protocol: 'openai_chat',
     input_modalities: ['text'],

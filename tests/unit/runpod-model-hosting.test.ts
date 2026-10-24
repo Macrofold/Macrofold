@@ -64,6 +64,8 @@ describe('RunPod Serverless Load Balancer REST v2', () => {
           { id: 'gpu2', name: 'L4', pool: 'ADA_24', memory: 24, price: { serverless: 0.69 } },
           { id: 'gpu3', name: 'Unknown', pool: 'AMPERE_80', memory: 80, price: {} },
           { id: 'pod-only', name: 'Pod only', pool: null, memory: 24, price: {} },
+          { id: 'unknown', name: 'unknown', pool: null, memory: 0, price: {} },
+          { id: 'unknown-memory', name: 'Unknown memory', pool: 'AMPERE_24', memory: 0, price: {} },
         ],
       }),
     );
@@ -152,7 +154,7 @@ describe('RunPod Serverless Load Balancer REST v2', () => {
     );
   });
 
-  it('counts only current compatible healthy workers and projects no source/endpoint secrets', async () => {
+  it('targets only current compatible workers without mistaking RUNNING for model readiness', async () => {
     const transport = vi.fn<typeof fetch>(async (url) =>
       String(url).endsWith('/workers')
         ? Response.json({
@@ -170,7 +172,15 @@ describe('RunPod Serverless Load Balancer REST v2', () => {
         : Response.json(endpoint),
     );
     const result = await runpodModelHosting(transport).inspect('secret', 'endpoint1');
-    expect(result?.ready_replicas).toBe(1);
+    expect(result?.ready_replicas).toBe(0);
+    expect(result?.readiness_targets).toEqual([
+      {
+        id: worker.id,
+        generation: `4:${worker.startedAt}`,
+        headers: { 'x-runpod-worker-id': 'strict worker1' },
+        expected_headers: { 'x-runpod-worker-id': 'worker1' },
+      },
+    ]);
     expect(result?.workers[0]).toEqual({
       id: 'worker1',
       pool: null,
@@ -183,6 +193,17 @@ describe('RunPod Serverless Load Balancer REST v2', () => {
       MF_MODEL_CONFIG: '{}',
     });
     expect(JSON.stringify(result)).not.toContain('private-');
+  });
+
+  it('does not reuse a worker incarnation when its start time is unavailable', async () => {
+    const transport = vi.fn<typeof fetch>(async (url) =>
+      String(url).endsWith('/workers')
+        ? Response.json({ endpointVersion: 4, workers: [{ ...worker, startedAt: null }] })
+        : Response.json(endpoint),
+    );
+    const result = await runpodModelHosting(transport).inspect('secret', 'endpoint1');
+    expect(result?.readiness_targets?.[0].generation).toBe('');
+    expect(result?.ready_replicas).toBe(0);
   });
 
   it('only a real endpoint 404 establishes absence; permission and provider failures remain unknown', async () => {
@@ -289,4 +310,42 @@ describe('RunPod Serverless Load Balancer REST v2', () => {
       ).rejects.toThrow('invalid resource or duplicate');
     }
   });
+});
+
+it.each([400, 401, 403, 404, 413, 422])(
+  'classifies authoritative create rejection %i as not allocated without reading or retaining secrets',
+  async (status) => {
+    const cancel = vi.fn();
+    const transport = vi.fn<typeof fetch>(
+      async () => new Response(new ReadableStream({ cancel }), { status }),
+    );
+    await expect(
+      runpodModelHosting(transport).create('private-account-key', { type: 'LOAD_BALANCER', image }),
+    ).rejects.toMatchObject({ name: 'ModelHostingCreateRejected', httpStatus: status });
+    expect(transport).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([408, 429, 500, 502, 503])(
+  'preserves ambiguous allocation after create response %i',
+  async (status) => {
+    const transport = vi.fn<typeof fetch>(async () => new Response(null, { status }));
+    await expect(
+      runpodModelHosting(transport).create('private-account-key', { type: 'LOAD_BALANCER', image }),
+    ).rejects.not.toMatchObject({ name: 'ModelHostingCreateRejected' });
+    expect(transport).toHaveBeenCalledTimes(1);
+  },
+);
+
+it('rejects a create body beyond RunPod’s documented 1MiB limit before making a request', async () => {
+  const transport = vi.fn<typeof fetch>();
+  await expect(
+    runpodModelHosting(transport).create('private-account-key', {
+      type: 'LOAD_BALANCER',
+      image,
+      env: { oversized: 'x'.repeat(1024 * 1024) },
+    }),
+  ).rejects.toMatchObject({ name: 'ModelHostingCreateRejected', httpStatus: 413 });
+  expect(transport).not.toHaveBeenCalled();
 });

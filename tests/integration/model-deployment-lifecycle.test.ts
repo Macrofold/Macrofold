@@ -7,6 +7,7 @@ import { saveConnection } from '../../packages/core/src/connections';
 import * as resources from '../../packages/core/src/resources';
 import * as deployments from '../../packages/core/src/model-deployments';
 import { runtimeCapabilities } from '../../packages/core/src/model-deployment-profiles';
+import type { modelEndpointFetch } from '../../packages/providers/src/network';
 import { advanceModelDeployment } from '../../packages/core/src/model-deployment-reconciler';
 import { prepareConnectionSave } from '../../packages/core/src/model-hosting-connections';
 import { prepareService } from '../../packages/core/src/model-deployment-service';
@@ -16,6 +17,7 @@ import type {
   ModelHostingProvider,
   ServingObservation,
 } from '../../packages/core/src/model-deployment-types';
+import { ModelHostingCreateRejected } from '../../packages/core/src/model-deployment-types';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 const originalPaid = config.allowPaid;
@@ -130,6 +132,34 @@ class FixtureProvider implements ModelHostingProvider {
   }
 }
 
+let probeStatus = 200;
+let probeAlias: string | undefined;
+const managedProbe: typeof modelEndpointFetch = async (url, options) => {
+  const entry = [...provider.entries.values()].find(
+    (entry) => String(url) === entry.endpoint_url + '/v1/models',
+  );
+  if (!entry) throw new Error('Unexpected managed readiness origin');
+  const env = entry.config.env;
+  if (!env || typeof env !== 'object' || !('MF_MODEL_CONFIG' in env) || !('MF_ENDPOINT_SECRET' in env))
+    throw new Error('Missing runtime fixture config');
+  const parsed = JSON.parse(String(env.MF_MODEL_CONFIG));
+  expect(options.method).toBe('GET');
+  expect(new Headers(options.headers).get('x-macrofold-endpoint-secret')).toBe(env.MF_ENDPOINT_SECRET);
+  expect(new Headers(options.headers).get('authorization')).toMatch(
+    /^Bearer (synthetic-compute-secret|rotated-same-account)$/,
+  );
+  if (probeStatus === 0) throw new Error('Synthetic transport failure with private provider diagnostics');
+  const worker = new Headers(options.headers).get('x-fixture-worker');
+  return probeStatus === 200
+    ? Response.json(
+        parsed.profile_id === 'kev-systemone-v1'
+          ? { models: [{ name: probeAlias ?? parsed.served_alias }] }
+          : { data: [{ id: probeAlias ?? parsed.served_alias }] },
+        { headers: worker ? { 'x-fixture-worker': worker } : undefined },
+      )
+    : new Response(null, { status: probeStatus });
+};
+
 const runtime = {
   profile_id: 'vllm-0.32.0-text' as const,
   parameters: { context_window_tokens: 4096, max_output_tokens: 512, max_concurrent_requests: 4 },
@@ -163,7 +193,7 @@ async function due(expireLease = false) {
 }
 async function advance() {
   await due();
-  return advanceModelDeployment(org(), deploymentId, provider);
+  return advanceModelDeployment(org(), deploymentId, provider, managedProbe);
 }
 async function row() {
   return transaction(org(), (tx) => deployments.deploymentRow(tx, deploymentId));
@@ -219,6 +249,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   config.allowPaid = true;
   provider = new FixtureProvider();
+  probeStatus = 200;
+  probeAlias = undefined;
   const connection = await transaction(org(), (tx) =>
     saveConnection(tx, account.p, {
       name: 'Fixture hosting',
@@ -331,7 +363,7 @@ describe('persistent model service reconciliation', () => {
       entered();
       await held;
     };
-    const first = advanceModelDeployment(org(), deploymentId, provider);
+    const first = advanceModelDeployment(org(), deploymentId, provider, managedProbe);
     await ready;
     expect(await advanceModelDeployment(org(), deploymentId, provider)).toBe(false);
     release();
@@ -475,7 +507,7 @@ describe('persistent model service reconciliation', () => {
       entered();
       await held;
     };
-    const first = advanceModelDeployment(org(), deploymentId, provider);
+    const first = advanceModelDeployment(org(), deploymentId, provider, managedProbe);
     await ready;
     await stopIntent();
     release();
@@ -486,7 +518,7 @@ describe('persistent model service reconciliation', () => {
     // The stale create owner releases its exact lease when it finishes. A stop
     // must not wait for the old 120s lease to expire before owned cleanup.
     expect((await row()).lease_id).toBeNull();
-    await advanceModelDeployment(org(), deploymentId, provider);
+    await advanceModelDeployment(org(), deploymentId, provider, managedProbe);
     expect((await row()).state).toBe('stopped');
     expect((await resource()).cleanup_secret_ciphertext).toBeNull();
     expect(provider.deletes).toBe(1);
@@ -505,7 +537,7 @@ describe('persistent model service reconciliation', () => {
       entered();
       await held;
     };
-    const first = advanceModelDeployment(org(), deploymentId, provider);
+    const first = advanceModelDeployment(org(), deploymentId, provider, managedProbe);
     await ready;
     const successor = id();
     try {
@@ -570,6 +602,29 @@ describe('persistent model service reconciliation', () => {
     provider.failInspect = false;
     await advance();
     expect((await resource()).deleted_at).not.toBeNull();
+    expect(await row()).toMatchObject({ state: 'stopped', failure_code: null });
+  });
+
+  it('clears a transient stop failure after eventual provider deletion is confirmed', async () => {
+    await advance();
+    await advance();
+    await stopIntent();
+    const deleteEndpoint = provider.delete.bind(provider);
+    provider.delete = async () => {
+      provider.deletes++;
+    };
+    await advance();
+    expect(await row()).toMatchObject({
+      state: 'cleanup_pending',
+      failure_code: 'provider_stop_unconfirmed',
+    });
+    expect((await resource()).deleted_at).toBeNull();
+    provider.delete = deleteEndpoint;
+    await advance();
+    expect(await row()).toMatchObject({ state: 'stopped', ready_replicas: 0, failure_code: null });
+    expect((await resource()).deleted_at).not.toBeNull();
+    await advance();
+    expect(await row()).toMatchObject({ state: 'stopped', failure_code: null });
   });
 
   it('recovers the same revision after worker replacement without invalidating deployment identity', async () => {
@@ -826,6 +881,7 @@ describe('persistent model service reconciliation', () => {
     await advance();
     await advance();
     expect((await row()).state).toBe('failed');
+    expect((await row()).failure_code).toBe('service_recovery_exhausted');
     expect((await resource()).deleted_at).not.toBeNull();
     expect(provider.creates).toBe(1);
   });
@@ -865,75 +921,106 @@ describe('persistent model service reconciliation', () => {
     expect(provider.deletes).toBe(1);
   });
 
-  it('probes an external model without generation and stops access without deleting its host', async () => {
-    await stopIntent();
-    const caps = runtimeCapabilities(runtime);
-    const endpoint = await transaction(org(), (tx) =>
-      resources.create(tx, 'connections', org(), {
-        name: 'Fixture external',
-        kind: 'external_model',
-        provider: 'external_openai',
-        auth_method: 'none',
-        url: 'https://fixture.invalid/v1',
-        owner_subject_id: account.p.userId,
-        status: 'healthy',
-      }),
-    );
-    const external: deployments.PreparedDeploymentRevision = {
-      source: { kind: 'external', capabilities: caps },
-      runtime: { kind: 'external' },
-      hosting: {
-        kind: 'external_openai',
-        endpoint_connection_id: endpoint.id,
-        model_alias: 'external-fixture',
-        lifecycle: 'external',
-        external_hosting_acknowledged: true,
-      },
-      capabilities: caps,
-      source_evidence: { endpoint_url: 'https://fixture.invalid/v1' },
-    };
-    const created = await transaction(org(), (tx) =>
-      deployments.create(
-        tx,
-        account.p,
-        {
-          name: 'External fixture',
-          source: external.source,
-          runtime: external.runtime,
-          hosting: external.hosting,
-          access: { grants: [] },
-        },
-        external,
-      ),
-    );
-    deploymentId = created.id;
-    revisionId = created.desired_revision_id;
-    await transaction(org(), async (tx) => {
-      await tx.query(
-        "UPDATE model_deployments SET desired_state='running',state='starting',policy=$2,next_check_at=now() WHERE id=$1",
-        [deploymentId, JSON.stringify({ max_concurrent_requests: 2 })],
+  it.each([
+    { protocol: 'openai_chat', nativeList: false },
+    { protocol: 'systemone', nativeList: true },
+    { protocol: 'systemone', nativeList: false },
+  ] as const)(
+    'probes an external model %j without generation and stops access without deleting its host',
+    async ({ protocol, nativeList }) => {
+      await stopIntent();
+      const caps = {
+        ...runtimeCapabilities(runtime),
+        protocol,
+        ...(protocol === 'systemone'
+          ? {
+              chat_completions: false,
+              json_object: false,
+              json_schema: false,
+              tools: false,
+              streaming: false,
+              stream_usage: false,
+              schema_keywords: [],
+              accepted_parameters: [],
+            }
+          : {}),
+      };
+      const endpoint = await transaction(org(), (tx) =>
+        resources.create(tx, 'connections', org(), {
+          name: 'Fixture external',
+          kind: 'external_model',
+          provider: 'external_openai',
+          auth_method: 'none',
+          url: 'https://fixture.invalid/v1',
+          owner_subject_id: account.p.userId,
+          status: 'healthy',
+        }),
       );
-    });
-    let probes = 0;
-    const passive: typeof import('../../packages/providers/src/network').modelEndpointFetch = async (
-      url,
-      options,
-    ) => {
-      expect(String(url)).toBe('https://fixture.invalid/v1/models');
-      expect(options.method).toBe('GET');
-      probes++;
-      return Response.json({ data: [{ id: 'external-fixture' }] });
-    };
-    await advanceModelDeployment(org(), deploymentId, provider, passive);
-    expect((await row()).state).toBe('ready');
-    await stopIntent();
-    await due();
-    await advanceModelDeployment(org(), deploymentId, provider, passive);
-    expect((await row()).state).toBe('stopped');
-    expect(probes).toBe(1);
-    expect(provider.creates).toBe(0);
-    expect(provider.deletes).toBe(0);
-  });
+      const external: deployments.PreparedDeploymentRevision = {
+        source: { kind: 'external', capabilities: caps },
+        runtime: { kind: 'external' },
+        hosting: {
+          kind: protocol === 'systemone' ? 'external_systemone' : 'external_openai',
+          endpoint_connection_id: endpoint.id,
+          model_alias: 'external-fixture',
+          lifecycle: 'external',
+          external_hosting_acknowledged: true,
+        },
+        capabilities: caps,
+        source_evidence: { endpoint_url: 'https://fixture.invalid/v1' },
+      };
+      const created = await transaction(org(), (tx) =>
+        deployments.create(
+          tx,
+          account.p,
+          {
+            name: 'External fixture',
+            source: external.source,
+            runtime: external.runtime,
+            hosting: external.hosting,
+            access: { grants: [] },
+          },
+          external,
+        ),
+      );
+      deploymentId = created.id;
+      revisionId = created.desired_revision_id;
+      await transaction(org(), async (tx) => {
+        await tx.query(
+          "UPDATE model_deployments SET desired_state='running',state='starting',policy=$2,next_check_at=now() WHERE id=$1",
+          [deploymentId, JSON.stringify({ max_concurrent_requests: 2 })],
+        );
+      });
+      let probes = 0;
+      const passive: typeof import('../../packages/providers/src/network').modelEndpointFetch = async (
+        url,
+        options,
+      ) => {
+        expect(String(url)).toBe('https://fixture.invalid/v1/models');
+        expect(options.method).toBe('GET');
+        probes++;
+        return Response.json(
+          nativeList
+            ? { models: [{ name: 'external-fixture', context_length: 4096 }] }
+            : { data: [{ id: 'external-fixture' }] },
+        );
+      };
+      await advanceModelDeployment(org(), deploymentId, provider, passive);
+      expect((await row()).state).toBe('ready');
+      expect((await row()).serving_revision_id).toBe(revisionId);
+      await stopIntent();
+      await due();
+      await advanceModelDeployment(org(), deploymentId, provider, passive);
+      expect((await row()).state).toBe('stopped');
+      expect(probes).toBe(1);
+      expect(provider.creates).toBe(0);
+      expect(provider.deletes).toBe(0);
+      const allocated = await transaction(org(), (tx) =>
+        tx.query('SELECT id FROM model_deployment_resources WHERE deployment_id=$1', [deploymentId]),
+      );
+      expect(allocated.rows).toEqual([]);
+    },
+  );
 
   it('does not let a rotated credential from another account erase the known owned host', async () => {
     await advance();
@@ -983,7 +1070,7 @@ describe('persistent model service reconciliation', () => {
           return created.id;
         });
         peers.push(peer);
-        await advanceModelDeployment(org(), peer, provider);
+        await advanceModelDeployment(org(), peer, provider, managedProbe);
       }
       let release!: () => void;
       const held = new Promise<void>((resolve) => {
@@ -1171,4 +1258,164 @@ describe('persistent model service reconciliation', () => {
     await advance();
     expect((await resource()).deleted_at).not.toBeNull();
   });
+});
+
+it('requires authenticated native model readiness and retains one managed lifecycle through stop and cleanup', async () => {
+  const native = prepared();
+  native.source = {
+    kind: 'hugging_face',
+    repository: 'fixture/kev',
+    revision: 'a'.repeat(40),
+    weight_files: ['adapter_model.safetensors'],
+  };
+  native.runtime = {
+    profile_id: 'kev-systemone-v1',
+    parameters: {
+      context_window_tokens: 8192,
+      max_output_tokens: 1024,
+      max_concurrent_requests: 4,
+      dtype: 'bfloat16',
+      tensor_parallel_size: 1,
+    },
+  };
+  native.capabilities = runtimeCapabilities(native.runtime);
+  const artifact = { path: 'head.pt', size_bytes: 5000000, sha256: 'c'.repeat(64), git_blob_sha1: null };
+  native.source_evidence.native_recipe = {
+    format: 'kev',
+    version: 1,
+    weights: 'lora',
+    checkpoint_files: [artifact, { ...artifact, path: 'adapter_model.safetensors' }],
+    base: {
+      repository: 'fixture/base',
+      revision: 'b'.repeat(40),
+      files: [
+        { ...artifact, path: 'model.safetensors' },
+        { ...artifact, path: 'tokenizer.json' },
+      ],
+    },
+    licenses: [{ repository: 'fixture/kev', revision: 'a'.repeat(40), license: 'apache-2.0', gated: false }],
+  };
+  const selected = await transaction(org(), (tx) =>
+    deployments.addRevision(tx, account.p, deploymentId, native),
+  );
+  revisionId = selected.deployment_revision_id;
+  await transaction(org(), (tx) =>
+    tx.query('UPDATE model_deployments SET desired_revision_id=$2 WHERE id=$1', [deploymentId, revisionId]),
+  );
+  await advance();
+  expect(provider.creates).toBe(1);
+  const created = [...provider.entries.values()][0];
+  expect(created.config).toMatchObject({
+    entrypoint: ['python3', '/opt/macrofold-model/server.py'],
+    cmd: [],
+  });
+  expect(created.config.gpu).toMatchObject({ minCudaVersion: '12.8' });
+  const environment = created.config.env;
+  if (!environment || typeof environment !== 'object' || !('MF_MODEL_CONFIG' in environment))
+    throw new Error('Missing model configuration');
+  const model = JSON.parse(String(environment.MF_MODEL_CONFIG));
+  expect(model).toMatchObject({
+    profile_id: 'kev-systemone-v1',
+    source: { native: { format: 'kev', base: { revision: 'b'.repeat(40) } } },
+  });
+  expect(JSON.stringify(model)).not.toContain('synthetic-compute-secret');
+  probeStatus = 503;
+  await advance();
+  expect(await row()).toMatchObject({
+    state: 'starting',
+    serving_revision_id: null,
+    ready_replicas: 0,
+    failure_code: 'model_loading',
+  });
+  probeStatus = 401;
+  await advance();
+  expect(await row()).toMatchObject({ ready_replicas: 0, failure_code: 'model_authentication_failed' });
+  probeStatus = 200;
+  probeAlias = 'different-model';
+  await advance();
+  expect(await row()).toMatchObject({ ready_replicas: 0, failure_code: 'model_identity_mismatch' });
+  probeStatus = 0;
+  await advance();
+  expect(await row()).toMatchObject({ ready_replicas: 0, failure_code: 'model_readiness_unavailable' });
+  probeStatus = 200;
+  probeAlias = undefined;
+  await advance();
+  expect(await row()).toMatchObject({
+    state: 'ready',
+    serving_revision_id: revisionId,
+    ready_replicas: 1,
+    failure_code: null,
+  });
+  expect(provider.creates).toBe(1);
+  created.ready_replicas = 0;
+  created.readiness_targets = ['worker1', 'worker2'].map((id) => ({
+    id,
+    generation: 'version1:start1',
+    headers: { 'x-fixture-worker': id },
+    expected_headers: { 'x-fixture-worker': id },
+  }));
+  await advance();
+  expect(await row()).toMatchObject({ state: 'ready', ready_replicas: 2 });
+  expect((await resource()).config.readiness).toMatchObject({
+    verified: [
+      { id: 'worker1', generation: 'version1:start1' },
+      { id: 'worker2', generation: 'version1:start1' },
+    ],
+  });
+  created.readiness_targets[1].expected_headers['x-fixture-worker'] = 'different-worker';
+  await advance();
+  expect(await row()).toMatchObject({ state: 'ready', ready_replicas: 1 });
+  await stopIntent();
+  await advance();
+  expect(await row()).toMatchObject({ state: 'stopped', ready_replicas: 0 });
+  expect(provider.deletes).toBe(1);
+  expect((await resource()).deleted_at).not.toBeNull();
+});
+
+it.each([400, 401, 403, 404, 413, 422])(
+  'retires a definite create rejection %i without cleanup liability or an automatic second purchase',
+  async (status) => {
+    provider.onCreate = async () => {
+      throw new ModelHostingCreateRejected(status);
+    };
+    await advance();
+    expect(provider.creates).toBe(1);
+    expect(provider.entries.size).toBe(0);
+    expect(await row()).toMatchObject({
+      state: 'failed',
+      serving_revision_id: null,
+      failure_code: `provider_create_rejected_${status}`,
+      next_check_at: null,
+    });
+    expect(await resource()).toMatchObject({
+      state: 'deleted',
+      provider_id: null,
+      cleanup_secret_ciphertext: null,
+      last_error: `provider_create_rejected_${status}`,
+    });
+    const result = await transaction(org(), (tx) => deployments.get(tx, account.p, deploymentId));
+    expect(result.infrastructure_cost).toMatchObject({
+      status: 'estimated',
+      estimated_micro_usd: '0',
+      provider_reported_micro_usd: null,
+      unresolved_liability: false,
+    });
+    await advance();
+    expect(provider.creates).toBe(1);
+    expect((await row()).state).toBe('failed');
+    expect(provider.deletes).toBe(0);
+  },
+);
+
+it('reuses the exact resource observation that verified a rotated hosting key', async () => {
+  await advance();
+  await advance();
+  await transaction(org(), (tx) =>
+    saveConnection(tx, account.p, { secret: 'rotated-same-account' }, computeId),
+  );
+  const before = provider.inspected.length;
+  await advance();
+  expect(provider.inspected.length - before).toBe(1);
+  expect((await row()).state).toBe('ready');
+  expect(unseal<string>((await resource()).cleanup_secret_ciphertext ?? '')).toBe('rotated-same-account');
 });

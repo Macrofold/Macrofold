@@ -4,6 +4,8 @@ Make a decision without creating a worktree, conversation, or sandbox. Supply an
 
 Your application remains responsible for its users, evidence relevance, current business rules, and permission to apply a proposed action. Schema validation proves shape, not truth or authority.
 
+For your own hosted model, use a [custom deployment binding](../execution/model-deployments.md). Managed Kev and imported SystemOne services accept native state and named questions with complete decision responses. Managed vLLM and imported chat endpoints retain native messages; chat generation is never substituted for a decision head.
+
 ## Choose the execution mode
 
 | Mode          | Use it for                                                     | Execution boundary                                      |

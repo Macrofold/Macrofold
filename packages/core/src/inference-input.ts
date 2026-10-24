@@ -18,7 +18,7 @@ export function normalizeInferenceInput(
       !deploymentBinding(input.model_binding),
       422,
       'unsupported_model_capability',
-      'Custom deployments accept native chat input without a decision definition.',
+      'Custom deployments accept native protocol input without a decision definition.',
     );
     assert(input.context, 400, 'context_required', 'Supply context when using a decision definition.');
     return { ...input, definition: input.definition, context: input.context };

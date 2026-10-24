@@ -47,8 +47,8 @@ class ModelDeploymentCapabilities(BaseModel):
     @field_validator('protocol')
     def protocol_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['openai_chat']):
-            raise ValueError("must be one of enum values ('openai_chat')")
+        if value not in set(['openai_chat', 'systemone']):
+            raise ValueError("must be one of enum values ('openai_chat', 'systemone')")
         return value
 
     @field_validator('input_modalities')

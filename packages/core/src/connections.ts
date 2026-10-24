@@ -120,7 +120,7 @@ export async function saveConnection(
         !endpoint.search && !endpoint.hash && !endpoint.pathname.endsWith('/'),
         400,
         'invalid_model_deployment',
-        'Use the exact OpenAI base URL without a trailing slash, query or fragment.',
+        'Use the exact model API base URL without a trailing slash, query or fragment.',
       );
     }
   }

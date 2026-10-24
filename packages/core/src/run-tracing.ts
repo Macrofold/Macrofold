@@ -68,6 +68,13 @@ export async function runTraceContext(tx: Tx, run: TraceSource): Promise<TraceCo
           agent_version: run.config.agent_version,
         }
       : {
+          ...(run.config.deployment_target
+            ? {
+                deployment_id: run.config.deployment_target.deployment_id,
+                deployment_revision_id: run.config.deployment_target.deployment_revision_id,
+                inference_protocol: run.config.deployment_target.capabilities.protocol,
+              }
+            : {}),
           task_id: run.config.task_id,
           application_namespace:
             'payload_kind' in run.config

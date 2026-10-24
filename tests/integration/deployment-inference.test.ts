@@ -11,6 +11,9 @@ import { handleApi } from '../../packages/core/src/http';
 import type { Principal } from '../../packages/core/src/auth';
 import type { InferenceCreate } from '../../packages/core/src/decision';
 import { prepareInference } from '../../packages/core/src/inferences';
+import { getRun } from '../../packages/core/src/runs';
+import { runTraceContext } from '../../packages/core/src/run-tracing';
+import * as tracing from '../../packages/core/src/tracing';
 import type { ModelDeploymentCapabilities } from '../../packages/core/src/model-deployment-types';
 
 const caps: ModelDeploymentCapabilities = {
@@ -29,19 +32,57 @@ const caps: ModelDeploymentCapabilities = {
   max_output_tokens: 512,
   max_concurrent_requests: 2,
 };
+const systemOneCaps: ModelDeploymentCapabilities = {
+  ...caps,
+  protocol: 'systemone',
+  chat_completions: false,
+  json_object: false,
+  json_schema: false,
+  tools: false,
+  streaming: false,
+  stream_usage: false,
+  schema_keywords: [],
+  accepted_parameters: [],
+};
+const decisionInput = {
+  state: { type: 'image', description: 'An ordinary record, not a chat attachment.' },
+  questions: {
+    may_continue: { type: 'noul', instructions: 'Can this task continue?' },
+    next_action: {
+      type: 'choice',
+      instructions: 'Choose the next action.',
+      criteria: { wait: 'Wait for review', proceed: 'Proceed now' },
+    },
+    urgency: { type: 'score', instructions: 'How urgent is it?', criteria: ['Low', 'High'] },
+  },
+};
+const decisionResponse = {
+  model: 'kev-latest',
+  answers: {
+    may_continue: { type: 'noul', noul: 0.75 },
+    next_action: { type: 'choice', choice: 'wait', probabilities: { wait: 0.8, proceed: 0.2 } },
+    urgency: { type: 'score', score: 0.4, probabilities: { '0': 0.6, '1': 0.4 } },
+  },
+  usage: { input_tokens: 42, output_tokens: 0 },
+  latency_ms: 12,
+  truncated: false,
+  provider_native_extra: { preserved: true },
+};
 let owner: Principal, key: string, keyId: string, workspace: string, origin: string;
 const initialPaid = config.allowPaid;
 const server = createServer(async (request, response) => {
   calls++;
-  expect(request.url).toBe('/v1/chat/completions');
+  expect(request.url).toBe(systemOne ? '/v1/systemone' : '/v1/chat/completions');
   expect(request.headers.authorization).toBe('Bearer fixture-endpoint-secret');
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
   const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
-  expect(body).toMatchObject({
-    model: 'fixture-model',
-    messages: [{ role: 'user', content: 'Synthetic hello' }],
-  });
+  if (systemOne) expect(body).toEqual({ ...decisionInput, model: 'kev-latest' });
+  else
+    expect(body).toMatchObject({
+      model: 'fixture-model',
+      messages: [{ role: 'user', content: 'Synthetic hello' }],
+    });
   expect(body).not.toHaveProperty('provider');
   if (hold) {
     held = response;
@@ -49,10 +90,19 @@ const server = createServer(async (request, response) => {
   } else finish(response);
 });
 let calls = 0,
+  systemOne = false,
   hold = false,
   held: ServerResponse | undefined,
   entered: (() => void) | undefined;
 function finish(response: ServerResponse) {
+  if (systemOne) {
+    response.writeHead(200, {
+      'content-type': 'application/json',
+      'x-typesafe-request-id': 'fixture-kev-request',
+    });
+    response.end(JSON.stringify(decisionResponse));
+    return;
+  }
   response.writeHead(200, { 'content-type': 'application/json' });
   response.end(
     JSON.stringify({
@@ -91,6 +141,7 @@ afterEach(async () => {
   held = undefined;
   entered = undefined;
   hold = false;
+  systemOne = false;
   calls = 0;
   if (owner) await retireFixtureRuns(owner.organizationId);
   config.allowPaid = initialPaid;
@@ -100,7 +151,7 @@ afterAll(async () => {
   await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   await Promise.all([pool.end(), authPool.end()]);
 });
-async function deployment() {
+async function deployment(capabilities = caps) {
   config.allowPaid = true;
   vi.stubEnv('LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS', origin);
   const deploymentId = id(),
@@ -133,15 +184,15 @@ async function deployment() {
         revisionId,
         owner.organizationId,
         deploymentId,
-        JSON.stringify({ kind: 'external', repository: null, revision: null, capabilities: caps }),
+        JSON.stringify({ kind: 'external', repository: null, revision: null, capabilities }),
         JSON.stringify({ kind: 'external', engine: null, version: null }),
         JSON.stringify({
-          kind: 'external_openai',
+          kind: capabilities.protocol === 'systemone' ? 'external_systemone' : 'external_openai',
           endpoint_connection_id: connection.id,
-          model_alias: 'fixture-model',
+          model_alias: capabilities.protocol === 'systemone' ? 'kev-latest' : 'fixture-model',
           lifecycle: 'external',
         }),
-        JSON.stringify(caps),
+        JSON.stringify(capabilities),
         JSON.stringify({ endpoint_url: origin + '/v1' }),
       ],
     );
@@ -168,7 +219,7 @@ function body(deploymentId: string): InferenceCreate {
     limits: { max_cost_micro_usd: '0', max_output_tokens: 128, timeout_seconds: 10 },
   };
 }
-function api(input: unknown, identity = id()) {
+function api(input: unknown, identity = id(), background?: Parameters<typeof handleApi>[2]) {
   return handleApi(
     new Request(`${config.origin}/v1/inferences`, {
       method: 'POST',
@@ -179,6 +230,8 @@ function api(input: unknown, identity = id()) {
       },
       body: JSON.stringify(input),
     }),
+    'rest',
+    background,
   );
 }
 
@@ -357,6 +410,81 @@ it('returns a native answer and original revision on replay after stop without c
   expect(calls).toBe(1);
 });
 
+it('preserves native SystemOne questions, answers and metering and replays without another model call', async () => {
+  systemOne = true;
+  const { deploymentId, revisionId } = await deployment(systemOneCaps);
+  const request = { ...body(deploymentId), input: decisionInput };
+  const identity = id();
+  const first = await api(request, identity);
+  expect(first.status).toBe(200);
+  const receipt = await first.json();
+  expect(receipt).toMatchObject({
+    status: 'succeeded',
+    result: {
+      inference: {
+        outcome: 'value',
+        deployment: { deployment_id: deploymentId, deployment_revision_id: revisionId },
+        provider_request_id: 'fixture-kev-request',
+        usage: { input_tokens: '42', output_tokens: '0', completeness: 'complete' },
+        billing: {
+          billing_mode: 'byok',
+          charged_micro_usd: '0',
+          budget_cost_micro_usd: '0',
+          reported_micro_usd: '0',
+          reserved_micro_usd: '0',
+          provider_cost_micro_usd: null,
+          provider_cost_status: 'unavailable',
+        },
+      },
+    },
+  });
+  expect(receipt.result.inference.value).toEqual(decisionResponse);
+  const enabled = vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+  try {
+    const context = await transaction(owner.organizationId, async (tx) =>
+      runTraceContext(tx, await getRun(tx, receipt.run_id, owner)),
+    );
+    expect(context).toMatchObject({
+      deployment_id: deploymentId,
+      deployment_revision_id: revisionId,
+      inference_protocol: 'systemone',
+      billing_mode: 'byok',
+    });
+  } finally {
+    enabled.mockRestore();
+  }
+  const usage = await transaction(owner.organizationId, (tx) =>
+    tx.query(
+      'SELECT input_tokens,output_tokens,cost_micro_usd,completeness FROM model_usage WHERE run_id=$1',
+      [receipt.run_id],
+    ),
+  );
+  expect(usage.rows).toEqual([
+    { input_tokens: '42', output_tokens: '0', cost_micro_usd: '0', completeness: 'complete' },
+  ]);
+  const replay = await api(request, identity);
+  expect(replay.status).toBe(200);
+  expect(await replay.json()).toEqual(receipt);
+  expect(calls).toBe(1);
+});
+
+it('rejects SystemOne streaming before admitting a Run or calling the endpoint', async () => {
+  systemOne = true;
+  const { deploymentId } = await deployment(systemOneCaps);
+  const background: (() => Promise<void>)[] = [];
+  const response = await api({ ...body(deploymentId), input: decisionInput, stream: true }, id(), (task) =>
+    background.push(task),
+  );
+  await Promise.all(background.map((task) => task()));
+  expect(response.status).toBe(422);
+  expect(await response.json()).toMatchObject({ error: { code: 'unsupported_model_capability' } });
+  const runs = await transaction(owner.organizationId, (tx) =>
+    tx.query("SELECT id FROM runs WHERE config#>>'{deployment_target,deployment_id}'=$1", [deploymentId]),
+  );
+  expect(runs.rows).toEqual([]);
+  expect(calls).toBe(0);
+});
+
 it('rejects capacity before creating another Run and preserves an accepted result across stop intent', async () => {
   const { deploymentId, revisionId } = await deployment();
   hold = true;
@@ -390,37 +518,41 @@ it('rejects capacity before creating another Run and preserves an accepted resul
   expect(count.rows[0].count).toBe('1');
 });
 
-it('denies current grant revocation at publication without erasing incurred usage identity', async () => {
-  const { deploymentId } = await deployment();
-  hold = true;
-  const providerEntered = new Promise<void>((resolve) => {
-    entered = resolve;
-  });
-  const pending = api(body(deploymentId));
-  await providerEntered;
-  await transaction(owner.organizationId, (tx) =>
-    tx.query('UPDATE model_deployment_grants SET revoked_at=clock_timestamp() WHERE deployment_id=$1', [
-      deploymentId,
-    ]),
-  );
-  if (!held) throw new Error('Missing held provider response');
-  finish(held);
-  const completed = await pending;
-  expect(completed.status).toBe(200);
-  const receipt = await completed.json();
-  expect(receipt).toMatchObject({
-    status: 'failed',
-    result: {
-      inference: {
-        reason_code: 'authorization_revoked',
-        billing: { charged_micro_usd: '0' },
-        usage_request_id: expect.any(String),
+it.each(['openai_chat', 'systemone'] as const)(
+  'denies %s grant revocation at publication without erasing incurred usage identity',
+  async (protocol) => {
+    systemOne = protocol === 'systemone';
+    const { deploymentId } = await deployment(systemOne ? systemOneCaps : caps);
+    hold = true;
+    const providerEntered = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const pending = api({ ...body(deploymentId), ...(systemOne ? { input: decisionInput } : {}) });
+    await providerEntered;
+    await transaction(owner.organizationId, (tx) =>
+      tx.query('UPDATE model_deployment_grants SET revoked_at=clock_timestamp() WHERE deployment_id=$1', [
+        deploymentId,
+      ]),
+    );
+    if (!held) throw new Error('Missing held provider response');
+    finish(held);
+    const completed = await pending;
+    expect(completed.status).toBe(200);
+    const receipt = await completed.json();
+    expect(receipt).toMatchObject({
+      status: 'failed',
+      result: {
+        inference: {
+          reason_code: 'authorization_revoked',
+          billing: { charged_micro_usd: '0' },
+          usage_request_id: expect.any(String),
+        },
       },
-    },
-  });
-  expect(receipt.result.inference).not.toHaveProperty('value');
-  expect(calls).toBe(1);
-});
+    });
+    expect(receipt.result.inference).not.toHaveProperty('value');
+    expect(calls).toBe(1);
+  },
+);
 
 it.each(['rotation', 'disconnect'] as const)(
   'preserves current credential authority for an accepted response: %s',

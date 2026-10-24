@@ -62,6 +62,7 @@ async function service(context: Context, args: string[], flags: Options, desired
 export const modelDeploymentCommands: Record<string, Handler> = {
   'model-deployment inspect': async ({ context, args, flags }) => {
     const file = stringOption(flags, 'config-file');
+    if (file && stringOption(flags, 'task')) throw new CliError('Set task inside --config-file, not both.');
     if (file && args.length) throw new CliError('Use a repository argument or --config-file, not both.');
     const body = file
       ? await objectFile(flags)
@@ -79,7 +80,7 @@ export const modelDeploymentCommands: Record<string, Handler> = {
               : {}),
             ...(stringOption(flags, 'revision') ? { revision: stringOption(flags, 'revision') } : {}),
           },
-          task: 'text_generation',
+          task: stringOption(flags, 'task') ?? 'text_generation',
           ...(stringOption(flags, 'compute-connection')
             ? {
                 compute_connection_id: identifier(

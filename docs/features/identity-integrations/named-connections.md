@@ -14,7 +14,11 @@ Connections belong to their authorizing user. Tool access can target the organiz
 
 ## Custom model hosting connections
 
-Hugging Face, RunPod and external model connections are owner-bound hosting credentials. Set them up in **Model deployments**, or use protected configuration files with the connection CLI. **Connections → Edit** accepts a masked replacement token; `macrofold connection update ID --config-file private.json` uses the same API. A RunPod replacement key must still reach every existing exact endpoint; unresolved creation blocks rotation. Disconnect closes ordinary use while retaining narrow cleanup authority for owned infrastructure. Hosting connections have no MCP tool permissions. See [custom model setup and operation](../execution/model-deployments.md).
+Hugging Face, RunPod and external model connections are owner-bound hosting credentials. Open **Connections → Add connection → Model hosting**, choose the connection type, enter its account API token or endpoint settings, then **Save connection**. The same form is available during **Model deployments** setup. Saving credentials starts no compute and performs no inference. Protected configuration files with the connection CLI use the same API.
+
+For RunPod model hosting, use **RunPod account** with your RunPod API key. No app OAuth or connector enablement is required. Searching Apps for RunPod opens this hosting path; **Connect RunPod app tools instead** deliberately selects the separate tool integration, which requires operator enablement. An existing RunPod app-tools card offers **Use for model hosting** to create the correct credential without changing its original identity or grants.
+
+**Connections → Edit** accepts a masked replacement token; `macrofold connection update ID --config-file private.json` uses the same API. A RunPod replacement key must still reach every existing exact endpoint; unresolved creation blocks rotation. Disconnect closes ordinary use while retaining narrow cleanup authority for owned infrastructure. Hosting connections have no MCP tool permissions. See [custom model setup and operation](../execution/model-deployments.md).
 
 ## Save authentication in a preset
 

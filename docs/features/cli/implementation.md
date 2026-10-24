@@ -132,6 +132,8 @@ The [machine-readable command contract](../../api/cli.json) maps every command t
 
 `packages/cli/src/model-deployments.ts` uses the generated public operations for source inspection, metadata creation, immutable revision listing/creation, service policy, application grants, status/cost retrieval and retirement. The `model-deployment` topic has local help without an account or network call. It targets deployment UUIDs; read operations pass an explicitly selected or linked workspace to the authorization boundary. `revision` takes `--revision ID`; `revise` creates a new revision.
 
+`model-deployment inspect jaredpalmer/kev-4b --task decision` selects native scoring. Omitted `--task` preserves chat inspection. With `--config-file`, specify `task` in that JSON rather than a conflicting flag.
+
 Full create/revision/grant request bodies use `--config-file FILE`; operating policy uses `--policy-file FILE`. Both accept `-` for bounded stdin and share the protected JSON reader with `connection add`. Provider tokens are never argv flags. The API validates the authored request contract. Normal machine output preserves the API result, including accepted, starting, failed and cleanup-pending states. The human list includes the observed `state`; neither mode reports optimistic readiness.
 
 Default OAuth consent includes deployment read/use scopes; deployment administration still requires explicit `login --scope model-deployments:write`. Connection creation and `connection update ID --config-file FILE` require `connections:write`. Update uses the same protected JSON reader and public operation, including server-side account verification for credential rotation.

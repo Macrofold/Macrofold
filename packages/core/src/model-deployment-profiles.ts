@@ -2,10 +2,6 @@ import type { components } from '../../contracts/api';
 import { assert } from './errors';
 import type { DeploymentRuntime, ModelDeploymentCapabilities } from './model-deployment-types';
 
-export const servingImage =
-  'vllm/vllm-openai:v0.32.0@sha256:6ee133356d49ed24cee03dd0cda3d3980279a11c107ce3e752c89e76540f41c9';
-// The application wrapper must be built from this repository before enabling
-// managed starts. Never send credentials to the unwrapped upstream image.
 export function managedRuntimeProfile(profileId: string) {
   assert(
     ['vllm-0.32.0-text', 'kev-systemone-v1'].includes(profileId),
@@ -18,18 +14,24 @@ export function managedRuntimeProfile(profileId: string) {
         task: 'decision' as const,
         protocol: 'systemone' as const,
         imageSetting: 'MODEL_DECISION_SERVING_IMAGE',
+        defaultImage:
+          'ghcr.io/macrofold/model-serving-kev@sha256:f64e30cc0f40085bf15fa7c65a6886b5953edf3dbc8b8783f820ecd770780d5a',
         cuda: '12.8',
       }
     : {
         task: 'text_generation' as const,
         protocol: 'openai_chat' as const,
         imageSetting: 'MODEL_SERVING_IMAGE',
+        defaultImage:
+          'ghcr.io/macrofold/model-serving@sha256:ad0c99ffaaa3a868f1ff5c493af89feb9eafecc379b79449991d2a8ddacce385',
         cuda: '13.0',
       };
 }
 export function modelServingImage(profileId = 'vllm-0.32.0-text') {
   const profile = managedRuntimeProfile(profileId);
-  const image = process.env[profile.imageSetting];
+  // Revisions freeze the reviewed immutable wrapper. Operators may override it,
+  // but invalid explicit values must never silently select another image.
+  const image = process.env[profile.imageSetting] ?? profile.defaultImage;
   assert(
     image && /^\S+@sha256:[a-f0-9]{64}$/.test(image),
     503,
@@ -109,6 +111,7 @@ export const chatParameters = [
   'tool_choice',
   'parallel_tool_calls',
   'response_format',
+  'chat_template_kwargs',
   'stream',
   'stream_options',
   'logprobs',

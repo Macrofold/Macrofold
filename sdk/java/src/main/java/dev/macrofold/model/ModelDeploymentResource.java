@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import dev.macrofold.model.ModelDeploymentProbe;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.UUID;
@@ -41,7 +42,8 @@ import dev.macrofold.ApiClient;
   ModelDeploymentResource.JSON_PROPERTY_DEPLOYMENT_REVISION_ID,
   ModelDeploymentResource.JSON_PROPERTY_STATE,
   ModelDeploymentResource.JSON_PROPERTY_CREATED_AT,
-  ModelDeploymentResource.JSON_PROPERTY_DELETED_AT
+  ModelDeploymentResource.JSON_PROPERTY_DELETED_AT,
+  ModelDeploymentResource.JSON_PROPERTY_LAST_PROBE
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class ModelDeploymentResource {
@@ -117,6 +119,10 @@ public class ModelDeploymentResource {
   public static final String JSON_PROPERTY_DELETED_AT = "deleted_at";
   @javax.annotation.Nullable
   private OffsetDateTime deletedAt;
+
+  public static final String JSON_PROPERTY_LAST_PROBE = "last_probe";
+  @javax.annotation.Nullable
+  private ModelDeploymentProbe lastProbe;
 
   public ModelDeploymentResource() { 
   }
@@ -289,6 +295,30 @@ public class ModelDeploymentResource {
   }
 
 
+  public ModelDeploymentResource lastProbe(@javax.annotation.Nullable ModelDeploymentProbe lastProbe) {
+    this.lastProbe = lastProbe;
+    return this;
+  }
+
+  /**
+   * Get lastProbe
+   * @return lastProbe
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_LAST_PROBE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ModelDeploymentProbe getLastProbe() {
+    return lastProbe;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_LAST_PROBE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setLastProbe(@javax.annotation.Nullable ModelDeploymentProbe lastProbe) {
+    this.lastProbe = lastProbe;
+  }
+
+
   /**
    * Return true if this ModelDeploymentResource object is equal to o.
    */
@@ -307,12 +337,13 @@ public class ModelDeploymentResource {
         Objects.equals(this.deploymentRevisionId, modelDeploymentResource.deploymentRevisionId) &&
         Objects.equals(this.state, modelDeploymentResource.state) &&
         Objects.equals(this.createdAt, modelDeploymentResource.createdAt) &&
-        Objects.equals(this.deletedAt, modelDeploymentResource.deletedAt);
+        Objects.equals(this.deletedAt, modelDeploymentResource.deletedAt) &&
+        Objects.equals(this.lastProbe, modelDeploymentResource.lastProbe);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(resourceId, providerId, attemptId, deploymentRevisionId, state, createdAt, deletedAt);
+    return Objects.hash(resourceId, providerId, attemptId, deploymentRevisionId, state, createdAt, deletedAt, lastProbe);
   }
 
   @Override
@@ -326,6 +357,7 @@ public class ModelDeploymentResource {
     sb.append("    state: ").append(toIndentedString(state)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    deletedAt: ").append(toIndentedString(deletedAt)).append("\n");
+    sb.append("    lastProbe: ").append(toIndentedString(lastProbe)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -403,6 +435,11 @@ public class ModelDeploymentResource {
     // add `deleted_at` to the URL query string
     if (getDeletedAt() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sdeleted_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getDeletedAt()))));
+    }
+
+    // add `last_probe` to the URL query string
+    if (getLastProbe() != null) {
+      joiner.add(getLastProbe().toUrlQueryString(prefix + "last_probe" + suffix));
     }
 
     return joiner.toString();

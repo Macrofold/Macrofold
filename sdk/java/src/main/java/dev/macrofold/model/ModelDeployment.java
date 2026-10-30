@@ -29,11 +29,16 @@ import dev.macrofold.model.ModelDeploymentCostPolicy;
 import dev.macrofold.model.ModelDeploymentInfrastructureCost;
 import dev.macrofold.model.ModelDeploymentResource;
 import dev.macrofold.model.ModelDeploymentServicePolicy;
+import dev.macrofold.model.ModelDeploymentStartup;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import org.openapitools.jackson.nullable.JsonNullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.openapitools.jackson.nullable.JsonNullable;
+import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -61,7 +66,8 @@ import dev.macrofold.ApiClient;
   ModelDeployment.JSON_PROPERTY_RETIRED,
   ModelDeployment.JSON_PROPERTY_CREATED_AT,
   ModelDeployment.JSON_PROPERTY_UPDATED_AT,
-  ModelDeployment.JSON_PROPERTY_RESOURCES
+  ModelDeployment.JSON_PROPERTY_RESOURCES,
+  ModelDeployment.JSON_PROPERTY_STARTUP
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class ModelDeployment {
@@ -224,6 +230,9 @@ public class ModelDeployment {
   public static final String JSON_PROPERTY_RESOURCES = "resources";
   @javax.annotation.Nullable
   private List<ModelDeploymentResource> resources = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_STARTUP = "startup";
+  private JsonNullable<ModelDeploymentStartup> startup = JsonNullable.<ModelDeploymentStartup>undefined();
 
   public ModelDeployment() { 
   }
@@ -718,6 +727,38 @@ public class ModelDeployment {
   }
 
 
+  public ModelDeployment startup(@javax.annotation.Nullable ModelDeploymentStartup startup) {
+    this.startup = JsonNullable.<ModelDeploymentStartup>of(startup);
+    return this;
+  }
+
+  /**
+   * Current managed startup phase and effective deadline; null when no managed startup episode is active.
+   * @return startup
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public ModelDeploymentStartup getStartup() {
+        return startup.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_STARTUP, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<ModelDeploymentStartup> getStartup_JsonNullable() {
+    return startup;
+  }
+
+  @JsonProperty(JSON_PROPERTY_STARTUP)
+  public void setStartup_JsonNullable(JsonNullable<ModelDeploymentStartup> startup) {
+    this.startup = startup;
+  }
+
+  public void setStartup(@javax.annotation.Nullable ModelDeploymentStartup startup) {
+    this.startup = JsonNullable.<ModelDeploymentStartup>of(startup);
+  }
+
+
   /**
    * Return true if this ModelDeployment object is equal to o.
    */
@@ -749,12 +790,24 @@ public class ModelDeployment {
         Objects.equals(this.retired, modelDeployment.retired) &&
         Objects.equals(this.createdAt, modelDeployment.createdAt) &&
         Objects.equals(this.updatedAt, modelDeployment.updatedAt) &&
-        Objects.equals(this.resources, modelDeployment.resources);
+        Objects.equals(this.resources, modelDeployment.resources) &&
+        equalsNullable(this.startup, modelDeployment.startup);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, deploymentId, name, canManage, desiredState, desiredRevisionId, servingRevisionId, state, admissionOpen, capabilities, policy, readyReplicas, observedAt, costPolicy, infrastructureCost, failureCode, retired, createdAt, updatedAt, resources);
+    return Objects.hash(id, deploymentId, name, canManage, desiredState, desiredRevisionId, servingRevisionId, state, admissionOpen, capabilities, policy, readyReplicas, observedAt, costPolicy, infrastructureCost, failureCode, retired, createdAt, updatedAt, resources, hashCodeNullable(startup));
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -781,6 +834,7 @@ public class ModelDeployment {
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    updatedAt: ").append(toIndentedString(updatedAt)).append("\n");
     sb.append("    resources: ").append(toIndentedString(resources)).append("\n");
+    sb.append("    startup: ").append(toIndentedString(startup)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -928,6 +982,11 @@ public class ModelDeployment {
           "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix))));
         }
       }
+    }
+
+    // add `startup` to the URL query string
+    if (getStartup() != null) {
+      joiner.add(getStartup().toUrlQueryString(prefix + "startup" + suffix));
     }
 
     return joiner.toString();

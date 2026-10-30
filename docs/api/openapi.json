@@ -26457,6 +26457,17 @@
             "items": {
               "$ref": "#/components/schemas/ModelDeploymentResource"
             }
+          },
+          "startup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelDeploymentStartup"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current managed startup phase and effective deadline; null when no managed startup episode is active."
           }
         },
         "required": [
@@ -26791,6 +26802,9 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "last_probe": {
+            "$ref": "#/components/schemas/ModelDeploymentProbe"
           }
         },
         "required": [
@@ -26801,6 +26815,81 @@
           "state",
           "created_at",
           "deleted_at"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentStartup": {
+        "type": "object",
+        "description": "Observed managed startup episode. The effective deadline is bounded by its current phase, the absolute episode ceiling and any earlier service stop policy; this observation never authorizes hosting.",
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": [
+              "provisioning",
+              "model_readiness"
+            ]
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "phase_started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deadline_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "phase",
+          "started_at",
+          "phase_started_at",
+          "deadline_at"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeploymentProbe": {
+        "type": "object",
+        "description": "Safe last authenticated-readiness observation, retained through resource cleanup and visible only to the deployment owner. No raw provider messages, response bodies, endpoint addresses, headers or credentials.",
+        "properties": {
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "worker",
+              "transport",
+              "authentication",
+              "worker_identity",
+              "model_identity",
+              "response"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Stable Macrofold-owned readiness classification."
+          },
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "checked_at",
+          "stage",
+          "code",
+          "duration_ms"
         ],
         "additionalProperties": false
       }

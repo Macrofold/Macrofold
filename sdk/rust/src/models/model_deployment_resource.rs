@@ -28,6 +28,8 @@ pub struct ModelDeploymentResource {
     pub created_at: chrono::DateTime<chrono::FixedOffset>,
     #[serde(rename = "deleted_at", deserialize_with = "Option::deserialize")]
     pub deleted_at: Option<chrono::DateTime<chrono::FixedOffset>>,
+    #[serde(rename = "last_probe", skip_serializing_if = "Option::is_none")]
+    pub last_probe: Option<Box<models::ModelDeploymentProbe>>,
 }
 
 impl ModelDeploymentResource {
@@ -41,6 +43,7 @@ impl ModelDeploymentResource {
             state,
             created_at,
             deleted_at,
+            last_probe: None,
         }
     }
 }

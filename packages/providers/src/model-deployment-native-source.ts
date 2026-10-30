@@ -3,6 +3,7 @@ import type { components } from '../../contracts/api';
 import { assert } from '../../core/src/errors';
 import {
   defaultDecisionRuntimeParameters,
+  modelServingImage,
   runtimeCapabilities,
 } from '../../core/src/model-deployment-profiles';
 import {
@@ -319,9 +320,7 @@ export async function inspectNativeHuggingFace(
   inspection.runtime_profiles = [
     {
       profile_id: 'kev-systemone-v1',
-      image:
-        process.env.MODEL_DECISION_SERVING_IMAGE ??
-        'MODEL_DECISION_SERVING_IMAGE (operator configuration required)',
+      image: modelServingImage('kev-systemone-v1'),
       parameters,
       capabilities,
     },

@@ -18,6 +18,7 @@ type Deployment = Schema['ModelDeployment'];
 type Revision = Schema['ModelDeploymentRevision'];
 type Inspection = Schema['ModelDeploymentInspection'];
 type Policy = Schema['ModelDeploymentServiceInput']['policy'];
+type ReadinessProbe = Schema['ModelDeploymentProbe'];
 type RuntimeProfile = Extract<Schema['ModelDeploymentRuntime'], { profile_id: string }>['profile_id'];
 type ModelTask = Schema['ModelDeploymentInspectionInput']['task'];
 const runtimeProfiles: Record<ModelTask, { id: RuntimeProfile; label: string }> = {
@@ -28,6 +29,14 @@ const dtypes = ['auto', 'half', 'bfloat16', 'float'] as const;
 const quantizations = ['awq', 'gptq', 'fp8', 'compressed-tensors'] as const;
 const toolParsers = ['hermes', 'llama3_json', 'mistral'] as const;
 const reasoningParsers = ['deepseek_r1', 'qwen3'] as const;
+const readinessStages: Record<ReadinessProbe['stage'], string> = {
+  worker: 'Worker availability',
+  transport: 'Endpoint connection',
+  authentication: 'Endpoint authentication',
+  worker_identity: 'Worker identity',
+  model_identity: 'Model identity',
+  response: 'Endpoint response',
+};
 const failureMessage = (failure: unknown) =>
   failure instanceof Error
     ? failure.message
@@ -1418,6 +1427,14 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
     initial && !listedRevision ? [initial, ...(revisions.data?.data ?? [])] : (revisions.data?.data ?? []);
   const external = initial?.source.kind === 'external';
   const cost = current.infrastructure_cost;
+  // Keep the last check useful after cleanup, without attributing an older revision's
+  // failure to the currently selected model.
+  const lastProbe = current.resources
+    ?.filter((resource) => resource.deployment_revision_id === current.desired_revision_id)
+    .reduce<ReadinessProbe | undefined>((latest, resource) => {
+      const probe = resource.last_probe;
+      return probe && (!latest || probe.checked_at > latest.checked_at) ? probe : latest;
+    }, undefined);
   async function saved(message: string) {
     setDialog(undefined);
     setAccepted(message);
@@ -1445,6 +1462,14 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
           {current.admission_open ? 'Accepting new requests' : 'New requests closed'} · desired{' '}
           {current.desired_state} · {current.ready_replicas ?? 'Unknown'} ready replicas
         </p>
+        {current.startup && (
+          <p role="status">
+            {current.startup.phase === 'provisioning'
+              ? 'Allocating compute and preparing the serving image.'
+              : 'Loading the model and checking authenticated readiness.'}{' '}
+            Phase deadline: <time dateTime={current.startup.deadline_at}>{current.startup.deadline_at}</time>.
+          </p>
+        )}
         <p>
           Serving revision: <code>{current.serving_revision_id ?? 'None ready'}</code>
         </p>
@@ -1456,6 +1481,13 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
           <p className="form-error" role="status">
             {current.failure_code.replaceAll('_', ' ')}. Inspect the configuration and provider account before
             changing its policy.
+          </p>
+        )}
+        {current.can_manage && current.failure_code && lastProbe && lastProbe.code !== 'model_ready' && (
+          <p className="form-error">
+            Last readiness result: {lastProbe.code.replace(/^model_/, '').replaceAll('_', ' ')}
+            {lastProbe.http_status !== undefined && ` (HTTP ${lastProbe.http_status})`}. See Owned hosting
+            resources for the retained check details.
           </p>
         )}
         {current.state === 'cleanup_pending' && (
@@ -1573,6 +1605,17 @@ export function ModelDeploymentDetail({ deploymentId }: { deploymentId: string }
               <p>
                 Created: {resource.created_at} · Deletion confirmed: {resource.deleted_at ?? 'Unconfirmed'}
               </p>
+              {resource.last_probe && (
+                <p>
+                  Last readiness check: {readinessStages[resource.last_probe.stage]} ·{' '}
+                  <code>{resource.last_probe.code}</code>
+                  {resource.last_probe.http_status !== undefined &&
+                    ` · HTTP ${resource.last_probe.http_status}`}
+                  {' · '}
+                  {resource.last_probe.duration_ms} ms · Checked:{' '}
+                  <time dateTime={resource.last_probe.checked_at}>{resource.last_probe.checked_at}</time>
+                </p>
+              )}
             </details>
           ))}
           <p className="form-hint">

@@ -27,6 +27,7 @@ from macrofold.models.model_deployment_cost_policy import ModelDeploymentCostPol
 from macrofold.models.model_deployment_infrastructure_cost import ModelDeploymentInfrastructureCost
 from macrofold.models.model_deployment_resource import ModelDeploymentResource
 from macrofold.models.model_deployment_service_policy import ModelDeploymentServicePolicy
+from macrofold.models.model_deployment_startup import ModelDeploymentStartup
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -55,8 +56,9 @@ class ModelDeployment(BaseModel):
     created_at: datetime
     updated_at: datetime
     resources: Optional[Annotated[List[ModelDeploymentResource], Field(max_length=25)]] = Field(default=None, description="Present only with current owner management authority (can_manage=true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field.")
+    startup: Optional[ModelDeploymentStartup] = Field(default=None, description="Current managed startup phase and effective deadline; null when no managed startup episode is active.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "deployment_id", "name", "can_manage", "desired_state", "desired_revision_id", "serving_revision_id", "state", "admission_open", "capabilities", "policy", "ready_replicas", "observed_at", "cost_policy", "infrastructure_cost", "failure_code", "retired", "created_at", "updated_at", "resources"]
+    __properties: ClassVar[List[str]] = ["id", "deployment_id", "name", "can_manage", "desired_state", "desired_revision_id", "serving_revision_id", "state", "admission_open", "capabilities", "policy", "ready_replicas", "observed_at", "cost_policy", "infrastructure_cost", "failure_code", "retired", "created_at", "updated_at", "resources", "startup"]
 
     @field_validator('desired_state')
     def desired_state_validate_enum(cls, value):
@@ -132,6 +134,9 @@ class ModelDeployment(BaseModel):
                 if _item_resources:
                     _items.append(_item_resources.to_dict())
             _dict['resources'] = _items
+        # override the default output from pydantic by calling `to_dict()` of startup
+        if self.startup:
+            _dict['startup'] = self.startup.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -167,6 +172,11 @@ class ModelDeployment(BaseModel):
         if self.failure_code is None and "failure_code" in self.model_fields_set:
             _dict['failure_code'] = None
 
+        # set to None if startup (nullable) is None
+        # and model_fields_set contains the field
+        if self.startup is None and "startup" in self.model_fields_set:
+            _dict['startup'] = None
+
         return _dict
 
     @classmethod
@@ -198,7 +208,8 @@ class ModelDeployment(BaseModel):
             "retired": obj.get("retired"),
             "created_at": obj.get("created_at"),
             "updated_at": obj.get("updated_at"),
-            "resources": [ModelDeploymentResource.from_dict(_item) for _item in obj["resources"]] if obj.get("resources") is not None else None
+            "resources": [ModelDeploymentResource.from_dict(_item) for _item in obj["resources"]] if obj.get("resources") is not None else None,
+            "startup": ModelDeploymentStartup.from_dict(obj["startup"]) if obj.get("startup") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

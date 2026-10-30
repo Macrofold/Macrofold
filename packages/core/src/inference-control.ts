@@ -2,6 +2,7 @@ import { boundedQuery } from '../../db';
 import { apiKeyActorAuthorized, type ApiKeyActorFacts } from './actor-authorization';
 import { immediateInferenceLimits } from './capacity';
 import { AppError } from './errors';
+import { errorDiagnostics } from './error-diagnostics';
 
 export type InferenceControlRow = ApiKeyActorFacts & {
   deployment_allowed?: boolean;
@@ -20,7 +21,7 @@ export type InferenceObservation = {
   /** Admission's authoritative check, using this process's monotonic clock. */
   checkedAtMonotonicMs?: number;
 };
-type Registration = InferenceObservation & { checkedAt: number };
+type Registration = InferenceObservation & { checkedAt: number; observationFailed?: boolean };
 type PageReader = (ids: string[]) => Promise<InferenceControlRow[]>;
 
 const pageSize = 256;
@@ -51,10 +52,13 @@ export class InferenceControlObserver {
   constructor(private readonly readPage: PageReader = readControlPage) {}
 
   available() {
+    // An old slow sample cannot permanently close admission after all calls
+    // drain. The next admitted owner supplies fresh authority and a new sample.
+    if (!this.registrations.size) return !this.sweeping;
     const now = performance.now();
     if (this.sweeping && now - this.lastSweepAt >= healthyAgeMs - cadenceMs) return false;
     for (const registration of this.registrations.values())
-      if (now - registration.checkedAt >= healthyAgeMs) return false;
+      if (registration.observationFailed || now - registration.checkedAt >= healthyAgeMs) return false;
     // Keep one full sweep inside the freshness target, including its cadence.
     const pages = Math.ceil((this.registrations.size + 1) / pageSize);
     return cadenceMs + Math.ceil(pages / pageConcurrency) * this.pageDurationMs < healthyAgeMs;
@@ -66,9 +70,7 @@ export class InferenceControlObserver {
     const registration = { ...observation, checkedAt: observation.checkedAtMonotonicMs ?? now };
     this.registrations.set(identity, registration);
     // Commit/delivery delay cannot reset the age of admission's authority check.
-    if (now - registration.checkedAt >= staleAgeMs)
-      this.abort(identity, registration, 'inference_control_stale');
-    else {
+    if (!this.expire(identity, registration, now)) {
       if (this.registrations.size === 1 && !this.sweeping) this.lastSweepAt = now;
       this.schedule();
     }
@@ -97,9 +99,7 @@ export class InferenceControlObserver {
   private tick() {
     this.timer = undefined;
     const now = performance.now();
-    for (const [identity, registration] of this.registrations)
-      if (now - registration.checkedAt >= staleAgeMs)
-        this.abort(identity, registration, 'inference_control_stale');
+    for (const [identity, registration] of this.registrations) this.expire(identity, registration, now);
     if (!this.sweeping && now - this.lastSweepAt >= cadenceMs && this.registrations.size) {
       this.lastSweepAt = now;
       this.sweeping = true;
@@ -123,6 +123,16 @@ export class InferenceControlObserver {
     }
   }
 
+  private expire(identity: symbol, registration: Registration, now: number) {
+    if (now - registration.checkedAt < staleAgeMs) return false;
+    this.abort(
+      identity,
+      registration,
+      registration.observationFailed ? 'inference_control_unavailable' : 'inference_control_stale',
+    );
+    return true;
+  }
+
   private async sweep() {
     const entries = [...this.registrations];
     let cursor = 0;
@@ -141,6 +151,8 @@ export class InferenceControlObserver {
             this.pageDurationMs = Math.max(1, performance.now() - startedAt);
             for (const [identity, registration] of page) {
               if (this.registrations.get(identity) !== registration) continue;
+              // A late query callback cannot beat a delayed freshness timer.
+              if (this.expire(identity, registration, performance.now())) continue;
               const row = rows.get(registration.runId);
               const authorized =
                 row &&
@@ -156,11 +168,34 @@ export class InferenceControlObserver {
                   registration,
                   row?.cancel_requested ? 'cancelled' : 'authorization_revoked',
                 );
-              else registration.checkedAt = startedAt;
+              else {
+                registration.checkedAt = startedAt;
+                registration.observationFailed = false;
+              }
             }
-          } catch {
+          } catch (error: unknown) {
+            // A failed read is not revoked authority. Retry only this read on
+            // the normal cadence, never extend the last confirmed 2s cutoff.
+            // See docs/projects/immediate-inference-tech-design.md#cancellation-without-one-query-loop-per-call.
+            const now = performance.now();
+            let runCount = 0;
+            let maxAgeMs = 0;
             for (const [identity, registration] of page)
-              this.abort(identity, registration, 'inference_control_unavailable');
+              if (this.registrations.get(identity) === registration) {
+                registration.observationFailed = true;
+                runCount++;
+                maxAgeMs = Math.max(maxAgeMs, now - registration.checkedAt);
+              }
+            if (runCount)
+              console.warn(
+                JSON.stringify({
+                  code: 'inference_control_read_failed',
+                  ...errorDiagnostics(error),
+                  duration_ms: Math.round(now - startedAt),
+                  run_count: runCount,
+                  max_age_ms: Math.round(maxAgeMs),
+                }),
+              );
           }
         }
       }),

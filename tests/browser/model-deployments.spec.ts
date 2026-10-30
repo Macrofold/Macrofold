@@ -137,6 +137,95 @@ test('shows exact owned cleanup resources and keeps recovery controls off recipi
   expect(administrativeReads).toBe(beforeRecipient);
 });
 
+test('shows startup phases and retains the final readiness check after resource deletion', async ({
+  page,
+}) => {
+  await signIn(page);
+  const deadline = '2026-10-22T12:30:00Z';
+  let current: Schema['ModelDeployment'] = {
+    ...deployment(),
+    desired_state: 'running',
+    state: 'starting',
+    startup: {
+      phase: 'provisioning',
+      started_at: timestamp,
+      phase_started_at: timestamp,
+      deadline_at: deadline,
+    },
+    resources: [],
+  };
+  await page.route('**/v1/model-deployments/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/revisions'))
+      return route.fulfill({ json: { data: [revision()], next_cursor: null } });
+    if (path.endsWith('/grants')) return route.fulfill({ json: { data: [], next_cursor: null } });
+    return route.fulfill({ json: current });
+  });
+  await page.goto(`/model-deployments/${deploymentId}`);
+  const status = page.getByRole('region', { name: 'Service status', exact: true });
+  await expect(status).toContainText('Allocating compute and preparing the serving image.');
+  await expect(status.locator('time')).toHaveAttribute('datetime', deadline);
+  current = {
+    ...current,
+    startup: {
+      phase: 'model_readiness',
+      started_at: timestamp,
+      phase_started_at: '2026-10-22T12:25:00Z',
+      deadline_at: '2026-10-22T12:45:00Z',
+    },
+  };
+  await page.reload();
+  await expect(status).toContainText('Loading the model and checking authenticated readiness.');
+  await expect(status.locator('time')).toHaveAttribute('datetime', '2026-10-22T12:45:00Z');
+  current = {
+    ...current,
+    state: 'failed',
+    startup: null,
+    failure_code: 'service_recovery_exhausted',
+    resources: [
+      {
+        resource_id: connectionId,
+        provider_id: 'synthetic-deleted-endpoint',
+        attempt_id: grantId,
+        deployment_revision_id: revisionId,
+        state: 'deleted',
+        created_at: timestamp,
+        deleted_at: '2026-10-22T12:45:01Z',
+        last_probe: {
+          checked_at: '2026-10-22T12:44:59Z',
+          stage: 'authentication',
+          code: 'model_authentication_failed',
+          http_status: 401,
+          duration_ms: 235,
+        },
+      },
+    ],
+  };
+  await page.reload();
+  await expect(status).toContainText('Last readiness result: authentication failed (HTTP 401).');
+  await expect(status).not.toContainText('Phase deadline:');
+  const resources = page.getByRole('region', { name: 'Owned hosting resources', exact: true });
+  await resources.locator('summary').click();
+  await expect(resources).toContainText('synthetic-deleted-endpoint · deleted');
+  await expect(resources).toContainText('Deletion confirmed: 2026-10-22T12:45:01Z');
+  await expect(resources).toContainText('Endpoint authentication · model_authentication_failed · HTTP 401');
+  await expect(resources).toContainText('235 ms · Checked: 2026-10-22T12:44:59Z');
+  await page.screenshot({
+    path: test.info().outputPath('model-deployment-readiness-failure.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
+  const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+  expect(audit.violations).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({
+    path: test.info().outputPath('model-deployment-readiness-failure-mobile.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
+});
+
 test('shows loading, empty and denied states with retry and prevents creating without management scope', async ({
   page,
 }) => {

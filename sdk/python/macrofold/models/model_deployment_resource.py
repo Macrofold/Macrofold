@@ -21,6 +21,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from macrofold.models.model_deployment_probe import ModelDeploymentProbe
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -36,7 +37,8 @@ class ModelDeploymentResource(BaseModel):
     state: StrictStr
     created_at: datetime
     deleted_at: Optional[datetime]
-    __properties: ClassVar[List[str]] = ["resource_id", "provider_id", "attempt_id", "deployment_revision_id", "state", "created_at", "deleted_at"]
+    last_probe: Optional[ModelDeploymentProbe] = None
+    __properties: ClassVar[List[str]] = ["resource_id", "provider_id", "attempt_id", "deployment_revision_id", "state", "created_at", "deleted_at", "last_probe"]
 
     @field_validator('state')
     def state_validate_enum(cls, value):
@@ -84,6 +86,9 @@ class ModelDeploymentResource(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of last_probe
+        if self.last_probe:
+            _dict['last_probe'] = self.last_probe.to_dict()
         # set to None if provider_id (nullable) is None
         # and model_fields_set contains the field
         if self.provider_id is None and "provider_id" in self.model_fields_set:
@@ -112,7 +117,8 @@ class ModelDeploymentResource(BaseModel):
             "deployment_revision_id": obj.get("deployment_revision_id"),
             "state": obj.get("state"),
             "created_at": obj.get("created_at"),
-            "deleted_at": obj.get("deleted_at")
+            "deleted_at": obj.get("deleted_at"),
+            "last_probe": ModelDeploymentProbe.from_dict(obj["last_probe"]) if obj.get("last_probe") is not None else None
         })
         return _obj
 

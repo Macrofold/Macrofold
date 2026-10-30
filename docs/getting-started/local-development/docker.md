@@ -62,11 +62,14 @@ Keep the application, database schema, and runtime image on the same revision. D
 
 ```sh
 pnpm db:migrate
+pnpm exec tsx scripts/provision-cli.ts
 docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
 pnpm doctor:docker
 ```
 
 Use your configured `DOCKER_RUNTIME_IMAGE` tag if different. Restart `pnpm dev:docker` and `pnpm worker:docker` in separate terminals after these commands succeed. Do not rerun setup or replace credentials to update an existing installation.
+
+The idempotent CLI provisioner refreshes the first-party OAuth client's supported scopes and API resources after an upgrade; it does not seed or reset customer data. Existing access tokens do not acquire new permissions. Sign in again and approve the displayed scopes when using a newly added capability. An `invalid_scope` response during CLI sign-in can indicate a stale client registration. Run this operator command with the existing owner-database configuration, without adding owner credentials to model-serving containers.
 
 The Worker cutover (migration 045) requires all previous Sandbox allocations to be destroyed and their reservations settled. Drain and destroy them through the previous version before upgrading; paused allocations also need retirement. If old records outlive their containers, reconcile their provider state and financial reservations before retiring them. Never bypass the migration guard or reset saved Runs, files, or Sessions.
 

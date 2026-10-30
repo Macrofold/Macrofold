@@ -4,11 +4,15 @@ import {
   inspectHuggingFace,
 } from '../../packages/providers/src/model-deployment-source';
 import { huggingFaceMetadataFetch } from '../../packages/providers/src/network';
+import { modelServingImage } from '../../packages/core/src/model-deployment-profiles';
 
 vi.mock('../../packages/providers/src/network', () => ({ huggingFaceMetadataFetch: vi.fn() }));
 const commit = 'a'.repeat(40),
   tokenizerCommit = 'b'.repeat(40);
-afterEach(() => vi.resetAllMocks());
+afterEach(() => {
+  vi.resetAllMocks();
+  vi.unstubAllEnvs();
+});
 function fixtures(
   options: {
     remoteCode?: boolean;
@@ -155,6 +159,7 @@ it('pins all reads to the resolved commit and preserves private access and licen
   expect(result.memory_estimate_bytes).not.toBeNull();
   expect(result.runtime_profiles[0]).toMatchObject({
     profile_id: 'vllm-0.32.0-text',
+    image: modelServingImage('vllm-0.32.0-text'),
     parameters: { context_window_tokens: 4096, max_concurrent_requests: 4 },
   });
   expect(fetch).toHaveBeenCalledTimes(3);
@@ -163,6 +168,18 @@ it('pins all reads to the resolved commit and preserves private access and licen
   expect(fetch.mock.calls.map(([url]) => String(url))).not.toContain(
     `https://huggingface.co/fixture/model/resolve/main/config.json`,
   );
+});
+
+it('advertises the selected protected chat wrapper and validates explicit overrides', async () => {
+  fixtures();
+  const image = `fixture/chat@sha256:${'a'.repeat(64)}`;
+  vi.stubEnv('MODEL_SERVING_IMAGE', image);
+  vi.stubEnv('MODEL_DECISION_SERVING_IMAGE', `fixture/native@sha256:${'b'.repeat(64)}`);
+  expect((await inspectHuggingFace(inspection())).runtime_profiles[0]?.image).toBe(image);
+  vi.stubEnv('MODEL_SERVING_IMAGE', 'fixture/chat:latest');
+  await expect(inspectHuggingFace(inspection())).rejects.toMatchObject({
+    code: 'model_runtime_unconfigured',
+  });
 });
 
 it.each([

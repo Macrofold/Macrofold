@@ -16,6 +16,7 @@ import {
 } from './model-deployment-types';
 import { managedRuntimeProfile } from './model-deployment-profiles';
 import { probeModelReadiness } from './model-deployment-readiness';
+import { deploymentStartupExpired } from './model-deployment-startup';
 import type {
   DeploymentRow,
   DeploymentRevisionRow,
@@ -29,7 +30,6 @@ import type {
 // source/policy rotation, readiness and both billing readers). Leave 30s for
 // its short SQL work; slow recovery never authorizes another create.
 const LEASE_MS = 180_000;
-const STARTUP_MS = 20 * 60_000;
 const DRAIN_MS = 270_000;
 const MAX_FAILURES = 8;
 const COST_CHECK_MS = 5 * 60_000;
@@ -515,6 +515,8 @@ async function stopOwnedResource(
         `UPDATE model_deployments SET serving_revision_id=NULL,ready_replicas=0,drain_started_at=NULL,
         state=CASE WHEN failure_code='service_recovery_exhausted' THEN 'failed' WHEN desired_state='running' AND retired=false THEN 'starting' ELSE 'stopped' END,
         failure_code=CASE WHEN failure_code='service_recovery_exhausted' THEN failure_code ELSE NULL END,
+        startup_at=CASE WHEN desired_state='stopped' OR retired THEN NULL ELSE startup_at END,
+        readiness_started_at=CASE WHEN desired_state='stopped' OR retired THEN NULL ELSE readiness_started_at END,
         observed_at=now() WHERE id=$1`,
         [row.id],
       );
@@ -704,6 +706,12 @@ async function startResource(
       'deployment_conflict',
       'The desired service changed before provisioning.',
     );
+    assert(
+      !deploymentStartupExpired(row),
+      503,
+      'service_recovery_exhausted',
+      'Model startup exceeded its recovery window; correct the cause and explicitly start again.',
+    );
     const compute = await connection(
       tx,
       row,
@@ -784,7 +792,7 @@ async function startResource(
       await mutate(org, current, async (tx, row) => {
         await tx.query(
           `UPDATE model_deployments SET state='failed',serving_revision_id=NULL,ready_replicas=0,
-          failure_code=$2,failure_attempts=failure_attempts+1,startup_at=NULL,observed_at=clock_timestamp() WHERE id=$1`,
+          failure_code=$2,failure_attempts=failure_attempts+1,startup_at=NULL,readiness_started_at=NULL,observed_at=clock_timestamp() WHERE id=$1`,
           [row.id, failureCode],
         );
       });
@@ -799,6 +807,14 @@ async function startResource(
     throw cause;
   }
   await transaction(org, async (tx) => {
+    // A confirmed create ends consecutive provider failures, not the startup
+    // episode. Lock the deployment before its resource and retain that bound.
+    // See docs/projects/hugging-face-model-deployments-tech-design.md#7-service-updates-drain-and-cleanup.
+    await tx.query(
+      `UPDATE model_deployments SET failure_attempts=0,failure_code=NULL WHERE id=$1 AND lease_id=$2 AND generation=$3
+      AND EXISTS(SELECT 1 FROM model_deployment_resources WHERE id=$4 AND provider_id IS NULL)`,
+      [current.row.id, current.lease, current.row.generation, reservation.resource.id],
+    );
     await tx.query(
       "UPDATE model_deployment_resources SET provider_id=$2,endpoint_url=$3,state='starting',observed_at=now() WHERE id=$1 AND provider_id IS NULL",
       [reservation.resource.id, result.id, result.endpoint_url],
@@ -814,6 +830,12 @@ async function observeManaged(
   provider: ModelHostingProvider,
   fetchEndpoint: ExternalFetch,
 ) {
+  assert(
+    !deploymentStartupExpired(current.row),
+    503,
+    'service_recovery_exhausted',
+    'Model startup exceeded its recovery window; correct the cause and explicitly start again.',
+  );
   const credential = await resourceCredential(org, current.row, resource, false, provider);
   const key = credential.key;
   const known = await reconcileAttempt(org, current, resource, key, provider);
@@ -847,6 +869,23 @@ async function observeManaged(
     'deployment_conflict',
     'The endpoint no longer matches its selected immutable revision.',
   );
+  const observedAt = new Date();
+  const eligibleWorkers = observation.readiness_targets?.length ?? observation.ready_replicas;
+  if (eligibleWorkers > 0 && current.row.startup_at && !current.row.readiness_started_at)
+    await mutate(org, current, async (tx, row) => {
+      assert(
+        !deploymentStartupExpired(row, observedAt.getTime()),
+        503,
+        'service_recovery_exhausted',
+        'Model startup exceeded its recovery window; correct the cause and explicitly start again.',
+      );
+      // Persist progress before further provider I/O. Restarts/worker churn
+      // cannot give this episode another model-readiness window.
+      await tx.query(
+        'UPDATE model_deployments SET readiness_started_at=coalesce(readiness_started_at,$2) WHERE id=$1',
+        [row.id, observedAt],
+      );
+    });
   const policy = current.row.policy;
   assert(
     policy && 'min_replicas' in policy,
@@ -940,19 +979,17 @@ async function observeManaged(
     fetchEndpoint,
   );
   await mutate(org, current, async (tx, row) => {
-    const ready = readiness.readyReplicas > 0;
-    const expired = !ready && row.startup_at && Date.now() - row.startup_at.getTime() >= STARTUP_MS;
-    // A bounded partial health pass is not evidence that unprobed workers failed.
-    // Startup's existing wall-clock bound still prevents indefinite paid recovery.
-    const failures = ready
-      ? 0
-      : row.serving_revision_id && readiness.complete
-        ? row.failure_attempts + 1
-        : row.failure_attempts;
+    const expired = deploymentStartupExpired(row);
+    const ready = !expired && readiness.readyReplicas > 0;
+    // Loading/replacement is expected progress, not a failed control operation.
+    // The persisted clocks bound it; actual management exceptions retain their
+    // independent failure counter in the outer recovery owner.
+    const failures = ready ? 0 : row.failure_attempts;
     const exhausted = expired || failures >= MAX_FAILURES;
     await tx.query(
       `UPDATE model_deployments SET state=$2,serving_revision_id=$3,ready_replicas=$4,observed_at=now(),failure_attempts=$5,
-      failure_code=$6,startup_at=CASE WHEN $7 THEN NULL ELSE coalesce(startup_at,now()) END WHERE id=$1`,
+      failure_code=$6,startup_at=CASE WHEN $7 THEN NULL ELSE coalesce(startup_at,$9) END,
+      readiness_started_at=CASE WHEN $7 THEN NULL WHEN $8 THEN coalesce(readiness_started_at,$9) ELSE readiness_started_at END WHERE id=$1`,
       [
         row.id,
         exhausted ? 'failed' : ready ? 'ready' : row.serving_revision_id ? 'degraded' : 'starting',
@@ -961,6 +998,8 @@ async function observeManaged(
         failures,
         exhausted ? 'service_recovery_exhausted' : ready ? null : readiness.failureCode,
         ready,
+        eligibleWorkers > 0,
+        observedAt,
       ],
     );
     await tx.query(
@@ -1000,7 +1039,7 @@ export async function advanceModelDeployment(
     if (scheduledStop)
       await mutate(org, current, async (tx) => {
         await tx.query(
-          "UPDATE model_deployments SET desired_state='stopped',state='stopping',serving_revision_id=NULL,ready_replicas=0 WHERE id=$1",
+          "UPDATE model_deployments SET desired_state='stopped',state='stopping',serving_revision_id=NULL,ready_replicas=0,startup_at=NULL,readiness_started_at=NULL WHERE id=$1",
           [deploymentId],
         );
       });
@@ -1019,6 +1058,8 @@ export async function advanceModelDeployment(
         await tx.query(
           `UPDATE model_deployments SET state=CASE WHEN state='failed' THEN 'failed' ELSE 'stopped' END,
           failure_code=CASE WHEN state='failed' OR failure_code='service_recovery_exhausted' THEN failure_code ELSE NULL END,
+          startup_at=CASE WHEN desired_state='stopped' OR retired THEN NULL ELSE startup_at END,
+          readiness_started_at=CASE WHEN desired_state='stopped' OR retired THEN NULL ELSE readiness_started_at END,
           serving_revision_id=NULL,ready_replicas=0,observed_at=now() WHERE id=$1`,
           [deploymentId],
         );
@@ -1048,6 +1089,7 @@ export async function advanceModelDeployment(
             'invalid_hosting_policy',
             'execution_disabled',
             'deployment_conflict',
+            'service_recovery_exhausted',
           ].includes(cause.code));
       await tx.query(
         `UPDATE model_deployments SET state=$2,serving_revision_id=NULL,ready_replicas=0,failure_attempts=$3,failure_code=$4 WHERE id=$1`,

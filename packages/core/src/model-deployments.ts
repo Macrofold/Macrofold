@@ -8,6 +8,8 @@ import { id, unseal } from './crypto';
 import * as resources from './resources';
 import { actorAuthorizationQueries, actorAuthorizationFromResults } from './actor-authorization';
 import { isExternalHosting } from './model-deployment-types';
+import { modelReadinessProbeSchema } from './model-deployment-readiness';
+import { deploymentStartupStatus } from './model-deployment-startup';
 import type {
   DeploymentTarget,
   DeploymentRow,
@@ -629,9 +631,11 @@ async function projections(
           state: Schema['ModelDeploymentResource']['state'];
           created_at: Date;
           deleted_at: Date | null;
+          last_probe: unknown;
         }>(
           `SELECT r.* FROM unnest($1::uuid[]) AS d(id) CROSS JOIN LATERAL (
-          SELECT deployment_id,id AS resource_id,provider_id,attempt_id,revision_id AS deployment_revision_id,state,created_at,deleted_at
+          SELECT deployment_id,id AS resource_id,provider_id,attempt_id,revision_id AS deployment_revision_id,state,created_at,deleted_at,
+          config#>'{readiness,last_probe}' AS last_probe
           FROM model_deployment_resources WHERE deployment_id=d.id
           ORDER BY (deleted_at IS NULL) DESC,created_at DESC,id DESC LIMIT 25) r`,
           [managedIds],
@@ -639,10 +643,12 @@ async function projections(
       ).rows
     : [];
   const resourcesByDeployment = new Map<string, Schema['ModelDeploymentResource'][]>();
-  for (const { deployment_id, created_at, deleted_at, ...resource } of ownedResources) {
+  for (const { deployment_id, created_at, deleted_at, last_probe, ...resource } of ownedResources) {
     const items = resourcesByDeployment.get(deployment_id) ?? [];
+    const probe = modelReadinessProbeSchema.safeParse(last_probe);
     items.push({
       ...resource,
+      ...(probe.success ? { last_probe: probe.data } : {}),
       created_at: created_at.toISOString(),
       deleted_at: deleted_at?.toISOString() ?? null,
     });
@@ -699,6 +705,12 @@ async function projections(
       desired_revision_id: row.desired_revision_id,
       serving_revision_id: row.serving_revision_id,
       state: row.state,
+      startup:
+        byRevision.get(row.desired_revision_id)?.hosting.kind === 'runpod_serverless' &&
+        ['starting', 'degraded'].includes(row.state) &&
+        row.desired_state === 'running'
+          ? deploymentStartupStatus(row)
+          : null,
       admission_open:
         !row.retired &&
         row.desired_state === 'running' &&

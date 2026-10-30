@@ -12,16 +12,22 @@ The original fixtures in `examples/decisions/contracts.ts` model customer-except
 
 `tests/browser/decisions.spec.ts` seeds a completed task through the real domain, signs in through the optimized app, inspects proposal/receipt/lineage, checks native-only controls are absent, and runs accessibility checks. Shared SDK, domain, migration and load suites guard the existing native behavior.
 
+## Control observation resilience
+
+A retained GPT-5-mini/OpenRouter incident showed a stream with response text, a choice stop reason and partial token/cost evidence, interrupted by `inference_control_unavailable` before the trusted final stream marker. The observer discarded the database exception and aborted on the first failed page. Consequently the exact database failure cannot be established retrospectively; current healthy reads do not prove its cause. The failed/uncertain receipt and provisional accounting remain unchanged, and the provider request is not replayed.
+
+The correction retries only failed read-only observations within the existing two-second last-authority boundary, blocks new admission while observations are unhealthy, and preserves immediate definitive cancellation/revocation. Late callbacks cannot revive expired authority. An idle observer recovers from historical slow-read estimates after pending reads drain. Shared diagnostics classify known database budget phases and genuine PostgreSQL SQLSTATE without copying messages, SQL, parameters or customer content. The 31 observer unit cases, 20 diagnostic/maintenance/poller cases and all 26 immediate-inference integration cases pass. The two new loopback HTTP streaming cases inject transient and persistent control-read failures after text reaches the caller: recovery completes and settles normally; sustained failure preserves partial usage/provisional accounting and an uncertain provider outcome. Same-key replay keeps one Run, one provider invocation and one usage entry in both cases. The integration wrapper uses disposable PostgreSQL and synthetic provider transport; no paid provider call is required to inject a control-database failure. The TypeScript SDK build and type checking pass, and a normal public-API read verifies the original local receipt remains unchanged. No hosted rollout is inferred.
+
 ## Results
 
-| Check | Result and scope |
-| --- | --- |
-| `pnpm test:coverage` | **1,065 tests passed in 126 files** against a disposable PostgreSQL database with restricted runtime roles. Existing coverage floors passed. Includes representative pre-change native-row migration through 035–038, tenant/audience/scope boundaries, Jev choice/score settlement, real process kills, late-response retention, task limits/cancellation and duplicate wakes after evidence release. |
-| `pnpm test:sdks` | All five language suites passed: actual TypeScript/API journey, Python 193 tests and Pyright, Go transport/resource tests, Rust transport/resource tests, Java Maven verification. Native accepted-run types and nullable lightweight resources compile through generated clients. |
-| `pnpm test:dashboard:isolated tests/browser/decisions.spec.ts` | Optimized build, decision proposal/receipt/task lineage, exact sub-cent cost, readable timeout and axe passed. The same isolated application passed six built CLI tests, the real PTY journey and Python HTTP/SSE/session continuation. The rendered screenshot was visually inspected. |
-| `pnpm test:load` | 11 tests in two files passed. Existing concurrent scheduling/Workflow recovery behavior remains covered; mixed native/lightweight capacity and unsupported-executor claims are also covered by the domain suite. |
-| `TEST_POSTGRES_CONTAINER=none pnpm exec tsx scripts/test-install.ts` | Fresh installation, migration, vault rotation and paired encrypted database/object backup/restore passed using local PostgreSQL client tools. Restored 45 encrypted objects, native files/session continuation, decision receipt, task allocation, active evidence pin and proposal. The restore used an independent database/store; measured restore phase was 0.321 seconds for this fixture. |
-| `pnpm sdk:generate:all`, `pnpm check`, `pnpm docs:generate`, `pnpm docs:check`, `git diff --check` | Passed. All five clients regenerated; 60 public pages and local documentation targets verified. |
+| Check                                                                                              | Result and scope                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test:coverage`                                                                               | **1,065 tests passed in 126 files** against a disposable PostgreSQL database with restricted runtime roles. Existing coverage floors passed. Includes representative pre-change native-row migration through 035–038, tenant/audience/scope boundaries, Jev choice/score settlement, real process kills, late-response retention, task limits/cancellation and duplicate wakes after evidence release. |
+| `pnpm test:sdks`                                                                                   | All five language suites passed: actual TypeScript/API journey, Python 193 tests and Pyright, Go transport/resource tests, Rust transport/resource tests, Java Maven verification. Native accepted-run types and nullable lightweight resources compile through generated clients.                                                                                                                     |
+| `pnpm test:dashboard:isolated tests/browser/decisions.spec.ts`                                     | Optimized build, decision proposal/receipt/task lineage, exact sub-cent cost, readable timeout and axe passed. The same isolated application passed six built CLI tests, the real PTY journey and Python HTTP/SSE/session continuation. The rendered screenshot was visually inspected.                                                                                                                |
+| `pnpm test:load`                                                                                   | 11 tests in two files passed. Existing concurrent scheduling/Workflow recovery behavior remains covered; mixed native/lightweight capacity and unsupported-executor claims are also covered by the domain suite.                                                                                                                                                                                       |
+| `TEST_POSTGRES_CONTAINER=none pnpm exec tsx scripts/test-install.ts`                               | Fresh installation, migration, vault rotation and paired encrypted database/object backup/restore passed using local PostgreSQL client tools. Restored 45 encrypted objects, native files/session continuation, decision receipt, task allocation, active evidence pin and proposal. The restore used an independent database/store; measured restore phase was 0.321 seconds for this fixture.        |
+| `pnpm sdk:generate:all`, `pnpm check`, `pnpm docs:generate`, `pnpm docs:check`, `git diff --check` | Passed. All five clients regenerated; 60 public pages and local documentation targets verified.                                                                                                                                                                                                                                                                                                        |
 
 The table records the original broader feature acceptance using synthetic identities, credentials and responses. No paid request, production migration or preview-data mutation was required for that pass; current admission follows normal paid-execution policy rather than that revision's opt-in flag. Local backup tooling also received a connection fix: native PostgreSQL clients use dedicated libpq environment fields and an explicit database name, keeping passwords out of command arguments.
 
@@ -31,10 +37,10 @@ The OpenRouter extension regenerates all five clients and adds managed/BYOK rout
 
 `LIVE_API_TESTS=1 pnpm test:live decisions` passed two actual requests through the SDK, loopback API, durable executor and OpenRouter's alpha Decisions endpoint, using synthetic evidence and a disposable restricted-role database:
 
-| Question / funding | Receipt | Provider evidence | Recorded usage / settlement |
-| --- | --- | --- | --- |
-| Choice / managed | `unknown`, matching the explicitly unknown evidence | Nonempty OpenRouter generation ID, `typesafe/jev-1.13-20260917` | 734 input / 41 output tokens; 31 micro-USD charged |
-| Score / BYOK | Schema-valid numeric `value` | Nonempty OpenRouter generation ID, same model revision | 701 input / 17 output tokens; 30 micro-USD estimated provider cost, zero managed charge |
+| Question / funding | Receipt                                             | Provider evidence                                               | Recorded usage / settlement                                                             |
+| ------------------ | --------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Choice / managed   | `unknown`, matching the explicitly unknown evidence | Nonempty OpenRouter generation ID, `typesafe/jev-1.13-20260917` | 734 input / 41 output tokens; 31 micro-USD charged                                      |
+| Score / BYOK       | Schema-valid numeric `value`                        | Nonempty OpenRouter generation ID, same model revision          | 701 input / 17 output tokens; 30 micro-USD estimated provider cost, zero managed charge |
 
 Both usage records were complete. The combined rounded estimate was **$0.000061**, under the $0.004 combined test ceiling; invoices remain authoritative. No TypeSafe key was used, and the BYOK request succeeded with the managed OpenRouter key unavailable. Sanitized reports are in ignored `.data/live-checks/openrouter-jev-{choice,score}.json`. The disposable database and object directory were removed afterward. Test-account verification email delivery was unavailable locally; the fixtures explicitly verify their synthetic accounts, so this check makes no email-delivery claim.
 
@@ -46,10 +52,10 @@ The October 15, 2026 extension adds `microsoft/microsoft-decision-1` to the shar
 
 `LIVE_API_TESTS=1 LIVE_DECISION_MODEL=microsoft/microsoft-decision-1 pnpm test:live decisions` passed both real requests through the TypeScript SDK, loopback API, executor and OpenRouter. Both reported `microsoft/microsoft-decision-1-20261009` and nonempty generation IDs:
 
-| Request / funding | Result | Usage / accounting |
-| --- | --- | --- |
-| Native noul + choice + score / managed | Complete native answers retained; receipt `value` | 89 input / 3 output tokens; 4 micro-USD Macrofold model charge |
-| Typed score / BYOK | Schema-valid numeric `value`; managed key unavailable | 323 input / 1 output tokens; zero Macrofold model charge, 14 micro-USD request-budget consumption |
+| Request / funding                      | Result                                                | Usage / accounting                                                                                |
+| -------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Native noul + choice + score / managed | Complete native answers retained; receipt `value`     | 89 input / 3 output tokens; 4 micro-USD Macrofold model charge                                    |
+| Typed score / BYOK                     | Schema-valid numeric `value`; managed key unavailable | 323 input / 1 output tokens; zero Macrofold model charge, 14 micro-USD request-budget consumption |
 
 Both usage records were complete, with exactly one provider invocation per request. Rounded usage under the reviewed input rate totals **18 micro-USD**, under the combined $0.004 authorized fixture ceiling; provider invoices remain authoritative. No Azure credential or native compute was used. Reports remain in ignored `.data/live-checks/openrouter-decision-1-{choice,score}.json`; the disposable database/object directory was removed. These checks started no serving application or worker process. The fixture SMTP sink was unavailable, so this establishes no email-delivery behavior.
 
@@ -65,12 +71,12 @@ That revision's focused run passed eight selected cases; the broader inference/p
 
 An explicitly authorized direct OpenRouter probe used only synthetic repeated greetings, fixed `typesafe/jev-1.13`, no retries or fallback, and price ceilings of $0.042/M input and zero output/request fees. Five attempts reserved a combined $0.10 test ceiling:
 
-| Input shape | Result |
-| --- | --- |
-| 60,000 greeting repetitions in state, one short question | HTTP 400, upstream `max_tokens_exceeded` |
-| 10,000 in state, 24,500 in each of two questions | HTTP 400, upstream `max_tokens_exceeded` (each state/question pair also exceeds 32K) |
-| 100 and 1,000 in state, short question | HTTP 200; 414 and 1,314 input tokens, confirming one additional token per repetition for this fixture |
-| 2,000 in state, 29,000 in each of two questions | HTTP 200; **60,369 input tokens**, 59 output tokens, reported cost **$0.002535498**, 829 ms for this sample |
+| Input shape                                              | Result                                                                                                      |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 60,000 greeting repetitions in state, one short question | HTTP 400, upstream `max_tokens_exceeded`                                                                    |
+| 10,000 in state, 24,500 in each of two questions         | HTTP 400, upstream `max_tokens_exceeded` (each state/question pair also exceeds 32K)                        |
+| 100 and 1,000 in state, short question                   | HTTP 200; 414 and 1,314 input tokens, confirming one additional token per repetition for this fixture       |
+| 2,000 in state, 29,000 in each of two questions          | HTTP 200; **60,369 input tokens**, 59 output tokens, reported cost **$0.002535498**, 829 ms for this sample |
 
 Sanitized reports are retained in ignored `.data/live-checks/openrouter-jev-60k-*.json` and `openrouter-jev-token-calibration.json`. Successful calls reported $0.002608074 combined; rejected calls reported no usage, so no zero-charge claim is made for those attempts. These direct probes establish the configured route's observed limits, not a hosted Macrofold deployment or a latency guarantee. [TypeSafe documentation](https://docs.typesafe.ai/models) specifies 64K total and 32K for state plus the longest question.
 
@@ -84,14 +90,14 @@ The 90% critical-branch review target is **not fully reached**: the direct execu
 
 One synthetic Anthropic choice with one inline evidence item and one provider call passed the declared **5-second local application fixture budget**. The recorded sample was **61 ms end to end**, with 167 SQL statements (41 writes), no output artifact and no native compute. Persisted row sizes were 3,178 bytes for the run and 2,310 bytes for the invocation; these exclude shared event, financial and index storage.
 
-| Recorded stage | Milliseconds |
-| --- | ---: |
-| Admission preparation | 19.16 |
-| Queue wait | 24 |
-| Context reference resolution (inline here) | 0.00033 |
-| Synthetic provider transport | 0.40 |
-| Validation | 9.46 |
-| Response persistence | 0.71 |
+| Recorded stage                             | Milliseconds |
+| ------------------------------------------ | -----------: |
+| Admission preparation                      |        19.16 |
+| Queue wait                                 |           24 |
+| Context reference resolution (inline here) |      0.00033 |
+| Synthetic provider transport               |         0.40 |
+| Validation                                 |         9.46 |
+| Response persistence                       |         0.71 |
 
 This is a single local sample, not a percentile, hosted capacity claim or model latency measurement. Stage clocks have different boundaries and are not an additive profiler; admission preparation excludes the final admission commit. Reproduce with `DECISION_MEASUREMENT_FILE=/tmp/decision-measurement.json pnpm test:domain tests/integration/inference.test.ts`, using the documented disposable test-database setup. The JSON contains timings/counts/bytes, not customer content.
 
@@ -142,11 +148,11 @@ to 20 (maximum 200); `PROFILE_INFERENCE_CONTEXT_BYTES` defaults to 1,494,000
 CPU sampling is opt-in; phase and SQL profiling are always included. No real
 provider credentials, customer data or paid calls are used.
 
-| Cohort | Samples | Mean overhead | Median | p95 |
-| --- | ---: | ---: | ---: | ---: |
-| Before, SQL/CPU instrumentation enabled | 20 | 1,109.5 ms | 937.5 ms | 1,941.8 ms |
-| Narrow projections and serialization reuse, instrumented | 20 | 182.0 ms | 172.3 ms | 244.6 ms |
-| Same optimized source, profiling disabled | 20 | 177.6 ms | 173.5 ms | 238.7 ms |
+| Cohort                                                   | Samples | Mean overhead |   Median |        p95 |
+| -------------------------------------------------------- | ------: | ------------: | -------: | ---------: |
+| Before, SQL/CPU instrumentation enabled                  |      20 |    1,109.5 ms | 937.5 ms | 1,941.8 ms |
+| Narrow projections and serialization reuse, instrumented |      20 |      182.0 ms | 172.3 ms |   244.6 ms |
+| Same optimized source, profiling disabled                |      20 |      177.6 ms | 173.5 ms |   238.7 ms |
 
 All optimized measured calls completed. Host load decreased during the
 experiment and remained excessive, so the elapsed improvement cannot be

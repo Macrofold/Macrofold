@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
+import type { QueryResultRow } from 'pg';
 import * as database from '../../packages/db';
 import type { Tx, TransactionOptions } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
@@ -568,6 +569,201 @@ it('preserves the settled result when an unread stream exceeds its delivery buff
   expect(fetch).toHaveBeenCalledOnce();
 });
 
+it.each(['transient', 'persistent'] as const)(
+  'handles a %s control-read failure after HTTP streaming begins without redispatching inference',
+  async (failure) => {
+    enable();
+    const networkFetch = globalThis.fetch;
+    const server = await fixtureHttpApi({ retainBackground: true });
+    const identity = id();
+    const body = JSON.stringify({ ...input(), stream: true });
+    const encoder = new TextEncoder();
+    const frame = (event: object) => encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    let providerSignal: AbortSignal | undefined;
+    let providerFinished = false;
+    const interrupted = () => {
+      if (providerFinished) return;
+      providerFinished = true;
+      controller.error(providerSignal?.reason);
+    };
+    const finishProvider = () => {
+      if (providerFinished || !controller) return;
+      providerFinished = true;
+      providerSignal?.removeEventListener('abort', interrupted);
+      controller.enqueue(frame({ type: 'content_block_stop', index: 0 }));
+      controller.enqueue(
+        frame({ type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 10 } }),
+      );
+      controller.enqueue(frame({ type: 'message_stop' }));
+      controller.close();
+    };
+    const provider = vi.fn<typeof fetch>(async (url, options) => {
+      expect(url).toBe('https://api.anthropic.com/v1/messages');
+      if (!options?.signal) throw new Error('Provider transport omitted its cancellation signal.');
+      providerSignal = options.signal;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(value) {
+            controller = value;
+            providerSignal?.addEventListener('abort', interrupted, { once: true });
+            controller.enqueue(
+              frame({
+                type: 'message_start',
+                message: {
+                  id: 'control-stream-fixture',
+                  model: 'claude-haiku-4-5-20251001',
+                  content: [],
+                  usage: { input_tokens: 100, output_tokens: 0 },
+                },
+              }),
+            );
+            controller.enqueue(
+              frame({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+            );
+            controller.enqueue(
+              frame({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hello' } }),
+            );
+            controller.enqueue(frame({ type: 'message_delta', delta: {}, usage: { output_tokens: 4 } }));
+            if (providerSignal?.aborted) interrupted();
+          },
+          cancel() {
+            providerFinished = true;
+            providerSignal?.removeEventListener('abort', interrupted);
+          },
+        }),
+        { headers: { 'content-type': 'text/event-stream', 'request-id': 'control-stream-fixture' } },
+      );
+    });
+    vi.stubGlobal('fetch', provider);
+    let armFailure = false;
+    let failedReads = 0;
+    let announceFailure!: () => void;
+    let announceRecovery!: () => void;
+    const failedRead = new Promise<void>((resolve) => {
+      announceFailure = resolve;
+    });
+    const recoveredRead = new Promise<void>((resolve) => {
+      announceRecovery = resolve;
+    });
+    const original = database.boundedQuery;
+    vi.spyOn(database, 'boundedQuery').mockImplementation(async function <Row extends QueryResultRow>(
+      text: string,
+      values: unknown[],
+      options: { deadlineAtMs: number; statementTimeoutMs: number },
+    ) {
+      const controlRead = text.includes('FROM reporting.inference_control');
+      if (controlRead && armFailure && (failure === 'persistent' || failedReads === 0)) {
+        failedReads++;
+        announceFailure();
+        throw new database.DatabaseBudgetError('statement');
+      }
+      const result = await original<Row>(text, values, options);
+      if (controlRead && failedReads) announceRecovery();
+      return result;
+    });
+    const request = () =>
+      networkFetch(`${server.origin}/v1/inferences`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${account.key}`,
+          'content-type': 'application/json',
+          'idempotency-key': identity,
+        },
+        body,
+      });
+    let text: Promise<string> | undefined;
+    try {
+      const response = await request();
+      expect(response.status).toBe(200);
+      const runId = response.headers.get('x-run-id');
+      if (!runId || !response.body) throw new Error('The stream omitted its recoverable Run identity.');
+      const reader = response.body.getReader();
+      let announceOutput!: () => void;
+      const firstOutput = new Promise<void>((resolve) => {
+        announceOutput = resolve;
+      });
+      text = (async () => {
+        const decoder = new TextDecoder();
+        let received = '';
+        try {
+          for (;;) {
+            const part = await reader.read();
+            if (part.done) break;
+            received += decoder.decode(part.value, { stream: true });
+            if (!armFailure && received.includes('event: output.delta')) {
+              // The real HTTP caller has received output before the injected
+              // control failure, matching an interrupted paid provider stream.
+              armFailure = true;
+              announceOutput();
+            }
+          }
+          return received + decoder.decode();
+        } finally {
+          reader.releaseLock();
+        }
+      })();
+      await Promise.race([
+        firstOutput,
+        text.then(() => {
+          throw new Error('Inference ended before the HTTP caller received output.');
+        }),
+      ]);
+      await failedRead;
+      if (failure === 'transient') {
+        expect(providerSignal?.aborted).toBe(false);
+        await recoveredRead;
+        finishProvider();
+      }
+      const wire = await text;
+      expect(wire).toContain('event: output.delta');
+      expect(wire).toContain('"text":"Hello"');
+      const saved = await facts(runId);
+      expect(saved.invocations).toHaveLength(1);
+      expect(saved.usage).toHaveLength(1);
+      if (failure === 'transient') {
+        expect(failedReads).toBe(1);
+        expect(wire).toContain('event: run.succeeded');
+        expect(saved.run.status).toBe('succeeded');
+        expect(saved.run.result.inference).toMatchObject({
+          outcome: 'value',
+          provider_outcome: 'responded',
+          usage: { input_tokens: '100', output_tokens: '10', completeness: 'complete' },
+          billing: { charged_micro_usd: '150', provisional: false },
+        });
+        expect(saved.gateway).toEqual([{ status: 'complete' }]);
+      } else {
+        expect(failedReads).toBeGreaterThan(1);
+        expect(providerSignal?.reason).toMatchObject({ code: 'inference_control_unavailable' });
+        expect(wire).toContain('event: run.failed');
+        expect(saved.run.status).toBe('failed');
+        expect(saved.run.result.inference).toMatchObject({
+          outcome: 'failed',
+          reason_code: 'inference_control_unavailable',
+          provider_outcome: 'uncertain',
+          provider_request_id: 'control-stream-fixture',
+          usage: { input_tokens: '100', output_tokens: '4', completeness: 'missing' },
+          billing: { provisional: true },
+        });
+        expect(saved.gateway).toEqual([{ status: 'unknown' }]);
+        expect(BigInt(saved.run.cost_micro_usd)).toBeGreaterThan(0n);
+      }
+      expect(saved.usage[0].cost_micro_usd).toBe(saved.run.cost_micro_usd);
+      expect(provider).toHaveBeenCalledOnce();
+      const replay = await request();
+      expect(replay.status).toBe(200);
+      expect(replay.headers.get('x-run-id')).toBe(runId);
+      expect(await replay.text()).toContain(`event: run.${saved.run.status}`);
+      expect(provider).toHaveBeenCalledOnce();
+      expect((await facts(runId)).usage).toHaveLength(1);
+    } finally {
+      finishProvider();
+      await text?.catch(() => {});
+      await server.close();
+    }
+  },
+);
+
 it.each(['complete', 'disconnect'] as const)(
   'bounds request-body readers and releases them on %s',
   async (end) => {
@@ -1007,6 +1203,14 @@ it('does not count delayed background capture as provider generation time', asyn
   await Promise.all(tasks.map((task) => task()));
   const generation = exported.mock.calls.map(([value]) => value).find((value) => value.type === 'generation');
   if (!generation) throw new Error('The generation trace was not exported.');
+  expect(generation.output).toMatchObject({
+    value: receipt.result.inference.value,
+    validated_receipt: {
+      usage: receipt.result.inference.usage,
+      billing: receipt.result.inference.billing,
+    },
+  });
+  expect(generation.output).not.toHaveProperty('validated_receipt.value');
   // Date timestamps have integer milliseconds; receipt timing is monotonic/fractional.
   expect(
     Math.abs(

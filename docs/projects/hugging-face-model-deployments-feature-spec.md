@@ -2,7 +2,7 @@
 
 | Status      | Current progress                                                                                                                                                          | Last updated |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| In progress | Macrofold API, service lifecycle, inference, runtime and operator surfaces are implemented locally; release verification and live provider qualification remain separate. | 2026-10-23   |
+| In progress | Macrofold API, service lifecycle, inference, runtime and operator surfaces are implemented locally; release verification and live provider qualification remain separate. | 2026-10-25   |
 
 ## Purpose and document ownership
 
@@ -87,6 +87,10 @@ Deployment-backed request billing starts at zero under the current BYOK policy. 
 
 ## Failure and recovery
 
+Managed startup separates allocation/image startup (30 minutes) from authenticated model readiness (20 minutes after the first eligible worker observation), with one 50-minute absolute episode cap. Restarts within recovery cannot extend it; explicit restart begins a new episode. Scheduled stops and spending limits remain authoritative. The API/dashboard report the current phase and effective deadline. Repeated ordinary loading observations do not exhaust the separate management-error retry limit.
+
+Owners can inspect a safe last-probe stage/code, timestamp, duration and optional HTTP status after cleanup. Keep endpoint addresses, credentials, raw responses and customer content private. Worker disappearance must not overwrite an actual probe failure with a synthetic waiting result; its timestamp makes the retained history explicit. GPU-ready status alone never establishes authenticated model readiness.
+
 | Situation                                          | Required behavior                                                                                                                                                    |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Unsupported or inaccessible source                 | Actionable compatibility/access error; no GPU created.                                                                                                               |
@@ -111,7 +115,7 @@ Deployment-backed request billing starts at zero under the current BYOK policy. 
 
 Local implementation covers the contract, source inspection, service policy/reconciliation, direct native chat and operator surfaces. Disposable-database and HTTP fixtures verify authority, concurrency, idempotent recovery, old-result publication, exact rates and cleanup uncertainty. The built Linux AMD64 wrapper passes CPU transport/source tests; those tests do not load a model on a GPU. A public HF metadata inspection resolves Qwen/Qwen3-0.6B to an immutable commit without credentials, weight downloads or generation.
 
-The technical design records imported chat/native GPU checks and the subsequent [completed managed native acceptance](hugging-face-model-deployments-tech-design.md#corrected-managed-native-acceptance). The native image is public and anonymously pullable; real API-created official Kev serving, ingress authentication, recovery, cancellation, two loaded workers, tracing and normal deletion pass. The separate chat image/capabilities, final provider invoices and hosted application rollout remain release gates. OpenLegend's actual serializer and real-game acceptance await its subsequent consumer implementation; this does not block independent Macrofold verification. Optional model comparisons remain independent.
+The technical design records imported chat/native GPU checks and the subsequent [completed managed native acceptance](hugging-face-model-deployments-tech-design.md#corrected-managed-native-acceptance). The native image is public and anonymously pullable; real API-created official Kev serving, ingress authentication, recovery, cancellation, two loaded workers, tracing and normal deletion pass. The refreshed public chat wrapper also passes [normal-account managed Huihui acceptance](hugging-face-model-deployments-tech-design.md#managed-chat-acceptance-in-the-normal-local-account), including explicit thinking control, JSON/schema, SSE, cancellation, traces and normal deletion. Broader tool/concurrent-load qualification, final provider invoices and hosted application rollout remain release gates. OpenLegend's actual serializer and real-game acceptance await its subsequent consumer implementation; this does not block independent Macrofold verification. Optional model comparisons remain independent.
 
 ## Scope and remaining decisions
 

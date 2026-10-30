@@ -43,7 +43,7 @@ Langfuse user/session keys include tenant context where needed. These labels hel
 
 ## Understand usage and billing
 
-Each generation includes model, timing, input/output token usage, cache usage when reported, and its Macrofold charge in USD. Missing usage remains unknown instead of being presented as zero. Input, cached-input and cache-write categories are disjoint to avoid counting the same tokens twice.
+Each generation includes model, timing, input/output token usage, cache usage when reported, and its Macrofold charge in USD. Missing usage remains unknown instead of being presented as zero. If full output capture includes `validated_receipt`, its usage and billing reflect the finalized public receipt rather than an intermediate recovery snapshot. Historical exports are not backfilled. Input, cached-input and cache-write categories are disjoint to avoid counting the same tokens twice.
 
 Billing metadata distinguishes `charged_micro_usd`, `budget_cost_micro_usd`, the reserved ceiling, reported cost, provisional settlement, and bound breaches. Frozen retail/provider rate cards are included when available. `provider_cost_micro_usd` is a separately labeled estimate from known provider rates, not an invoice. Its `provider_cost_status` describes that rate-card estimate only; it is `unavailable` without an estimate.
 

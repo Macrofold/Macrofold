@@ -1,3 +1,4 @@
+import { errorDiagnostics } from './error-diagnostics';
 import { observeWorkerStep } from './worker-diagnostics';
 
 export type MaintenanceTask = {
@@ -19,8 +20,10 @@ export class MaintenanceDispatcher {
     if (current) return current;
     const pending = Promise.resolve()
       .then(() => observeWorkerStep(`maintenance.${task.name}`, {}, task.run))
-      .catch(() => {
-        console.error(JSON.stringify({ code: 'maintenance_failed', component: task.name }));
+      .catch((error: unknown) => {
+        console.error(
+          JSON.stringify({ code: 'maintenance_failed', component: task.name, ...errorDiagnostics(error) }),
+        );
         return { [`${task.name}_failed`]: 1 };
       })
       .finally(() => {

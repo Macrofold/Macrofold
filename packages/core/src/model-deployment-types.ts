@@ -93,6 +93,7 @@ export type DeploymentRow = {
   lease_until: Date | null;
   failure_attempts: number;
   startup_at: Date | null;
+  readiness_started_at: Date | null;
   drain_started_at: Date | null;
   created_at: Date;
   updated_at: Date;

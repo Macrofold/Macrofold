@@ -203,6 +203,8 @@ Do not enable paid execution or apply external effects without our approval.
 | `failed`         | A known local preparation/tool/authorization failure                      | Fix the reported cause before creating new work                 |
 | `uncertain`      | A provider request may have completed without a usable committed response | Inspect evidence and provisional cost; no automatic repetition  |
 
+`inference_control_unavailable` means Macrofold could not refresh its authorization/cancellation checks before their freshness deadline. It does not prove the provider failed or stopped. Partial tokens and provider-reported cost can survive an interrupted stream; preserve the receipt and its uncertainty rather than automatically resubmitting.
+
 Canonical run status separately records cancellation, timeout, success, or failure. `succeeded` can carry an abstention, refusal, or stale-input outcome; inspect the receipt before using a value. Cancellation cannot guarantee remote termination. Late evidence cannot revive a terminal run or authorize an application effect.
 
 Receipts preserve definition/schema/context digests, the actual credential-free provider-request digest, transformation version, dependency tokens, exact model binding, provider-reported revision when available, usage identity, and validation status. A dated model ID is not a guarantee of immutable provider weights; absent provider version evidence is `unavailable`. Provider confidence/probabilities remain evidence, never correctness or permission.

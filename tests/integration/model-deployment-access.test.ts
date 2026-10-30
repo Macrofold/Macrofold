@@ -9,6 +9,8 @@ import type { PreparedDeploymentRevision } from '../../packages/core/src/model-d
 import type { Principal } from '../../packages/core/src/auth';
 import type { ModelDeploymentCapabilities } from '../../packages/core/src/model-deployment-types';
 import { runtimeCapabilities } from '../../packages/core/src/model-deployment-profiles';
+import { handleApi } from '../../packages/core/src/http';
+import { config } from '../../packages/core/src/config';
 
 const capabilities: ModelDeploymentCapabilities = {
   protocol: 'openai_chat',
@@ -27,8 +29,11 @@ const capabilities: ModelDeploymentCapabilities = {
   max_concurrent_requests: 1,
 };
 let owner: Principal, foreign: Principal, application: Principal, workspace: string, otherWorkspace: string;
+let ownerKey: string, applicationKey: string;
 beforeAll(async () => {
-  owner = (await fixtureAccount('Deployment access owner')).p;
+  const account = await fixtureAccount('Deployment access owner');
+  owner = account.p;
+  ownerKey = account.key;
   foreign = (await fixtureAccount('Deployment foreign tenant')).p;
   await transaction(owner.organizationId, async (tx) => {
     workspace = (
@@ -42,6 +47,7 @@ beforeAll(async () => {
       workspace_id: workspace,
       scopes: ['runs:write', 'runs:read', 'model-deployments:read', 'model-deployments:use'],
     });
+    applicationKey = issued.secret;
     application = {
       ...owner,
       id: issued.id,
@@ -244,6 +250,108 @@ it('exposes bounded exact cleanup identities only to the current owner with mana
   expect(JSON.stringify(managed.resources)).not.toContain('private');
   expect(listed.data.find((item) => item.id === created.id)?.resources).toEqual(managed.resources);
   expect(recipient).not.toHaveProperty('resources');
+});
+
+it('retains safe probe diagnostics after cleanup without exposing resource details to application grants', async () => {
+  const { created, connection } = await fixture(true);
+  const resourceId = id();
+  const probe = {
+    checked_at: '2026-10-27T12:00:00.000Z',
+    stage: 'authentication',
+    code: 'model_authentication_failed',
+    http_status: 401,
+    duration_ms: 28,
+  };
+  const privateContent = 'private-fixture-endpoint-credential';
+  await transaction(owner.organizationId, async (tx) => {
+    await deployments.createGrant(tx, owner, created.id, grant());
+    await tx.query(
+      `INSERT INTO model_deployment_resources(id,organization_id,deployment_id,revision_id,connection_id,
+      attempt_id,provider_id,endpoint_url,secret_ciphertext,config,accepted_rates,state,deleted_at)
+      VALUES($1,$2,$3,$4,$5,$6,'deleted-probe-fixture','https://private.example.test',$7,$8,'{}','deleted',now())`,
+      [
+        resourceId,
+        owner.organizationId,
+        created.id,
+        created.desired_revision_id,
+        connection.id,
+        id(),
+        seal(privateContent),
+        { env: { credential: privateContent }, readiness: { last_probe: probe } },
+      ],
+    );
+    await tx.query(
+      "UPDATE model_deployments SET state='failed',failure_code='service_recovery_exhausted' WHERE id=$1",
+      [created.id],
+    );
+  });
+  const read = (key: string, workspaceId?: string) =>
+    handleApi(
+      new Request(
+        `${config.origin}/v1/model-deployments/${created.id}${workspaceId ? `?workspace_id=${workspaceId}` : ''}`,
+        {
+          headers: { authorization: `Bearer ${key}` },
+        },
+      ),
+    );
+  const ownerResponse = await read(ownerKey);
+  expect(ownerResponse.status).toBe(200);
+  const owned = await ownerResponse.json();
+  expect(owned.failure_code).toBe('service_recovery_exhausted');
+  expect(owned.resources[0]).toMatchObject({ resource_id: resourceId, state: 'deleted', last_probe: probe });
+  expect(JSON.stringify(owned)).not.toContain(privateContent);
+  expect(JSON.stringify(owned)).not.toContain('https://private.example.test');
+  const applicationResponse = await read(applicationKey, workspace);
+  expect(applicationResponse.status).toBe(200);
+  const recipient = await applicationResponse.json();
+  expect(recipient.can_manage).toBe(false);
+  expect(recipient).not.toHaveProperty('resources');
+  expect(JSON.stringify(recipient)).not.toContain('model_authentication_failed');
+
+  // Even an unexpected persisted field must not broaden this narrow projection.
+  await transaction(owner.organizationId, (tx) =>
+    tx.query(
+      "UPDATE model_deployment_resources SET config=jsonb_set(config,'{readiness,last_probe}',$2::jsonb) WHERE id=$1",
+      [resourceId, JSON.stringify({ ...probe, response: privateContent })],
+    ),
+  );
+  const malformed = await read(ownerKey);
+  expect(malformed.status).toBe(200);
+  const protectedView = await malformed.json();
+  expect(protectedView.resources[0]).not.toHaveProperty('last_probe');
+  expect(JSON.stringify(protectedView)).not.toContain(privateContent);
+});
+
+it('projects the managed startup phase and effective stop deadline without pretending an imported endpoint needs allocation', async () => {
+  const managed = await fixture(true);
+  const external = await fixture();
+  const started = new Date('2026-10-27T12:00:00.000Z');
+  const firstWorker = new Date('2026-10-27T12:19:00.000Z');
+  await transaction(owner.organizationId, async (tx) => {
+    await tx.query(
+      `UPDATE model_deployments SET desired_state='running',state='starting',startup_at=$2,
+      readiness_started_at=$3,policy=$4 WHERE id=ANY($1::uuid[])`,
+      [
+        [managed.created.id, external.created.id],
+        started,
+        firstWorker,
+        { max_concurrent_requests: 1, stop_at: '2026-10-27T12:25:00.000Z' },
+      ],
+    );
+  });
+  const view = await transaction(owner.organizationId, (tx) =>
+    deployments.get(tx, owner, managed.created.id),
+  );
+  expect(view.startup).toEqual({
+    phase: 'model_readiness',
+    started_at: started.toISOString(),
+    phase_started_at: firstWorker.toISOString(),
+    deadline_at: '2026-10-27T12:25:00.000Z',
+  });
+  const imported = await transaction(owner.organizationId, (tx) =>
+    deployments.get(tx, owner, external.created.id),
+  );
+  expect(imported.startup).toBeNull();
 });
 
 it('preserves unknown current costs and cleanup liability alongside reported managed history', async () => {

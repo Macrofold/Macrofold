@@ -29,6 +29,7 @@ type ModelDeploymentResource struct {
 	State string `json:"state"`
 	CreatedAt time.Time `json:"created_at"`
 	DeletedAt NullableTime `json:"deleted_at"`
+	LastProbe *ModelDeploymentProbe `json:"last_probe,omitempty"`
 }
 
 type _ModelDeploymentResource ModelDeploymentResource
@@ -229,6 +230,38 @@ func (o *ModelDeploymentResource) SetDeletedAt(v time.Time) {
 	o.DeletedAt.Set(&v)
 }
 
+// GetLastProbe returns the LastProbe field value if set, zero value otherwise.
+func (o *ModelDeploymentResource) GetLastProbe() ModelDeploymentProbe {
+	if o == nil || IsNil(o.LastProbe) {
+		var ret ModelDeploymentProbe
+		return ret
+	}
+	return *o.LastProbe
+}
+
+// GetLastProbeOk returns a tuple with the LastProbe field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ModelDeploymentResource) GetLastProbeOk() (*ModelDeploymentProbe, bool) {
+	if o == nil || IsNil(o.LastProbe) {
+		return nil, false
+	}
+	return o.LastProbe, true
+}
+
+// HasLastProbe returns a boolean if a field has been set.
+func (o *ModelDeploymentResource) HasLastProbe() bool {
+	if o != nil && !IsNil(o.LastProbe) {
+		return true
+	}
+
+	return false
+}
+
+// SetLastProbe gets a reference to the given ModelDeploymentProbe and assigns it to the LastProbe field.
+func (o *ModelDeploymentResource) SetLastProbe(v ModelDeploymentProbe) {
+	o.LastProbe = &v
+}
+
 func (o ModelDeploymentResource) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -246,6 +279,9 @@ func (o ModelDeploymentResource) ToMap() (map[string]interface{}, error) {
 	toSerialize["state"] = o.State
 	toSerialize["created_at"] = o.CreatedAt
 	toSerialize["deleted_at"] = o.DeletedAt.Get()
+	if !IsNil(o.LastProbe) {
+		toSerialize["last_probe"] = o.LastProbe
+	}
 	return toSerialize, nil
 }
 

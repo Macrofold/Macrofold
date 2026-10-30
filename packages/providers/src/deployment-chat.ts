@@ -117,6 +117,15 @@ export function prepareDeploymentChat(target: DeploymentTarget, request: Decisio
       structural.has(key) || caps.accepted_parameters.includes(key),
       `This deployment does not support the ${key} parameter.`,
     );
+  if (body.chat_template_kwargs !== undefined) {
+    const kwargs = requestObject(body.chat_template_kwargs, 'chat_template_kwargs');
+    // Native thinking control must not open a per-request source/template override.
+    // See docs/projects/hugging-face-model-deployments-tech-design.md#customer-setup-without-image-configuration.
+    capability(
+      Object.entries(kwargs).every(([key, value]) => key === 'enable_thinking' && typeof value === 'boolean'),
+      'chat_template_kwargs supports only the boolean enable_thinking option.',
+    );
+  }
   capability(Array.isArray(body.messages) && body.messages.length > 0, 'Supply native chat messages.');
   for (const item of body.messages) {
     const message = requestObject(item, 'Each chat message');

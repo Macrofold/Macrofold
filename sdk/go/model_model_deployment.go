@@ -42,6 +42,8 @@ type ModelDeployment struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	// Present only with current owner management authority (can_manage=true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field.
 	Resources []ModelDeploymentResource `json:"resources,omitempty"`
+	// Current managed startup phase and effective deadline; null when no managed startup episode is active.
+	Startup NullableModelDeploymentStartup `json:"startup,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -583,6 +585,48 @@ func (o *ModelDeployment) SetResources(v []ModelDeploymentResource) {
 	o.Resources = v
 }
 
+// GetStartup returns the Startup field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *ModelDeployment) GetStartup() ModelDeploymentStartup {
+	if o == nil || IsNil(o.Startup.Get()) {
+		var ret ModelDeploymentStartup
+		return ret
+	}
+	return *o.Startup.Get()
+}
+
+// GetStartupOk returns a tuple with the Startup field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *ModelDeployment) GetStartupOk() (*ModelDeploymentStartup, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.Startup.Get(), o.Startup.IsSet()
+}
+
+// HasStartup returns a boolean if a field has been set.
+func (o *ModelDeployment) HasStartup() bool {
+	if o != nil && o.Startup.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetStartup gets a reference to the given NullableModelDeploymentStartup and assigns it to the Startup field.
+func (o *ModelDeployment) SetStartup(v ModelDeploymentStartup) {
+	o.Startup.Set(&v)
+}
+// SetStartupNil sets the value for Startup to be an explicit nil
+func (o *ModelDeployment) SetStartupNil() {
+	o.Startup.Set(nil)
+}
+
+// UnsetStartup ensures that no value is present for Startup, not even an explicit nil
+func (o *ModelDeployment) UnsetStartup() {
+	o.Startup.Unset()
+}
+
 func (o ModelDeployment) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -614,6 +658,9 @@ func (o ModelDeployment) ToMap() (map[string]interface{}, error) {
 	toSerialize["updated_at"] = o.UpdatedAt
 	if !IsNil(o.Resources) {
 		toSerialize["resources"] = o.Resources
+	}
+	if o.Startup.IsSet() {
+		toSerialize["startup"] = o.Startup.Get()
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -696,6 +743,7 @@ func (o *ModelDeployment) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "created_at")
 		delete(additionalProperties, "updated_at")
 		delete(additionalProperties, "resources")
+		delete(additionalProperties, "startup")
 		o.AdditionalProperties = additionalProperties
 	}
 

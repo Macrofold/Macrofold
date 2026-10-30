@@ -77,6 +77,14 @@ function traceCompletedInference(
   input?: Record<string, unknown>,
   captureContent = true,
 ) {
+  let exportedResponse = response;
+  if (captureContent && receipt) {
+    // The recovery capsule precedes settlement. Export the settled receipt
+    // without mutating durable evidence or duplicating the response value.
+    // See docs/features/observability/implementation.md#cost-ownership.
+    const { value: _value, ...settledReceipt } = receipt;
+    exportedResponse = { ...response, validated_receipt: settledReceipt };
+  }
   const endedAt = call.provider_completed_at ?? call.responded_at ?? new Date();
   const startedAt =
     call.timings_ms.provider === undefined
@@ -94,7 +102,7 @@ function traceCompletedInference(
         ? new Date(startedAt.getTime() + call.timings_ms.first_output)
         : undefined,
     input: captureContent ? input : undefined,
-    output: captureContent ? response : undefined,
+    output: captureContent ? exportedResponse : undefined,
     model: run.config.model,
     usage: response.usage,
     chargedMicroUsd: receipt?.billing.charged_micro_usd ?? undefined,

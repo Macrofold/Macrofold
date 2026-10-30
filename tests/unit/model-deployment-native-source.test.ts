@@ -128,6 +128,7 @@ it('inspects a native adapter without a chat template, freezes exact base/artifa
     runtime_profiles: [
       {
         profile_id: 'kev-systemone-v1',
+        image: modelServingImage('kev-systemone-v1'),
         parameters: { context_window_tokens: 8192, dtype: 'bfloat16' },
         capabilities: {
           protocol: 'systemone',
@@ -237,6 +238,13 @@ it('enforces task/profile agreement and uses the independent native immutable im
   vi.stubEnv('MODEL_DECISION_SERVING_IMAGE', `fixture/native@sha256:${'b'.repeat(64)}`);
   expect(modelServingImage()).toContain('fixture/chat@');
   expect(modelServingImage('kev-systemone-v1')).toContain('fixture/native@');
+  expect((await inspectHuggingFace(request())).runtime_profiles[0]?.image).toBe(
+    modelServingImage('kev-systemone-v1'),
+  );
+  vi.stubEnv('MODEL_DECISION_SERVING_IMAGE', 'fixture/native:latest');
+  await expect(inspectHuggingFace(request())).rejects.toMatchObject({
+    code: 'model_runtime_unconfigured',
+  });
   expect(
     runtimeCapabilities({
       profile_id: 'kev-systemone-v1',

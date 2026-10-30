@@ -488,6 +488,8 @@ export async function prepareService(
       startup_at=CASE WHEN $2='running' THEN CASE
         WHEN desired_state<>'running' OR desired_revision_id<>$3 OR failure_code='service_recovery_exhausted' THEN now()
         ELSE coalesce(startup_at,now()) END ELSE NULL END,
+      readiness_started_at=CASE WHEN $2='running' AND desired_state='running' AND desired_revision_id=$3 AND startup_at IS NOT NULL
+        AND failure_code IS DISTINCT FROM 'service_recovery_exhausted' THEN readiness_started_at ELSE NULL END,
       drain_started_at=CASE WHEN $2='stopped' OR (serving_revision_id IS NOT NULL AND serving_revision_id<>$3) THEN coalesce(drain_started_at,now()) ELSE NULL END,
       next_check_at=now(),updated_at=now() WHERE id=$1`,
         [
@@ -508,6 +510,7 @@ export async function retire(tx: Tx, p: Principal, deploymentId: string) {
   await deployments.assertManagementTx(tx, p, row);
   await tx.query(
     `UPDATE model_deployments SET retired=true,desired_state='stopped',generation=generation+1,
+    startup_at=NULL,readiness_started_at=NULL,
     state=CASE WHEN state='stopped' THEN 'stopped' ELSE 'stopping' END,
     drain_started_at=coalesce(drain_started_at,now()),next_check_at=now(),updated_at=now() WHERE id=$1`,
     [row.id],

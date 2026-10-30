@@ -315,6 +315,42 @@ it('rejects unsupported schema keywords without dropping them or changing output
   ).toThrow(expect.objectContaining({ code: 'unsupported_model_capability' }));
 });
 
+it.each([true, false])('preserves explicitly supported native thinking control: %s', (enable_thinking) => {
+  const input = request({ chat_template_kwargs: { enable_thinking } });
+  const before = structuredClone(input.input);
+  const configured = target({ accepted_parameters: ['chat_template_kwargs'] });
+  expect(prepareDeploymentChat(configured, input)).toEqual({
+    ...before,
+    model: 'pinned-model',
+    max_tokens: 128,
+  });
+  expect(input.input).toEqual(before);
+  expect(() => prepareDeploymentChat(target(), input)).toThrow(
+    expect.objectContaining({ code: 'unsupported_model_capability' }),
+  );
+});
+
+it.each([{ enable_thinking: 'false' }, { chat_template: 'replacement' }, { messages: [] }])(
+  'rejects unsupported template settings before transport: %j',
+  (kwargs) => {
+    expect(() =>
+      prepareDeploymentChat(
+        target({ accepted_parameters: ['chat_template_kwargs'] }),
+        request({ chat_template_kwargs: kwargs }),
+      ),
+    ).toThrow(expect.objectContaining({ code: 'unsupported_model_capability' }));
+  },
+);
+
+it.each([null, []])('rejects malformed native template kwargs: %j', (kwargs) => {
+  expect(() =>
+    prepareDeploymentChat(
+      target({ accepted_parameters: ['chat_template_kwargs'] }),
+      request({ chat_template_kwargs: kwargs }),
+    ),
+  ).toThrow(expect.objectContaining({ status: 400, code: 'invalid_request' }));
+});
+
 it.each([
   null,
   [],

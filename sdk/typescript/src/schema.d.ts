@@ -5653,6 +5653,8 @@ export interface components {
             updated_at: string;
             /** @description Present only with current owner management authority (can_manage=true). Includes the active resource, if any, and the newest historical resources, at most 25 total. Exact provider and attempt identities support manual cleanup; grants never expose this field. */
             resources?: components["schemas"]["ModelDeploymentResource"][];
+            /** @description Current managed startup phase and effective deadline; null when no managed startup episode is active. */
+            startup?: components["schemas"]["ModelDeploymentStartup"] | null;
         };
         ModelDeploymentInspectionInput: {
             source: components["schemas"]["ModelDeploymentHuggingFaceSource"];
@@ -5721,6 +5723,29 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             deleted_at: string | null;
+            last_probe?: components["schemas"]["ModelDeploymentProbe"];
+        };
+        /** @description Observed managed startup episode. The effective deadline is bounded by its current phase, the absolute episode ceiling and any earlier service stop policy; this observation never authorizes hosting. */
+        ModelDeploymentStartup: {
+            /** @enum {string} */
+            phase: "provisioning" | "model_readiness";
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            phase_started_at: string;
+            /** Format: date-time */
+            deadline_at: string;
+        };
+        /** @description Safe last authenticated-readiness observation, retained through resource cleanup and visible only to the deployment owner. No raw provider messages, response bodies, endpoint addresses, headers or credentials. */
+        ModelDeploymentProbe: {
+            /** Format: date-time */
+            checked_at: string;
+            /** @enum {string} */
+            stage: "worker" | "transport" | "authentication" | "worker_identity" | "model_identity" | "response";
+            /** @description Stable Macrofold-owned readiness classification. */
+            code: string;
+            http_status?: number;
+            duration_ms: number;
         };
     };
     responses: never;

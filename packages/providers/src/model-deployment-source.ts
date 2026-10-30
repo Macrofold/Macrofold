@@ -5,8 +5,8 @@ import { boundedBody, boundedJSON } from '../../core/src/body';
 import type { components } from '../../contracts/api';
 import {
   defaultRuntimeParameters,
+  modelServingImage,
   runtimeCapabilities,
-  servingImage,
 } from '../../core/src/model-deployment-profiles';
 import { inspectNativeHuggingFace } from './model-deployment-native-source';
 import type { NativeModelRecipe } from '../../core/src/model-deployment-types';
@@ -402,7 +402,7 @@ export async function prepareHuggingFaceSource(
           : [
               {
                 profile_id: 'vllm-0.32.0-text',
-                image: servingImage,
+                image: modelServingImage('vllm-0.32.0-text'),
                 parameters,
                 capabilities: runtimeCapabilities({ profile_id: 'vllm-0.32.0-text', parameters }),
               },

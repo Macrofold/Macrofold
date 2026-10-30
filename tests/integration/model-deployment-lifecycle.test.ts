@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import pg from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { transaction, pool, authPool } from '../../packages/db';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
@@ -301,6 +303,324 @@ afterAll(async () => {
 });
 
 describe('persistent model service reconciliation', () => {
+  it('upgrades early scheduling constraints without changing rows and lets quiescent services leave the queue', async () => {
+    expect(new URL(config.ownerDatabaseUrl).pathname).toMatch(/^\/platform_test_[a-f0-9]+$/);
+    const migration = await readFile(
+      new URL('../../packages/db/057_model_deployment_quiescence.sql', import.meta.url),
+      'utf8',
+    );
+    const owner = new pg.Client({ connectionString: config.ownerDatabaseUrl });
+    await owner.connect();
+    try {
+      await owner.query('BEGIN');
+      const nullable = await owner.query<{ attnotnull: boolean }>(
+        "SELECT attnotnull FROM pg_attribute WHERE attrelid='public.model_deployments'::regclass AND attname='next_check_at'",
+      );
+      expect(nullable.rows[0].attnotnull).toBe(false);
+      // Rehearse the older constraint in a rollback-only copy, never the preview.
+      const schema = `model_upgrade_${id().replaceAll('-', '')}`;
+      await owner.query(`CREATE SCHEMA ${schema}`);
+      await owner.query(`SET LOCAL search_path TO ${schema},public`);
+      await owner.query('CREATE TABLE model_deployments (LIKE public.model_deployments INCLUDING ALL)');
+      await owner.query('INSERT INTO model_deployments SELECT * FROM public.model_deployments WHERE id=$1', [
+        deploymentId,
+      ]);
+      await owner.query('ALTER TABLE model_deployments ALTER COLUMN next_check_at SET NOT NULL');
+      const before = (await owner.query('SELECT * FROM model_deployments WHERE id=$1', [deploymentId])).rows;
+      expect(before).toHaveLength(1);
+      await owner.query(migration);
+      await owner.query(migration);
+      expect((await owner.query('SELECT * FROM model_deployments WHERE id=$1', [deploymentId])).rows).toEqual(
+        before,
+      );
+      expect(
+        (await owner.query('UPDATE model_deployments SET next_check_at=NULL WHERE id=$1', [deploymentId]))
+          .rowCount,
+      ).toBe(1);
+    } finally {
+      await owner.query('ROLLBACK');
+      await owner.end();
+    }
+    await stopIntent();
+    await advance();
+    expect(await row()).toMatchObject({ state: 'stopped', next_check_at: null });
+    expect(provider.creates).toBe(0);
+  });
+
+  it.each([false, true])(
+    'resets provider-failure backoff only after confirmed creation (lost acknowledgment: %s)',
+    async (lostAcknowledgment) => {
+      await transaction(org(), (tx) =>
+        tx.query(
+          "UPDATE model_deployments SET failure_attempts=4,failure_code='deployment_provider_unavailable' WHERE id=$1",
+          [deploymentId],
+        ),
+      );
+      const startup = (await row()).startup_at;
+      provider.lostCreate = lostAcknowledgment;
+      await advance();
+      const current = await row();
+      expect(current.failure_attempts).toBe(lostAcknowledgment ? 5 : 0);
+      expect(current.startup_at).toEqual(startup);
+      expect((await resource()).state).toBe(lostAcknowledgment ? 'ambiguous' : 'starting');
+      const cadence = await transaction(org(), (tx) =>
+        tx.query<{ seconds: number }>(
+          'SELECT extract(epoch FROM (next_check_at-updated_at))::double precision AS seconds FROM model_deployments WHERE id=$1',
+          [deploymentId],
+        ),
+      );
+      expect(cadence.rows[0].seconds).toBeCloseTo(lostAcknowledgment ? 160 : 5, 0);
+      expect(provider.creates).toBe(1);
+    },
+  );
+
+  it('does not purchase another resource after the retained startup recovery window expires', async () => {
+    await transaction(org(), (tx) =>
+      tx.query("UPDATE model_deployments SET startup_at=now()-interval '31 minutes' WHERE id=$1", [
+        deploymentId,
+      ]),
+    );
+    await advance();
+    expect(await row()).toMatchObject({ state: 'failed', failure_code: 'service_recovery_exhausted' });
+    expect(provider.creates).toBe(0);
+    expect(await resource()).toBeUndefined();
+  });
+
+  it('adds a nullable readiness clock without rewriting existing deployment data', async () => {
+    const owner = new pg.Client({ connectionString: config.ownerDatabaseUrl });
+    await owner.connect();
+    try {
+      await owner.query('BEGIN');
+      await owner.query('ALTER TABLE model_deployments DROP COLUMN readiness_started_at');
+      const before = (await owner.query('SELECT * FROM model_deployments WHERE id=$1', [deploymentId]))
+        .rows[0];
+      await owner.query(
+        await readFile(
+          new URL('../../packages/db/058_model_deployment_startup.sql', import.meta.url),
+          'utf8',
+        ),
+      );
+      const after = (await owner.query('SELECT * FROM model_deployments WHERE id=$1', [deploymentId]))
+        .rows[0];
+      expect(after).toEqual({ ...before, readiness_started_at: null });
+    } finally {
+      await owner.query('ROLLBACK');
+      await owner.end();
+    }
+  });
+
+  it('gives a worker eligible near minute twenty a separate durable readiness window', async () => {
+    await advance();
+    probeStatus = 503;
+    await transaction(org(), (tx) =>
+      tx.query("UPDATE model_deployments SET startup_at=now()-interval '21 minutes' WHERE id=$1", [
+        deploymentId,
+      ]),
+    );
+    await advance();
+    const loading = await row();
+    expect(loading).toMatchObject({ state: 'starting', failure_code: 'model_loading' });
+    expect(loading.readiness_started_at).toBeInstanceOf(Date);
+    expect(loading.startup_at).not.toBeNull();
+    const entry = provider.entries.get('endpoint-1');
+    if (!entry) throw new Error('Expected fixture endpoint.');
+    entry.ready_replicas = 0;
+    entry.workers[0].id = 'replacement-worker';
+    await advance();
+    expect(await row()).toMatchObject({
+      state: 'starting',
+      startup_at: loading.startup_at,
+      readiness_started_at: loading.readiness_started_at,
+    });
+    const body = {
+      deployment_revision_id: revisionId,
+      desired_state: 'running',
+      policy: { ...policy, max_concurrent_requests: 3 },
+    };
+    const context: RequestContext = {
+      ...rotationContext(),
+      params: { deployment_id: deploymentId },
+      body,
+      bytes: Buffer.from(JSON.stringify(body)),
+      operationId: 'setModelDeploymentService',
+    };
+    const prepared = await prepareService(context, provider);
+    await transaction(org(), (tx) => prepared.commit(tx, account.p));
+    expect(await row()).toMatchObject({
+      startup_at: loading.startup_at,
+      readiness_started_at: loading.readiness_started_at,
+    });
+    entry.ready_replicas = 1;
+    probeStatus = 200;
+    await advance();
+    expect(await row()).toMatchObject({ state: 'ready', startup_at: null, readiness_started_at: null });
+    expect(provider.creates).toBe(1);
+  });
+
+  it('does not turn eligibility after the provisioning cutoff into a fresh readiness window', async () => {
+    await advance();
+    await transaction(org(), (tx) =>
+      tx.query("UPDATE model_deployments SET startup_at=now()-interval '31 minutes' WHERE id=$1", [
+        deploymentId,
+      ]),
+    );
+    await advance();
+    expect(await row()).toMatchObject({
+      state: 'failed',
+      failure_code: 'service_recovery_exhausted',
+      readiness_started_at: null,
+    });
+    expect(provider.creates).toBe(1);
+  });
+
+  it.each(['provisioning', 'model_readiness'] as const)(
+    'keeps normal %s recovery available beyond eight warming observations',
+    async (phase) => {
+      await advance();
+      await advance();
+      expect((await row()).state).toBe('ready');
+      const entry = provider.entries.get('endpoint-1');
+      if (!entry) throw new Error('Expected fixture endpoint.');
+      entry.ready_replicas = phase === 'provisioning' ? 0 : 1;
+      probeStatus = 503;
+      await advance();
+      const episode = await row();
+      expect(episode).toMatchObject({ state: 'degraded', failure_attempts: 0 });
+      expect(episode.startup_at).toBeInstanceOf(Date);
+      if (phase === 'model_readiness') expect(episode.readiness_started_at).toBeInstanceOf(Date);
+      else expect(episode.readiness_started_at).toBeNull();
+      for (let pass = 0; pass < 9; pass++) await advance();
+      expect(await row()).toMatchObject({
+        state: 'degraded',
+        failure_attempts: 0,
+        startup_at: episode.startup_at,
+        readiness_started_at: episode.readiness_started_at,
+      });
+      entry.ready_replicas = 1;
+      probeStatus = 200;
+      await advance();
+      expect(await row()).toMatchObject({ state: 'ready', startup_at: null, readiness_started_at: null });
+      expect(provider.creates).toBe(1);
+    },
+  );
+
+  it.each([
+    { startupMinutes: 23, readinessMinutes: 21 },
+    { startupMinutes: 51, readinessMinutes: 1 },
+  ])('bounds readiness and the absolute episode at %j', async ({ startupMinutes, readinessMinutes }) => {
+    await advance();
+    probeStatus = 503;
+    const entry = provider.entries.get('endpoint-1');
+    if (!entry) throw new Error('Expected fixture endpoint.');
+    entry.readiness_targets = [
+      {
+        id: 'loading-worker',
+        generation: '1',
+        headers: { 'x-fixture-worker': 'loading-worker' },
+        expected_headers: { 'x-fixture-worker': 'loading-worker' },
+      },
+    ];
+    await advance();
+    const lastReadiness = (await resource()).config.readiness;
+    expect(lastReadiness).toBeDefined();
+    await transaction(org(), (tx) =>
+      tx.query(
+        `UPDATE model_deployments SET startup_at=now()-($2::integer*interval '1 minute'),
+        readiness_started_at=now()-($3::integer*interval '1 minute') WHERE id=$1`,
+        [deploymentId, startupMinutes, readinessMinutes],
+      ),
+    );
+    await advance();
+    expect(await row()).toMatchObject({ state: 'failed', failure_code: 'service_recovery_exhausted' });
+    await advance();
+    expect((await resource()).deleted_at).not.toBeNull();
+    expect((await resource()).config.readiness).toEqual(lastReadiness);
+    expect(provider.creates).toBe(1);
+  });
+
+  it('retains startup clocks while reconciling an ambiguous create without buying a duplicate', async () => {
+    provider.lostCreate = true;
+    probeStatus = 503;
+    await advance();
+    const starting = await row();
+    await advance();
+    expect((await resource()).provider_id).toBe('endpoint-1');
+    await advance();
+    const loading = await row();
+    expect(loading.startup_at).toEqual(starting.startup_at);
+    expect(loading.readiness_started_at).toBeInstanceOf(Date);
+    expect(provider.creates).toBe(1);
+  });
+
+  it.each(['owner', 'scheduled'] as const)(
+    'clears both startup clocks on an ordinary %s stop',
+    async (stop) => {
+      await advance();
+      probeStatus = 503;
+      await advance();
+      expect((await row()).readiness_started_at).toBeInstanceOf(Date);
+      if (stop === 'scheduled')
+        await transaction(org(), (tx) =>
+          tx.query(
+            "UPDATE model_deployments SET policy=jsonb_set(policy,'{stop_at}',to_jsonb((now()-interval '1 second')::text)),startup_at=now()-interval '51 minutes' WHERE id=$1",
+            [deploymentId],
+          ),
+        );
+      else {
+        const body = { deployment_revision_id: revisionId, desired_state: 'stopped', policy };
+        const context: RequestContext = {
+          ...rotationContext(),
+          params: { deployment_id: deploymentId },
+          body,
+          bytes: Buffer.from(JSON.stringify(body)),
+          operationId: 'setModelDeploymentService',
+        };
+        const prepared = await prepareService(context, provider);
+        await transaction(org(), (tx) => prepared.commit(tx, account.p));
+        expect(await row()).toMatchObject({ startup_at: null, readiness_started_at: null });
+      }
+      await advance();
+      expect(await row()).toMatchObject({
+        desired_state: 'stopped',
+        state: 'stopped',
+        startup_at: null,
+        readiness_started_at: null,
+      });
+      expect((await resource()).deleted_at).not.toBeNull();
+      expect(provider.creates).toBe(1);
+    },
+  );
+
+  it('starts a fresh bounded episode when the owner selects a new immutable revision', async () => {
+    await advance();
+    probeStatus = 503;
+    await advance();
+    await transaction(org(), (tx) =>
+      tx.query("UPDATE model_deployments SET startup_at=now()-interval '21 minutes' WHERE id=$1", [
+        deploymentId,
+      ]),
+    );
+    const loading = await row();
+    const next = await transaction(org(), (tx) =>
+      deployments.addRevision(tx, account.p, deploymentId, prepared('c'.repeat(40))),
+    );
+    const body = { deployment_revision_id: next.deployment_revision_id, desired_state: 'running', policy };
+    const context: RequestContext = {
+      ...rotationContext(),
+      params: { deployment_id: deploymentId },
+      body,
+      bytes: Buffer.from(JSON.stringify(body)),
+      operationId: 'setModelDeploymentService',
+    };
+    const preparedService = await prepareService(context, provider);
+    await transaction(org(), (tx) => preparedService.commit(tx, account.p));
+    const changed = await row();
+    expect(changed.readiness_started_at).toBeNull();
+    if (!changed.startup_at || !loading.startup_at) throw new Error('Expected bounded startup episodes.');
+    expect(changed.startup_at.getTime()).toBeGreaterThan(loading.startup_at.getTime());
+    expect(provider.creates).toBe(1);
+  });
+
   it('keeps quiescent metadata out of the due index while admitting pending cleanup', async () => {
     await advance();
     await stopIntent();
@@ -331,6 +651,15 @@ describe('persistent model service reconciliation', () => {
       expect(idle.rows[0].count).toBe('1000');
       await tx.query('UPDATE model_deployments SET next_check_at=now() WHERE id=$1', [deploymentId]);
     });
+    // Bulk fixture writes need current statistics before assessing the real
+    // restricted-role plan; autovacuum timing must not choose this assertion.
+    const owner = new pg.Client({ connectionString: config.ownerDatabaseUrl });
+    await owner.connect();
+    try {
+      await owner.query('ANALYZE model_deployments');
+    } finally {
+      await owner.end();
+    }
     const candidates = await pool.query<{ id: string }>(
       `SELECT id FROM reporting.model_deployment_dispatch WHERE next_check_at<=now()
       AND (lease_until IS NULL OR lease_until<now()) ORDER BY next_check_at,id LIMIT 20`,
@@ -543,7 +872,7 @@ describe('persistent model service reconciliation', () => {
     try {
       await transaction(org(), (tx) =>
         tx.query(
-          "UPDATE model_deployments SET lease_id=$2,lease_until=now()+interval '2 minutes',next_check_at=now()+interval '1 minute' WHERE id=$1",
+          "UPDATE model_deployments SET lease_id=$2,lease_until=now()+interval '2 minutes',next_check_at=now()+interval '1 minute',failure_attempts=6 WHERE id=$1",
           [deploymentId, successor],
         ),
       );
@@ -553,6 +882,7 @@ describe('persistent model service reconciliation', () => {
     }
     const current = await row();
     expect(current.lease_id).toBe(successor);
+    expect(current.failure_attempts).toBe(6);
     expect(current.lease_until?.getTime()).toBeGreaterThan(Date.now());
     expect(current.next_check_at?.getTime()).toBeGreaterThan(Date.now());
     expect((await resource()).provider_id).toBe('endpoint-1');
@@ -872,7 +1202,7 @@ describe('persistent model service reconciliation', () => {
     if (!entry) throw new Error('Expected fixture endpoint.');
     entry.ready_replicas = 0;
     await transaction(org(), async (tx) => {
-      await tx.query("UPDATE model_deployments SET startup_at=now()-interval '21 minutes' WHERE id=$1", [
+      await tx.query("UPDATE model_deployments SET startup_at=now()-interval '31 minutes' WHERE id=$1", [
         deploymentId,
       ]);
     });
@@ -892,9 +1222,10 @@ describe('persistent model service reconciliation', () => {
     if (!failed) throw new Error('Expected fixture endpoint.');
     failed.ready_replicas = 0;
     await transaction(org(), (tx) =>
-      tx.query("UPDATE model_deployments SET startup_at=now()-interval '21 minutes' WHERE id=$1", [
-        deploymentId,
-      ]),
+      tx.query(
+        "UPDATE model_deployments SET startup_at=now()-interval '31 minutes',readiness_started_at=now()-interval '21 minutes' WHERE id=$1",
+        [deploymentId],
+      ),
     );
     await advance();
     await advance();
@@ -911,6 +1242,7 @@ describe('persistent model service reconciliation', () => {
     };
     const prepared = await prepareService(context, provider);
     await transaction(org(), (tx) => prepared.commit(tx, account.p));
+    expect(await row()).toMatchObject({ state: 'starting', failure_code: null, readiness_started_at: null });
     await advance();
     const replacement = provider.entries.get('endpoint-2');
     if (!replacement) throw new Error('Expected replacement endpoint.');

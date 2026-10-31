@@ -174,6 +174,34 @@ func TestImmediateInferenceApplication(t *testing.T) {
 	if err != nil || text != "Hello from the SDK fixture." || !terminal {
 		t.Fatalf("stream failed: %q %v %v", text, terminal, err)
 	}
+	rejectedInput := input
+	rejectedInput.Input = map[string]interface{}{"messages": []map[string]string{{"role": "user", "content": "sdk-provider-error"}}}
+	rejectedReceipt := func(result *RunResult) {
+		t.Helper()
+		if result == nil || result.ExecutionOutcome != "failure" || result.Inference == nil || result.Inference.GetReasonCode() == "" {
+			t.Fatalf("missing failed receipt: %#v", result)
+		}
+		value := result.Inference.ProviderError
+		if value == nil || value.HttpStatus != 402 || value.Message != "SDK provider spending limit reached." || value.GetCode() != "insufficient_quota" || value.HasTruncated() {
+			t.Fatalf("incorrect upstream diagnostic: %#v", value)
+		}
+	}
+	rejected, err := client.Inferences.Create(context.Background(), &rejectedInput)
+	if err != nil || rejected.Status != "failed" {
+		t.Fatalf("provider failure not terminal: %#v %v", rejected, err)
+	}
+	rejectedReceipt(rejected.Result)
+	failed := false
+	err = client.Inferences.Stream(context.Background(), &rejectedInput, func(event InferenceStreamEvent) error {
+		if event.Type == "run.failed" {
+			rejectedReceipt(event.Data.Result)
+			failed = true
+		}
+		return nil
+	})
+	if err != nil || !failed {
+		t.Fatalf("failed stream diagnostic missing: %v", err)
+	}
 }
 
 const inferenceID = "01900000-0000-7000-8000-000000000001"

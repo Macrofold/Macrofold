@@ -37,7 +37,7 @@ import { inferencePublicationReceipt } from './inference-publication';
 import { actorAuthorizationQueries, actorAuthorizationFromResults } from './actor-authorization';
 import type { components } from '../../contracts/api';
 import { digest } from './explicit-context';
-import { initialReceipt } from './inference-receipt';
+import { initialReceipt, inferenceReceiptMetadata } from './inference-receipt';
 import { scheduleInferenceCapture } from './inference-capture';
 import { startInferenceTiming } from './inference-timing';
 import { startPerformanceStage } from './performance';
@@ -402,7 +402,11 @@ export async function finalizeImmediateInference(
   const validated = response.validated_receipt;
   let receipt: InferenceReceipt;
   if (validated)
-    receipt = { ...validated, ...(validated.outcome === 'value' ? { value: response.value } : {}) };
+    receipt = {
+      ...validated,
+      ...(validated.outcome === 'value' ? { value: response.value } : {}),
+      ...(response.providerError ? { provider_error: response.providerError } : {}),
+    };
   else {
     assert(
       !compactInference(run),
@@ -420,8 +424,7 @@ export async function finalizeImmediateInference(
       provider_outcome: response.transport_complete ? 'responded' : 'uncertain',
       validation: { ...receipt.validation, status: 'not_run' },
     };
-  const { value: _value, ...validatedReceipt } = receipt;
-  response.validated_receipt = validatedReceipt;
+  response.validated_receipt = inferenceReceiptMetadata(receipt);
   const preparedReceipt = receipt;
   const ciphertext = call.response_ciphertext ?? seal(response);
   const completedAt =
@@ -611,6 +614,7 @@ export async function completeDirectInference(
       requestId: evidence?.requestId ?? null,
       httpStatus: evidence?.httpStatus,
       modelRevision: evidence?.modelRevision ?? null,
+      providerError: evidence?.providerError,
       incomplete: 'provider_error',
       failure_code:
         error instanceof AppError

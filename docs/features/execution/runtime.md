@@ -166,6 +166,14 @@ ready-turn stages. Returned harness failures are marked `harness_reported_failur
 The terminal `failure_code` remains unchanged. No new log store or per-stage
 network call is introduced.
 
+OpenCode also translates recognized native `APIError` HTTP statuses into safe
+`model_request_*` diagnostics: authentication (401), credits or spending limits
+(402), access (403), rate limiting (429), and unavailable service (5xx). The same
+translation covers submission, session events and final messages. These statuses
+can originate in Macrofold's gateway or upstream; use the matching `model.generate`
+trace to distinguish them. Unknown error shapes retain `turn_failed`. Raw SDK
+messages, response bodies and headers remain excluded; no request is retried.
+
 The shared diagnostic classifier permits known operating-system codes, bounded
 cause inspection and recognized SDK errors. Unknown messages, stack traces and
 raw stderr remain withheld because they can contain credentials and customer

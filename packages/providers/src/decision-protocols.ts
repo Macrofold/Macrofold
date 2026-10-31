@@ -18,6 +18,7 @@ import { decisionOnlyModel } from '../../core/src/decision-models';
 
 import { nativeInferenceBody } from './native-inference';
 import { reportedCost } from './reported-cost';
+import { extractProviderError, isProviderErrorEnvelope } from './provider-error';
 
 const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const usage = z.object({
@@ -162,6 +163,7 @@ async function invoke(
   let completedAtMonotonicMs: number | null = null;
   if (!upstream.ok) {
     let complete = false;
+    let plainText = false;
     try {
       const text = (await boundedBody(upstream.body, 16 * 1024)).toString('utf8');
       completedAt = new Date().toISOString();
@@ -169,8 +171,12 @@ async function invoke(
       complete = true;
       try {
         raw = JSON.parse(text);
+        plainText = typeof raw === 'string';
       } catch {
         raw = text;
+        plainText =
+          !upstream.headers.get('content-type') ||
+          Boolean(upstream.headers.get('content-type')?.startsWith('text/plain'));
       }
     } catch {
       raw = '[Response body unavailable or exceeds 16 KiB]';
@@ -180,6 +186,7 @@ async function invoke(
       'The decision provider rejected the request.',
       {
         response: raw,
+        providerError: extractProviderError(raw, upstream.status, [secret], plainText),
         httpStatus: upstream.status,
         ...responseIdentity(raw, headerRequestId),
         usage: independentUsage(raw, chat, provider),
@@ -189,7 +196,8 @@ async function invoke(
       },
     );
   }
-  const streamed = body.stream === true ? await readInferenceStream(upstream, chat, output) : undefined;
+  const streamed =
+    body.stream === true ? await readInferenceStream(upstream, chat, output, [secret]) : undefined;
   if (streamed) {
     raw = streamed.raw;
     completedAt = streamed.completedAt ?? null;
@@ -238,6 +246,7 @@ async function invoke(
   }
   const evidence: ProviderEvidence = {
     response: raw,
+    providerError: streamed?.providerError ?? extractProviderError(raw, upstream.status, [secret]),
     httpStatus: upstream.status,
     ...responseIdentity(raw, headerRequestId),
     usage: independentUsage(raw, chat, provider),
@@ -245,6 +254,12 @@ async function invoke(
     completedAt,
     completedAtMonotonicMs,
   };
+  if (isProviderErrorEnvelope(raw))
+    throw new DecisionProviderError(
+      'decision_provider_failed',
+      'The decision provider rejected the request.',
+      evidence,
+    );
   try {
     observeResponse?.(raw);
   } catch {
@@ -294,6 +309,7 @@ function normalizeResponse(
       modelRevision: typeof streamed.raw.model === 'string' ? streamed.raw.model : null,
       usage: { ...normalizedUsage, complete: false },
       incomplete: streamed.incomplete,
+      ...(streamed.providerError ? { providerError: streamed.providerError } : {}),
     };
   }
   const suppliedUsage = suppliedUsageSchema.safeParse(raw);

@@ -56,6 +56,13 @@ Hermes and Pi stream assistant text as it arrives. The DeepSeek adapter publishe
 
 Cancelling a run stops its native process and saves recoverable files. It does not undo completed tools. Closing a stream only detaches. DeepSeek cancellation stops its supervised native process.
 
+If an OpenCode Run ends with `harness_error`, inspect its `runtime.failed` event.
+`model_request_payment_required` identifies an HTTP 402 rejection for credits or
+spending limits; check the selected BYOK connection's provider account as well as
+the Run budget. Authentication, access, rate-limit and service failures have
+separate `model_request_*` categories. A generic terminal error does not mean the
+harness failed to start. See [execution diagnostics](runtime.md#execution-tracing).
+
 ## Tools and isolation
 
 Select authorized connection IDs and tool grants on your preset or run. Macrofold's broker rechecks authorization and spending before external calls. Native browser/search services and additional model routes are not implicitly enabled; configure [web search](../identity-integrations/web-search.md) or other connectors through Macrofold.

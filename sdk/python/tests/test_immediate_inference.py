@@ -82,6 +82,22 @@ def test_application_immediate_json_and_sse():
                 receipt(event.data.result)
                 terminal = True
         assert text == 'Hello from the SDK fixture.' and terminal
+        rejected_body = {**body, 'input': {'messages': [{'role': 'user', 'content': 'sdk-provider-error'}]}}
+        def rejected_receipt(result):
+            assert result.execution_outcome == 'failure' and result.inference.reason_code
+            error = result.inference.provider_error
+            assert error.http_status == 402
+            assert error.message == 'SDK provider spending limit reached.'
+            assert error.code == 'insufficient_quota' and error.truncated is None
+        rejected = client.inferences.create(**rejected_body)
+        assert rejected.status == 'failed'
+        rejected_receipt(rejected.result)
+        failed = False
+        for event in client.inferences.stream(rejected_body):
+            if event.type == 'run.failed':
+                rejected_receipt(event.data.result)
+                failed = True
+        assert failed
 
 @pytest.mark.parametrize('retries',[0,1])
 def test_immediate_inference_retry_is_explicit_and_preserves_identity(retries):

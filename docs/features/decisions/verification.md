@@ -103,6 +103,30 @@ This is a single local sample, not a percentile, hosted capacity claim or model 
 
 ## Immediate inference
 
+### Upstream rejection messages
+
+October 31 local verification adds optional `provider_error` beside classified
+receipt reasons. Shared extraction covers ordinary HTTP rejections, explicit
+HTTP-200 error envelopes, interrupted SSE and custom model deployments. Messages
+are bounded and credential-redacted. They use encrypted invocation ownership,
+not plaintext Run summaries or lifecycle events. Recovery and replay use the
+existing batched hydration and current disclosure/retention checks; there is no
+new successful-request query or automatic provider retry.
+
+The four focused provider suites pass **109 tests**. Four disposable API/database
+suites pass **49 tests**, including exact 402 text, partial streaming usage,
+single-dispatch replay, revoked-key suppression and real retention expiry.
+The SSE replay assertion was corrected to compare parsed JSON rather than object
+key order. Full `pnpm test:sdks` passes the actual JSON and SSE rejection journey
+through all five typed SDKs: Python 231 tests and Pyright, Rust 22 tests, Java 22
+tests, and Go/TypeScript journeys. SDK generation, the TypeScript SDK build and
+strict application TypeScript checking pass. These are synthetic provider
+rejections through the real disposable API/database; no paid call, preview
+restart or new live 402 was needed. The original discarded provider body cannot
+be reconstructed.
+
+### Original immediate-inference acceptance
+
 The implementation replaces the direct phase loop with immediate A/provider/B/C ownership and evidence-only recovery. It retains native/bounded dispatch and shared financial rules. Tests exercise the real API, restricted-role PostgreSQL, all five SDK transports and controlled upstreams. No native image change is required.
 
 Focused evidence includes shared gateway/accounting/provider regressions, independent nullable usage, bounded normalization-failure evidence, current-key authorization, same-key duplicate suppression, unknown COMMIT acknowledgment, cancellation before response persistence, timely response settlement after the execution deadline, C failure with actual poller recovery, generation fencing and real retention tombstones. An actual HTTP stream delivers an early delta before the provider finishes, then the settled receipt; completed replay emits no new deltas. The full five-language SDK workflow passed with paid execution disabled. A 276-check run passed 272 and exposed four outdated fixtures; corrected catalog/HTTP checks pass 17 checks, and the final financial/fault cohort passes 56 checks. `pnpm check` passes.

@@ -37,6 +37,42 @@ const messages: Record<string, string> = {
   'Checked file service unavailable.': 'file_service_unavailable',
 };
 
+const modelRequestFailures: Record<number, { code: string; message: string }> = {
+  401: {
+    code: 'model_request_authentication_failed',
+    message: 'Authentication for the model request was rejected (HTTP 401).',
+  },
+  402: {
+    code: 'model_request_payment_required',
+    message: 'The model request was rejected for insufficient credits or a spending limit (HTTP 402).',
+  },
+  403: {
+    code: 'model_request_access_denied',
+    message: 'Access to the model request was denied (HTTP 403).',
+  },
+  429: {
+    code: 'model_request_rate_limited',
+    message: 'The model request was rate limited (HTTP 429).',
+  },
+};
+class ModelRequestError extends Error {
+  constructor(readonly diagnostic: { code: string; message: string }) {
+    super(diagnostic.message);
+  }
+}
+
+/** Native SDK bodies may contain secrets; retain only a recognized HTTP category.
+ * See docs/features/execution/runtime.md#execution-tracing. */
+export function modelRequestError(status: unknown) {
+  if (typeof status === 'number' && Object.hasOwn(modelRequestFailures, status))
+    return new ModelRequestError(modelRequestFailures[status]);
+  if (typeof status === 'number' && Number.isInteger(status) && status >= 500 && status <= 599)
+    return new ModelRequestError({
+      code: 'model_request_unavailable',
+      message: 'The model request failed (HTTP 5xx).',
+    });
+}
+
 export function failureDiagnostic(error: unknown, stage: RuntimeStage) {
   let code = 'unknown_error';
   let message = 'Native execution failed; untrusted error text was withheld.';
@@ -44,6 +80,10 @@ export function failureDiagnostic(error: unknown, stage: RuntimeStage) {
   // Node fetch often wraps the useful network code in its cause.
   let current = error;
   for (let depth = 0; depth < 3 && current instanceof Error; depth++) {
+    if (current instanceof ModelRequestError) {
+      ({ code, message } = current.diagnostic);
+      break;
+    }
     if (Object.hasOwn(messages, current.message)) {
       code = messages[current.message];
       message = current.message;

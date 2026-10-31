@@ -114,6 +114,31 @@ class ImmediateInferenceTest {
         });
     assertEquals("Hello from the SDK fixture.", text.toString());
     assertTrue(terminal.get());
+    var rejectedInput = client.getObjectMapper().readValue(
+        java.nio.file.Files.readString(java.nio.file.Path.of(System.getenv("MACROFOLD_FIXTURE_INFERENCE_INPUT"))),
+        InferenceCreate.class);
+    rejectedInput.setInput(java.util.Map.of("messages", List.of(java.util.Map.of("role", "user", "content", "sdk-provider-error"))));
+    java.util.function.Consumer<dev.macrofold.model.RunResult> rejectedReceipt = result -> {
+      assertEquals("failure", result.getExecutionOutcome());
+      assertNotNull(result.getInference().getReasonCode());
+      var error = result.getInference().getProviderError();
+      assertEquals(402, error.getHttpStatus());
+      assertEquals("SDK provider spending limit reached.", error.getMessage());
+      assertEquals("insufficient_quota", error.getCode());
+      assertNull(error.getTruncated());
+    };
+    var rejected = client.inferences().create(rejectedInput);
+    assertEquals("failed", rejected.getStatus().toString());
+    rejectedReceipt.accept(rejected.getResult());
+    var failed = new java.util.concurrent.atomic.AtomicBoolean();
+    client.inferences().stream(rejectedInput, event -> {
+      if ("run.failed".equals(event.getType().toString())) {
+        rejectedReceipt.accept(event.getData().getResult());
+        failed.set(true);
+      }
+      return true;
+    });
+    assertTrue(failed.get());
   }
 
   static final String ID = "01900000-0000-7000-8000-000000000001";

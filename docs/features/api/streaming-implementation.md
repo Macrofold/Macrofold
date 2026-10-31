@@ -57,6 +57,13 @@ Anthropic completion requires `message_stop` and a stop reason. OpenRouter requi
 
 Terminal direct events include the same finalized result available through `GET /v1/runs/{id}/result`. `run.failed`, `run.cancelled` and `run.timed_out` are explicit unsuccessful outcomes; HTTP status cannot change after stream headers. A producer that cannot finalize promptly emits `transport.error` with recovery instructions. EOF alone is never success in an SDK helper.
 
+Explicit upstream JSON/SSE errors preserve a bounded, credential-redacted
+`provider_error` beside the classified receipt reason. Midstream errors preserve
+already reported usage and the actual upstream HTTP status, which can remain
+200. Error text is encrypted response content, hydrated for authorized delivery
+and replay, and suppressed on revoked disclosure or purge. It is never forwarded
+as an assistant-text delta or copied into ordinary lifecycle metadata.
+
 Direct deltas bypass SQL event storage. The GET run stream still exposes durable lifecycle events and final-result observation, not missed direct tokens. Bounded agents retain replay by batching adjacent fragments with identical identities, flushing at approximately 4 KiB or when an incoming event observes 100 ms since the last flush, plus model completion. This intentionally uses no timer; a lone fragment during a provider stall may wait for the next event/completion. Native event replay, checkpoints and retention are unchanged.
 
 ## Native reasoning delivery

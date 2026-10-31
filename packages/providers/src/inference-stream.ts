@@ -1,7 +1,8 @@
 import { createParser } from 'eventsource-parser';
 import { z } from 'zod';
 import { AppError, assert } from '../../core/src/errors';
-import type { InferenceOutput, InferenceOutputSink } from '../../core/src/decision';
+import type { InferenceOutput, InferenceOutputSink, ProviderError } from '../../core/src/decision';
+import { extractProviderError } from './provider-error';
 
 const object = z.record(z.string(), z.unknown());
 const index = z.number().int().min(0).max(1023);
@@ -10,7 +11,12 @@ const limit = 512 * 1024;
 
 /** Decode vendor framing and assemble one native response. Delivery never owns
  * execution: sinks may detach, but upstream consumption and finalization continue. */
-export async function readInferenceStream(response: Response, chat: boolean, output?: InferenceOutputSink) {
+export async function readInferenceStream(
+  response: Response,
+  chat: boolean,
+  output?: InferenceOutputSink,
+  secrets: readonly string[] = [],
+) {
   const raw: Record<string, unknown> = chat
     ? { object: 'chat.completion', choices: [] }
     : { type: 'message', role: 'assistant', content: [] };
@@ -29,6 +35,7 @@ export async function readInferenceStream(response: Response, chat: boolean, out
   let completedAt: string | undefined;
   let completedAtMonotonicMs: number | undefined;
   let incomplete: string | undefined;
+  let providerError: ProviderError | undefined;
   let bytes = 0;
   let checkedAt = 0;
   let frames: InferenceOutput[] = [];
@@ -58,8 +65,12 @@ export async function readInferenceStream(response: Response, chat: boolean, out
         return;
       }
       const frame = object.parse(JSON.parse(event.data));
-      if (frame.error || frame.type === 'error')
+      if (frame.error || frame.type === 'error') {
+        const usage = object.safeParse(frame.usage);
+        if (usage.success) raw.usage = { ...object.parse(raw.usage ?? {}), ...usage.data };
+        providerError = extractProviderError(frame, response.status, secrets);
         throw new AppError(502, 'provider_stream_error', 'The provider interrupted generation.');
+      }
       if (chat) {
         for (const key of ['id', 'model', 'created', 'system_fingerprint'])
           if (frame[key] !== undefined) raw[key] = frame[key];
@@ -232,6 +243,7 @@ export async function readInferenceStream(response: Response, chat: boolean, out
   return {
     raw,
     incomplete,
+    ...(providerError ? { providerError } : {}),
     completedAt: incomplete ? undefined : completedAt,
     completedAtMonotonicMs: incomplete ? undefined : completedAtMonotonicMs,
   };

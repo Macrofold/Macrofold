@@ -7,9 +7,57 @@ import type { NativeConfiguration } from '../../packages/runtime/src/types';
 vi.mock('@opencode-ai/sdk/v2/server', () => ({ createOpencodeServer: vi.fn() }));
 afterEach(() => vi.resetAllMocks());
 
-it.each(['success', 'session-error', 'message-error', 'closed', 'cancel'])(
-  'submits once without a held prompt request and handles %s via the real SDK event transport',
-  async (mode) => {
+type Scenario = {
+  mode: 'success' | 'submit-error' | 'session-error' | 'message-error' | 'final-error' | 'closed' | 'cancel';
+  error?: unknown;
+  code?: string;
+};
+const scenarios: Scenario[] = [
+  { mode: 'success' },
+  { mode: 'session-error', error: { message: 'private upstream text' }, code: 'turn_failed' },
+  { mode: 'message-error', error: { message: 'private' }, code: 'turn_failed' },
+  { mode: 'closed' },
+  { mode: 'cancel' },
+];
+for (const mode of ['submit-error', 'session-error', 'message-error', 'final-error'] as const)
+  scenarios.push({
+    mode,
+    error: {
+      name: 'APIError',
+      data: {
+        statusCode: 402,
+        isRetryable: false,
+        message: 'private upstream text',
+        responseBody: 'private response',
+        responseHeaders: { authorization: 'private credential' },
+      },
+    },
+    code: 'model_request_payment_required',
+  });
+for (const [statusCode, code] of [
+  [401, 'model_request_authentication_failed'],
+  [403, 'model_request_access_denied'],
+  [429, 'model_request_rate_limited'],
+  [500, 'model_request_unavailable'],
+  [599, 'model_request_unavailable'],
+  [400, 'turn_failed'],
+  [600, 'turn_failed'],
+  ['402', 'turn_failed'],
+] as const)
+  scenarios.push({
+    mode: 'session-error',
+    error: { name: 'APIError', data: { statusCode, message: 'private upstream text' } },
+    code,
+  });
+scenarios.push({
+  mode: 'session-error',
+  error: { name: 'UnknownError', data: { statusCode: 402, message: 'private upstream text' } },
+  code: 'turn_failed',
+});
+
+it.each(scenarios)(
+  'submits once without a held prompt request and handles $mode ($code) via the real SDK event transport',
+  async ({ mode, error, code }) => {
     let feed: ServerResponse | undefined;
     const paths: string[] = [];
     const abort = new AbortController();
@@ -26,6 +74,10 @@ it.each(['success', 'session-error', 'message-error', 'closed', 'cancel'])(
         for await (const _ of req) {
           /* Drain the accepted prompt. */
         }
+        if (mode === 'submit-error') {
+          res.writeHead(402, { 'content-type': 'application/json' }).end(JSON.stringify(error));
+          return;
+        }
         res.writeHead(204).end();
         setImmediate(() => {
           if (mode === 'cancel') {
@@ -38,7 +90,7 @@ it.each(['success', 'session-error', 'message-error', 'closed', 'cancel'])(
           }
           event('message.updated', { info: { id: 'u', sessionID: 's', role: 'user' } });
           if (mode === 'session-error') {
-            event('session.error', { sessionID: 's', error: { message: 'private upstream text' } });
+            event('session.error', { sessionID: 's', error });
             return;
           }
           event('message.updated', {
@@ -47,7 +99,7 @@ it.each(['success', 'session-error', 'message-error', 'closed', 'cancel'])(
               sessionID: 's',
               role: 'assistant',
               parentID: 'u',
-              ...(mode === 'message-error' ? { error: { message: 'private' } } : {}),
+              ...(mode === 'message-error' ? { error } : {}),
             },
           });
           event('message.part.updated', { part: { id: 'p', sessionID: 's', type: 'text' } });
@@ -59,7 +111,12 @@ it.each(['success', 'session-error', 'message-error', 'closed', 'cancel'])(
         res.setHeader('content-type', 'application/json');
         res.end(
           JSON.stringify({
-            info: { id: 'a', sessionID: 's', role: 'assistant' },
+            info: {
+              id: 'a',
+              sessionID: 's',
+              role: 'assistant',
+              ...(mode === 'final-error' ? { error } : {}),
+            },
             parts: [{ type: 'text', text: 'final response' }],
           }),
         );
@@ -99,7 +156,15 @@ it.each(['success', 'session-error', 'message-error', 'closed', 'cancel'])(
         });
         expect(emit).toHaveBeenCalledWith({ type: 'output.delta', data: { text: 'streamed' } });
         expect(paths).toContain('GET /session/s/message/a');
-      } else await expect(result).rejects.toThrow();
+      } else {
+        await expect(result).rejects.toThrow();
+        if (code) {
+          const failure = await result.catch((caught: unknown) => caught);
+          expect(failureDiagnostic(failure, 'turn_execute')).toMatchObject({ code, stage: 'turn_execute' });
+          expect(JSON.stringify(failure)).not.toContain('private');
+          expect(JSON.stringify(failureDiagnostic(failure, 'turn_execute'))).not.toContain('private');
+        }
+      }
       expect(paths.filter((value) => value.includes('prompt_async'))).toHaveLength(1);
       expect(paths).not.toContain('POST /session/s/message');
     } finally {

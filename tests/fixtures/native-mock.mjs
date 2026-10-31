@@ -138,6 +138,16 @@ const result = JSON.parse(await readFile('/platform-control/result.json', 'utf8'
 console.log(JSON.stringify({ harness, calls: fixture.calls, observed, result }));
 assert.equal(result.outcome, cancellation ? 'cancelled' : failureMode ? 'failure' : 'success');
 assert.equal(result.persistence, 'captured');
+if (harness === 'opencode' && failureMode && !cancellation) {
+  const events = (await readFile('/platform-control/events.jsonl', 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  const failure = events.find((event) => event.type === 'runtime.failed');
+  assert.equal(failure?.data.code, 'model_request_authentication_failed');
+  assert.equal(failure.data.stage, 'turn_execute');
+  assert(!JSON.stringify(failure).includes('Fixture credentials revoked'));
+}
 assertClaudeWorkspaceContext(observed);
 if (mediaMode) {
   assert(

@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.InferenceBilling;
+import dev.macrofold.model.InferenceProviderError;
 import dev.macrofold.model.InferenceReceiptCostAttribution;
 import dev.macrofold.model.InferenceReceiptDeployment;
 import dev.macrofold.model.InferenceReceiptProviderEvidence;
@@ -69,7 +70,8 @@ import dev.macrofold.ApiClient;
   InferenceReceipt.JSON_PROPERTY_USAGE,
   InferenceReceipt.JSON_PROPERTY_BILLING,
   InferenceReceipt.JSON_PROPERTY_DEPLOYMENT,
-  InferenceReceipt.JSON_PROPERTY_COST_ATTRIBUTION
+  InferenceReceipt.JSON_PROPERTY_COST_ATTRIBUTION,
+  InferenceReceipt.JSON_PROPERTY_PROVIDER_ERROR
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class InferenceReceipt {
@@ -279,6 +281,10 @@ public class InferenceReceipt {
   public static final String JSON_PROPERTY_COST_ATTRIBUTION = "cost_attribution";
   @javax.annotation.Nullable
   private InferenceReceiptCostAttribution costAttribution;
+
+  public static final String JSON_PROPERTY_PROVIDER_ERROR = "provider_error";
+  @javax.annotation.Nullable
+  private InferenceProviderError providerError;
 
   public InferenceReceipt() { 
   }
@@ -883,6 +889,30 @@ public class InferenceReceipt {
   }
 
 
+  public InferenceReceipt providerError(@javax.annotation.Nullable InferenceProviderError providerError) {
+    this.providerError = providerError;
+    return this;
+  }
+
+  /**
+   * Get providerError
+   * @return providerError
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_PROVIDER_ERROR, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public InferenceProviderError getProviderError() {
+    return providerError;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_PROVIDER_ERROR, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setProviderError(@javax.annotation.Nullable InferenceProviderError providerError) {
+    this.providerError = providerError;
+  }
+
+
   /**
    * Return true if this InferenceReceipt object is equal to o.
    */
@@ -917,7 +947,8 @@ public class InferenceReceipt {
         Objects.equals(this.usage, inferenceReceipt.usage) &&
         Objects.equals(this.billing, inferenceReceipt.billing) &&
         Objects.equals(this.deployment, inferenceReceipt.deployment) &&
-        Objects.equals(this.costAttribution, inferenceReceipt.costAttribution);
+        Objects.equals(this.costAttribution, inferenceReceipt.costAttribution) &&
+        Objects.equals(this.providerError, inferenceReceipt.providerError);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -926,7 +957,7 @@ public class InferenceReceipt {
 
   @Override
   public int hashCode() {
-    return Objects.hash(invocationId, definitionRevision, definitionDigest, contextDigest, providerRequestDigest, transformationVersion, dependencyTokens, outcome, hashCodeNullable(value), providerOutcome, hashCodeNullable(providerRequestId), model, hashCodeNullable(modelRevision), modelRevisionStatus, validation, hashCodeNullable(usageRequestId), timingsMs, reasonCode, providerEvidence, usage, billing, deployment, costAttribution);
+    return Objects.hash(invocationId, definitionRevision, definitionDigest, contextDigest, providerRequestDigest, transformationVersion, dependencyTokens, outcome, hashCodeNullable(value), providerOutcome, hashCodeNullable(providerRequestId), model, hashCodeNullable(modelRevision), modelRevisionStatus, validation, hashCodeNullable(usageRequestId), timingsMs, reasonCode, providerEvidence, usage, billing, deployment, costAttribution, providerError);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -963,6 +994,7 @@ public class InferenceReceipt {
     sb.append("    billing: ").append(toIndentedString(billing)).append("\n");
     sb.append("    deployment: ").append(toIndentedString(deployment)).append("\n");
     sb.append("    costAttribution: ").append(toIndentedString(costAttribution)).append("\n");
+    sb.append("    providerError: ").append(toIndentedString(providerError)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -1128,6 +1160,11 @@ public class InferenceReceipt {
     // add `cost_attribution` to the URL query string
     if (getCostAttribution() != null) {
       joiner.add(getCostAttribution().toUrlQueryString(prefix + "cost_attribution" + suffix));
+    }
+
+    // add `provider_error` to the URL query string
+    if (getProviderError() != null) {
+      joiner.add(getProviderError().toUrlQueryString(prefix + "provider_error" + suffix));
     }
 
     return joiner.toString();

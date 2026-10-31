@@ -57,6 +57,14 @@ Each credential has independent per-minute budgets within its organization: 12,0
 
 Errors include `error.code`, `message`, `request_id`, `details`, and `retryable`. Preserve request IDs for diagnosis.
 
+An admitted direct inference keeps its existing terminal receipt contract:
+`result.inference.reason_code` classifies the failure, and optional
+`result.inference.provider_error` carries the upstream HTTP status, exact message
+(subject to credential redaction and a 16 KiB bound), optional provider code and
+truncation flag. This also appears in terminal SSE results and authorized replay;
+it does not turn a failed inference receipt into an HTTP admission error or grant
+permission to retry. See [result interpretation](../decisions/README.md#interpret-the-result).
+
 | Response                      | What to do                                                         |
 | ----------------------------- | ------------------------------------------------------------------ |
 | 401                           | Refresh authorization or sign in again                             |

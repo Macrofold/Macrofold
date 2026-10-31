@@ -234,6 +234,9 @@ async fn application_immediate_json_and_sse() {
         .await
         .unwrap();
     assert_eq!(response.run_id, replay.run_id);
+    let mut rejected_input = input.clone();
+    rejected_input.input =
+        Some(serde_json::json!({"messages":[{"role":"user","content":"sdk-provider-error"}]}));
     let mut text = String::new();
     let mut terminal = false;
     client
@@ -252,6 +255,36 @@ async fn application_immediate_json_and_sse() {
         .unwrap();
     assert_eq!(text, "Hello from the SDK fixture.");
     assert!(terminal);
+    let rejected_receipt = |result: &models::RunResult| {
+        assert_eq!(result.execution_outcome, "failure");
+        let receipt = result.inference.as_ref().unwrap();
+        assert!(receipt.reason_code.is_some());
+        let error = receipt.provider_error.as_ref().unwrap();
+        assert_eq!(error.http_status, 402);
+        assert_eq!(error.message, "SDK provider spending limit reached.");
+        assert_eq!(error.code.as_deref(), Some("insufficient_quota"));
+        assert!(error.truncated.is_none());
+    };
+    let rejected = client
+        .inferences()
+        .create(rejected_input.clone())
+        .await
+        .unwrap();
+    assert_eq!(rejected.status, models::inference_response::Status::Failed);
+    rejected_receipt(rejected.result.as_ref().unwrap());
+    let mut failed = false;
+    client
+        .inferences()
+        .stream(rejected_input, |event| {
+            if event.r#type == models::inference_stream_event::Type::RunFailed {
+                rejected_receipt(event.data.result.as_ref().unwrap());
+                failed = true;
+            }
+            true
+        })
+        .await
+        .unwrap();
+    assert!(failed);
 }
 fn urls() -> serde_json::Value {
     serde_json::json!({"status":"https://example.test/status","result":"https://example.test/result","events":"https://example.test/events","stream":"https://example.test/stream","cancel":"https://example.test/cancel"})

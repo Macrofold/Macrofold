@@ -3,7 +3,8 @@ import type { QueryResultRow } from 'pg';
 import * as database from '../../packages/db';
 import type { Tx, TransactionOptions } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
-import { id } from '../../packages/core/src/crypto';
+import { id, unseal } from '../../packages/core/src/crypto';
+import { createKey } from '../../packages/core/src/keys';
 import { credit } from '../../packages/core/src/ledger';
 import * as ledger from '../../packages/core/src/ledger';
 import { handleApi } from '../../packages/core/src/http';
@@ -90,7 +91,7 @@ function providerResponse() {
     { headers: { 'request-id': 'fixture-provider-request' } },
   );
 }
-async function post(identity = id()) {
+async function post(identity = id(), options: { stream?: boolean; credential?: string } = {}) {
   enable();
   // These faults target admitted work. A contended fixture host can refuse the
   // one-second admission budget; retry only its explicit safe refusal, same key.
@@ -99,11 +100,11 @@ async function post(identity = id()) {
       new Request(`${config.origin}/v1/inferences`, {
         method: 'POST',
         headers: {
-          authorization: `Bearer ${account.key}`,
+          authorization: `Bearer ${options.credential ?? account.key}`,
           'content-type': 'application/json',
           'idempotency-key': identity,
         },
-        body: JSON.stringify(input()),
+        body: JSON.stringify({ ...input(), ...(options.stream ? { stream: true } : {}) }),
       }),
       'rest',
       retainBackground,
@@ -183,6 +184,169 @@ async function recoverThroughCloudPoller(runId: string, expireOwner = false) {
   expect(progress).toMatchObject({ advanced: 1, failed: 0 });
   expect(machine).not.toHaveBeenCalled();
 }
+
+it('delivers exact provider rejection messages through JSON and replay while keeping stored metadata content-free', async () => {
+  const message = 'Insufficient credits: available balance $0.00; this request requires $0.01.';
+  const providerError = { http_status: 402, code: 'insufficient_credits', message };
+  const provider = vi.fn(async () =>
+    Response.json(
+      { error: { code: 'insufficient_credits', message }, usage: { input_tokens: 17, output_tokens: 3 } },
+      { status: 402, headers: { 'request-id': 'rejected-message-fixture' } },
+    ),
+  );
+  vi.stubGlobal('fetch', provider);
+  const identity = id();
+  const response = await post(identity);
+  expect(response.status).toBe(200);
+  const accepted = await response.json();
+  expect(accepted).toMatchObject({
+    status: 'failed',
+    result: {
+      inference: {
+        outcome: 'failed',
+        reason_code: 'decision_provider_failed',
+        provider_error: providerError,
+        usage: { input_tokens: '17', output_tokens: '3', completeness: 'complete' },
+      },
+    },
+  });
+  const result = () =>
+    handleApi(
+      new Request(`${config.origin}/v1/runs/${accepted.run_id}/result`, {
+        headers: { authorization: `Bearer ${account.key}` },
+      }),
+    );
+  expect(await (await result()).json()).toMatchObject({ inference: { provider_error: providerError } });
+  const replay = await post(identity);
+  expect(replay.status).toBe(200);
+  expect(await replay.json()).toMatchObject({
+    run_id: accepted.run_id,
+    result: { inference: { provider_error: providerError } },
+  });
+  const saved = await facts(accepted.run_id);
+  expect(saved.usage).toHaveLength(1);
+  expect(saved.invocations).toHaveLength(1);
+  const ciphertext = saved.invocations[0].response_ciphertext;
+  if (!ciphertext) throw new Error('The rejected request lost its encrypted evidence.');
+  expect(ciphertext).not.toContain(message);
+  expect(unseal(ciphertext)).toMatchObject({ providerError });
+  const metadata = await database.transaction(account.p.organizationId, async (tx) => ({
+    run: (await tx.query<{ result: unknown }>('SELECT result FROM runs WHERE id=$1', [accepted.run_id]))
+      .rows[0].result,
+    events: (
+      await tx.query<{ data: unknown }>('SELECT data FROM run_events WHERE run_id=$1', [accepted.run_id])
+    ).rows,
+  }));
+  expect(JSON.stringify(metadata)).not.toContain(message);
+  expect(metadata.run).not.toHaveProperty('inference.provider_error');
+  expect(provider).toHaveBeenCalledOnce();
+
+  await database.transaction(account.p.organizationId, async (tx) => {
+    await tx.query("UPDATE runs SET completed_at=now()-interval '400 days' WHERE id=$1", [accepted.run_id]);
+    await expireDetailedHistory(tx, 'payg', new Date());
+  });
+  const expired = await result();
+  expect(expired.status).toBe(200);
+  const tombstone = await expired.json();
+  expect(tombstone.content_expired).toBe(true);
+  expect(tombstone).not.toHaveProperty('inference');
+  expect(JSON.stringify(tombstone)).not.toContain(message);
+  expect(provider).toHaveBeenCalledOnce();
+});
+
+it('preserves an explicit streaming provider error and observed usage in the final receipt and replay', async () => {
+  const message = 'Capacity changed while generating; the provider stopped this request.';
+  const providerError = { http_status: 200, code: 'overloaded_error', message };
+  const frame = (event: object) => `data: ${JSON.stringify(event)}\n\n`;
+  const wire = [
+    frame({
+      type: 'message_start',
+      message: { id: 'stream-error-message-fixture', content: [], usage: { input_tokens: 17 } },
+    }),
+    frame({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+    frame({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Partial' } }),
+    frame({ type: 'message_delta', delta: {}, usage: { output_tokens: 3 } }),
+    frame({ type: 'error', error: { code: 'overloaded_error', message } }),
+  ].join('');
+  const provider = vi.fn(
+    async () => new Response(wire, { headers: { 'content-type': 'text/event-stream' } }),
+  );
+  vi.stubGlobal('fetch', provider);
+  const identity = id();
+  const response = await post(identity, { stream: true });
+  expect(response.status).toBe(200);
+  const runId = response.headers.get('x-run-id');
+  if (!runId) throw new Error('The stream omitted its recoverable Run identity.');
+  const delivered = await response.text();
+  expect(delivered).toContain('event: run.failed');
+  const terminal = delivered.split('\n\n').find((event) => event.startsWith('event: run.failed\n'));
+  if (!terminal) throw new Error('The stream omitted its terminal failure receipt.');
+  const data = terminal.split('\n').find((line) => line.startsWith('data: '));
+  if (!data) throw new Error('The terminal event omitted its data.');
+  const final = JSON.parse(data.slice(6));
+  expect(final.data).toMatchObject({
+    result: {
+      inference: {
+        provider_error: providerError,
+        usage: { input_tokens: '17', output_tokens: '3', completeness: 'missing' },
+        billing: { provisional: true },
+      },
+    },
+  });
+  const saved = await facts(runId);
+  expect(saved.run.result.inference).toMatchObject({ provider_error: providerError });
+  expect(saved.usage).toHaveLength(1);
+  const replay = await post(identity, { stream: true });
+  expect(replay.status).toBe(200);
+  const replayTerminal = (await replay.text())
+    .split('\n\n')
+    .find((event) => event.startsWith('event: run.failed\n'));
+  const replayData = replayTerminal?.split('\n').find((line) => line.startsWith('data: '));
+  if (!replayData) throw new Error('Replay omitted its terminal failure receipt.');
+  expect(JSON.parse(replayData.slice(6)).data).toMatchObject({
+    result: { inference: { provider_error: providerError } },
+  });
+  expect(provider).toHaveBeenCalledOnce();
+});
+
+it('suppresses provider message disclosure when the admitted API key is revoked before publication', async () => {
+  const key = await database.transaction(account.p.organizationId, (tx) =>
+    createKey(tx, account.p, { name: 'Provider rejection disclosure', scopes: ['runs:read', 'runs:write'] }),
+  );
+  const message = 'Private upstream rejection details for the previously authorized caller.';
+  const provider = heldProvider();
+  const pending = post(id(), { credential: key.secret });
+  try {
+    await waitForProvider(provider, pending);
+    const runId = await onlyActiveRun();
+    await database.transaction(account.p.organizationId, (tx) =>
+      tx.query('UPDATE api_keys SET revoked_at=now() WHERE id=$1', [key.id]),
+    );
+    provider.resolve(
+      Response.json(
+        { error: { code: 'private_rejection', message }, usage: { input_tokens: 17, output_tokens: 3 } },
+        { status: 402 },
+      ),
+    );
+    const response = await pending;
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.result.inference).toMatchObject({
+      outcome: 'failed',
+      reason_code: 'authorization_revoked',
+      usage: { input_tokens: '17', output_tokens: '3' },
+    });
+    expect(result.result.inference).not.toHaveProperty('provider_error');
+    expect(JSON.stringify(result)).not.toContain(message);
+    const saved = await facts(runId);
+    expect(saved.run.result.inference).not.toHaveProperty('provider_error');
+    expect(saved.usage).toHaveLength(1);
+    expect(provider.fetch).toHaveBeenCalledOnce();
+  } finally {
+    provider.resolve(providerResponse());
+    await pending;
+  }
+});
 
 it('rejects over-quota admission without reserving money or invoking a provider', async () => {
   const identity = id();

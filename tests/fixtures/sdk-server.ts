@@ -19,6 +19,11 @@ globalThis.fetch = async (input, init) => {
   if (url.href !== 'https://api.anthropic.com/v1/messages')
     throw new Error('Unreviewed outbound request in SDK acceptance.');
   const request = JSON.parse(String(init?.body));
+  if (JSON.stringify(request.messages).includes('sdk-provider-error'))
+    return Response.json(
+      { error: { type: 'insufficient_quota', message: 'SDK provider spending limit reached.' } },
+      { status: 402 },
+    );
   const message = {
     id: 'sdk-provider-fixture',
     type: 'message',

@@ -14,6 +14,7 @@ import { independentUsage, nativeSystemOneResponse, prepareSystemOne } from './d
 import { readInferenceStream } from './inference-stream';
 import { modelEndpointFetch } from './network';
 import { requireClientTools } from './model-protocols';
+import { extractProviderError, isProviderErrorEnvelope } from './provider-error';
 
 const object = z.record(z.string(), z.unknown());
 const identity = z.object({ id: z.string().optional(), model: z.string().optional() });
@@ -221,6 +222,8 @@ function validateSchemaKeywords(schema: unknown, keywords: string[]) {
  * inventory, pricing or serving-revision lookup belongs in this transport. */
 export function deploymentProtocol(
   target: DeploymentTarget,
+  // deploymentCredentialTx supplies only encrypted connection/resource credentials;
+  // transport metadata (content type, deadline) is added separately below.
   headers: Record<string, string> = {},
   timeoutSeconds = 240,
   transport: typeof modelEndpointFetch = modelEndpointFetch,
@@ -272,24 +275,57 @@ export function deploymentProtocol(
         let raw: unknown;
         let incomplete: string | undefined;
         if (upstream.ok && body.stream === true) {
-          const streamed = await readInferenceStream(upstream, true, output);
+          const streamed = await readInferenceStream(upstream, true, output, Object.values(headers));
           raw = streamed.raw;
           incomplete = streamed.incomplete;
           evidence.completedAt = streamed.completedAt ?? null;
           evidence.completedAtMonotonicMs = streamed.completedAtMonotonicMs ?? null;
           evidence.complete = !incomplete;
+          evidence.providerError = streamed.providerError;
         } else {
-          const text = (await boundedBody(upstream.body, upstream.ok ? 512 * 1024 : 16 * 1024)).toString(
-            'utf8',
-          );
+          let text: string;
+          try {
+            text = (await boundedBody(upstream.body, upstream.ok ? 512 * 1024 : 16 * 1024)).toString('utf8');
+          } catch (error) {
+            // A bounded/unreadable body must not hide an already received rejection.
+            if (!upstream.ok)
+              throw new AppError(
+                502,
+                'decision_provider_failed',
+                'The deployment rejected the inference request.',
+              );
+            throw error;
+          }
           evidence.complete = true;
           evidence.completedAt = new Date().toISOString();
           evidence.completedAtMonotonicMs = performance.now();
           evidence.response = text;
-          raw = JSON.parse(text);
+          let plainText = false;
+          try {
+            raw = JSON.parse(text);
+            plainText = typeof raw === 'string';
+          } catch (error) {
+            if (upstream.ok) throw error;
+            raw = text;
+            plainText =
+              !upstream.headers.get('content-type') ||
+              Boolean(upstream.headers.get('content-type')?.startsWith('text/plain'));
+          }
+          evidence.providerError = extractProviderError(
+            raw,
+            upstream.status,
+            Object.values(headers),
+            plainText,
+          );
         }
         evidence.response = raw;
         evidence.usage = independentUsage(raw, !systemOne, 'deployment');
+        assert(
+          upstream.ok && !isProviderErrorEnvelope(raw),
+          502,
+          'decision_provider_failed',
+          'The deployment rejected the inference request.',
+        );
         const parsedIdentity = identity.safeParse(raw);
         if (parsedIdentity.success) {
           evidence.requestId = parsedIdentity.data.id ?? evidence.requestId;
@@ -301,12 +337,6 @@ export function deploymentProtocol(
             'The endpoint returned a different model.',
           );
         }
-        assert(
-          upstream.ok,
-          502,
-          'decision_provider_failed',
-          'The deployment rejected the inference request.',
-        );
         if (systemOne) nativeSystemOneResponse(raw, evidence.usage);
         else if (!incomplete) {
           const parsed = completion.parse(raw);
@@ -329,6 +359,7 @@ export function deploymentProtocol(
           requestId: evidence.requestId,
           modelRevision: target.deployment_revision_id,
           httpStatus: upstream.status,
+          ...(evidence.providerError ? { providerError: evidence.providerError } : {}),
           ...(incomplete ? { incomplete } : {}),
           ...(evidence.completedAt ? { completedAt: evidence.completedAt } : {}),
           ...(evidence.completedAtMonotonicMs !== null

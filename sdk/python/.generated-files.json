@@ -120,6 +120,7 @@
   "macrofold/models/inference_error_details.py",
   "macrofold/models/inference_error_details_issues_inner.py",
   "macrofold/models/inference_limits.py",
+  "macrofold/models/inference_provider_error.py",
   "macrofold/models/inference_receipt.py",
   "macrofold/models/inference_receipt_cost_attribution.py",
   "macrofold/models/inference_receipt_deployment.py",

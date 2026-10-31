@@ -4,7 +4,7 @@ import type { StoredDecisionResponse } from './inference-invocations';
 import { assert } from './errors';
 import { unseal } from './crypto';
 
-/** One output owner, hydrated only for result consumers. Bulk reads avoid N+1
+/** One encrypted content owner, hydrated only for result consumers. Bulk reads avoid N+1
  * queries in history/Task presentation; lifecycle queries keep small receipts. */
 export async function hydrateInferenceResults<T extends RunRow>(tx: Tx, runs: T[]): Promise<T[]> {
   const requested = runs.filter((run) => !run.result.content_expired && run.result.inference_output_id);
@@ -35,24 +35,38 @@ export async function hydrateInferenceResults<T extends RunRow>(tx: Tx, runs: T[
   return runs.map((run) => {
     const { inference_output_id: outputId, inference_output_path: path, ...result } = run.result;
     const stored = outputId ? values.get(outputId) : undefined;
-    if (stored?.run_id === run.id && stored.response_ciphertext && result.inference?.outcome === 'value') {
+    if (stored?.run_id === run.id && stored.response_ciphertext && result.inference) {
       const response = unseal<StoredDecisionResponse>(stored.response_ciphertext);
-      let value = response.value;
-      if (path === 'bounded_finish') {
-        assert(
-          value && typeof value === 'object' && 'value' in value,
-          500,
-          'inference_output_missing',
-          'The saved bounded result is unavailable.',
-        );
-        value = value.value;
+      if (result.inference.outcome === 'value') {
+        let value = response.value;
+        if (path === 'bounded_finish') {
+          assert(
+            value && typeof value === 'object' && 'value' in value,
+            500,
+            'inference_output_missing',
+            'The saved bounded result is unavailable.',
+          );
+          value = value.value;
+        }
+        return { ...run, result: { ...result, inference: { ...result.inference, value } } };
       }
-      return { ...run, result: { ...result, inference: { ...result.inference, value } } };
+      // Error wording may echo caller input. It shares encrypted output ownership
+      // and retention; no exact provider message lives in unencrypted Run metadata.
+      assert(
+        response.providerError,
+        500,
+        'inference_output_missing',
+        'The saved provider error is unavailable.',
+      );
+      return {
+        ...run,
+        result: { ...result, inference: { ...result.inference, provider_error: response.providerError } },
+      };
     }
     const current = tombstones.get(run.id);
     if (current?.content_expired) return { ...run, result: current };
     assert(
-      !outputId || result.content_expired || result.inference?.outcome !== 'value',
+      !outputId || result.content_expired,
       500,
       'inference_output_missing',
       'The saved inference output is unavailable.',

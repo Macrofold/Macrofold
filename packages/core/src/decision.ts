@@ -11,6 +11,7 @@ export type InferenceCreate = Schema['InferenceCreate'];
 export type InferenceDefinition = Schema['InferenceDefinition'];
 export type ExplicitContext = Schema['ExplicitContext'];
 export type InferenceReceipt = Schema['InferenceReceipt'];
+export type ProviderError = Schema['InferenceProviderError'];
 export type DecisionBinding = Schema['DecisionBinding'];
 export type DeploymentBinding = Schema['DeploymentBinding'];
 export function deploymentBinding(binding: InferenceCreate['model_binding']): binding is DeploymentBinding {
@@ -34,6 +35,8 @@ export type DecisionRequest = {
   steps?: { artifact_id: string; context: ExplicitContext }[];
 };
 export type DecisionResponse = {
+  /** Bounded caller-visible diagnostic; encrypted and disclosed like model output. */
+  providerError?: ProviderError;
   /** Actual upstream transport status, independent of normalized outcome. */
   httpStatus?: number;
   /** Trusted transport completion time, captured before provider normalization. */
@@ -54,6 +57,7 @@ export type DecisionResponse = {
 /** Bounded transport evidence survives normalization failure. Only invocation
  * storage may retain this customer content; public errors must not expose it. */
 export type ProviderEvidence = {
+  providerError?: ProviderError;
   response: unknown;
   httpStatus: number;
   requestId: string | null;

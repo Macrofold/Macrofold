@@ -5,6 +5,22 @@ import { createOpencodeClient } from '@opencode-ai/sdk/v2/client';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { openCodePermissionSettings } from './permission-settings';
+import { modelRequestError } from './failure-diagnostic';
+
+function turnError(error: unknown) {
+  const data =
+    error &&
+    typeof error === 'object' &&
+    'name' in error &&
+    error.name === 'APIError' &&
+    'data' in error &&
+    error.data;
+  return (
+    modelRequestError(
+      data && typeof data === 'object' && 'statusCode' in data ? data.statusCode : undefined,
+    ) ?? new Error('OpenCode turn failed')
+  );
+}
 export class OpenCodeAdapter implements HarnessAdapter {
   private server?: Awaited<ReturnType<typeof createOpencodeServer>>;
   private sessionId?: string;
@@ -144,7 +160,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
           if (raw.type === 'server.connected') connected();
           if (!submitted) continue;
           if (raw.type === 'session.error' && raw.properties.sessionID === sessionId)
-            throw new Error('OpenCode turn failed');
+            throw turnError(raw.properties.error);
           if (raw.type === 'message.updated') {
             const info = raw.properties.info as {
               id: string;
@@ -157,7 +173,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
               if (info.role === 'user') promptId = info.id;
               if (info.role === 'assistant' && promptId && info.parentID === promptId) {
                 assistantId = info.id;
-                if (info.error) throw new Error('OpenCode turn failed');
+                if (info.error) throw turnError(info.error);
               }
             }
           }
@@ -287,7 +303,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
               },
             })
             .then((response) => {
-              if (response.error) throw new Error('OpenCode turn failed');
+              if (response.error) throw turnError(response.error);
               return response;
             }),
           consume,
@@ -300,7 +316,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
         });
         if (response.error || !response.data || response.data.info.role !== 'assistant')
           throw new Error('OpenCode final message unavailable');
-        if (response.data.info.error) throw new Error('OpenCode turn failed');
+        if (response.data.info.error) throw turnError(response.data.info.error);
         const full = response.data?.parts
           .filter((p) => p.type === 'text')
           .map((p) => (p.type === 'text' ? p.text : ''))

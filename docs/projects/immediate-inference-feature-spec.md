@@ -40,7 +40,7 @@ This is a coordinated pre-launch contract change, not a new compatibility mode. 
 1. A backend uses its scoped Macrofold API key and stores a unique idempotency key for the intended invocation.
 2. It submits the supported native scoring payload, exact model binding, funding mode and finite limits. Inline account-level inference does not acquire a mandatory workspace.
 3. Macrofold validates and reserves authority/funding/capacity, calls the provider immediately, durably records the response, settles accounting and returns the completed envelope.
-4. The backend reads `result.inference.value`, usage, charge and timing from that response. It validates the proposal against its own current application state before applying anything.
+4. The backend reads `result.inference.value`, usage, charge and timing from that response. It validates the proposal against its own current application state before applying anything. A terminal provider rejection retains the classified `reason_code` and, when supplied, `provider_error` with the upstream HTTP status, message and optional code. Preserve its wording except credential redaction and the documented bound; error text is not trusted application authority.
 
 No status polling or `GET /v1/billing/usage` belongs in this happy path. Saved Run URLs remain useful for audit and exceptional recovery.
 

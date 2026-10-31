@@ -27,7 +27,7 @@ import {
   type ExecutableInferenceRunRow,
   type InferenceConfig,
 } from './runs';
-import { initialReceipt } from './inference-receipt';
+import { initialReceipt, inferenceReceiptMetadata } from './inference-receipt';
 import { digest, schemaValidator } from './explicit-context';
 import { prepareSettlement, settlementQueries, finishSettlement } from './ledger';
 import type { DecisionResponse, InferenceReceipt } from './decision';
@@ -39,7 +39,7 @@ export type StoredDecisionResponse = DecisionResponse & {
   failure_code?: string;
   transport_complete?: boolean;
   /** Validation is performed before publication; recovery needs no original prompt/schema. */
-  validated_receipt?: Omit<InferenceReceipt, 'value'>;
+  validated_receipt?: Omit<InferenceReceipt, 'value' | 'provider_error'>;
 };
 
 // Live owners already hold the admitted immutable configuration. Fetch current
@@ -506,7 +506,7 @@ export async function finishInferenceInTransaction(
       reason_code: status,
     };
   }
-  const { value: _value, ...receiptMetadata } = receipt;
+  const receiptMetadata = inferenceReceiptMetadata(receipt);
   const settlement = prepareSettlement(
     tx,
     org,
@@ -516,10 +516,12 @@ export async function finishInferenceInTransaction(
   );
   const result: InferenceRunRow['result'] = {
     ...(run.result.content_expired ? run.result : { inference: receiptMetadata }),
-    ...(!run.result.content_expired && receipt.outcome === 'value'
+    ...(!run.result.content_expired && (receipt.outcome === 'value' || receipt.provider_error)
       ? {
           inference_output_id: receipt.invocation_id,
-          ...(run.kind === 'bounded_agent' ? { inference_output_path: 'bounded_finish' as const } : {}),
+          ...(run.kind === 'bounded_agent' && receipt.outcome === 'value'
+            ? { inference_output_path: 'bounded_finish' as const }
+            : {}),
         }
       : {}),
     execution_outcome: status === 'succeeded' ? 'success' : status === 'failed' ? 'failure' : status,
@@ -647,6 +649,7 @@ export function checkedReceipt(
               ? 'output_schema_mismatch'
               : undefined),
     provider_evidence: response.evidence,
+    ...(response.providerError ? { provider_error: response.providerError } : {}),
     ...(valid && !stale && !response.refused && !unknown ? { value: response.value } : {}),
     validation: {
       ...receipt.validation,

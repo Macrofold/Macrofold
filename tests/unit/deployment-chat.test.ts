@@ -505,3 +505,88 @@ it('retains incomplete stream evidence without claiming a successful answer or r
   expect(result.usage.complete).toBe(false);
   expect(transport).toHaveBeenCalledTimes(1);
 });
+
+it.each([false, true])(
+  'retains a redacted custom endpoint rejection with independent usage (SystemOne=%s)',
+  async (systemOne) => {
+    const transport = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: { message: 'Credits exhausted for endpoint-credential and serving-credential.', code: 402 },
+          usage: systemOne
+            ? { input_tokens: 7, output_tokens: 3 }
+            : { prompt_tokens: 7, completion_tokens: 3 },
+        },
+        { status: 402 },
+      ),
+    );
+    const protocol = deploymentProtocol(
+      systemOne ? systemOneTarget() : target(),
+      {
+        Authorization: 'Bearer endpoint-credential',
+        'X-Serving-Token': 'serving-credential',
+      },
+      30,
+      transport,
+    );
+    await expect(protocol.invoke({}, '', new AbortController().signal)).rejects.toMatchObject({
+      code: 'decision_provider_failed',
+      evidence: {
+        providerError: {
+          http_status: 402,
+          code: '402',
+          message: 'Credits exhausted for [REDACTED] and [REDACTED].',
+        },
+        usage: { input: 7, output: 3, complete: true },
+      },
+    });
+    expect(transport).toHaveBeenCalledOnce();
+  },
+);
+
+it('preserves an explicit plain-text custom endpoint rejection', async () => {
+  const transport = vi.fn().mockResolvedValue(new Response('Endpoint overloaded.\n', { status: 503 }));
+  await expect(
+    deploymentProtocol(target(), {}, 30, transport).invoke({}, '', new AbortController().signal),
+  ).rejects.toMatchObject({
+    code: 'decision_provider_failed',
+    evidence: { providerError: { http_status: 503, message: 'Endpoint overloaded.\n' } },
+  });
+});
+
+it('keeps a known rejection classified when the custom endpoint body exceeds its evidence limit', async () => {
+  const transport = vi.fn().mockResolvedValue(new Response('x'.repeat(17 * 1024), { status: 503 }));
+  await expect(
+    deploymentProtocol(target(), {}, 30, transport).invoke({}, '', new AbortController().signal),
+  ).rejects.toMatchObject({
+    code: 'decision_provider_failed',
+    evidence: { httpStatus: 503, complete: false, usage: { complete: false } },
+  });
+  expect(transport).toHaveBeenCalledOnce();
+});
+
+it('retains a custom endpoint streaming error without treating it as an answer', async () => {
+  const frames = [
+    { usage: { prompt_tokens: 7, completion_tokens: 3 }, choices: [] },
+    { error: { message: 'Worker serving-credential stopped.', code: 'worker_stopped' } },
+  ]
+    .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+    .join('');
+  const transport = vi
+    .fn()
+    .mockResolvedValue(new Response(frames, { headers: { 'content-type': 'text/event-stream' } }));
+  const result = await deploymentProtocol(
+    target(),
+    { 'X-Serving-Token': 'serving-credential' },
+    30,
+    transport,
+  ).invoke({ stream: true }, '', new AbortController().signal);
+  expect(result.incomplete).toBe('provider_stream_error');
+  expect(result.providerError).toEqual({
+    http_status: 200,
+    code: 'worker_stopped',
+    message: 'Worker [REDACTED] stopped.',
+  });
+  expect(result.usage).toMatchObject({ input: 7, output: 3, complete: false });
+  expect(transport).toHaveBeenCalledOnce();
+});

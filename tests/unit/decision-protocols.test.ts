@@ -475,6 +475,7 @@ it.each([401, 429, 503])(
       code: 'decision_provider_failed',
       details: {},
       evidence: {
+        providerError: { http_status: status, message: 'private provider detail' },
         httpStatus: status,
         response: raw,
         complete: true,
@@ -485,6 +486,59 @@ it.each([401, 429, 503])(
     expect(call).toHaveBeenCalledOnce();
   },
 );
+
+it.each(['anthropic', 'openrouter'] as const)(
+  'returns an exact redacted %s rejection message separately from its classification',
+  async (provider) => {
+    const call = vi.fn(async () =>
+      Response.json(
+        { error: { message: 'Credit limit reached for fixture-secret.', code: 402 } },
+        { status: 402 },
+      ),
+    );
+    vi.stubGlobal('fetch', call);
+    await expect(
+      decisionProtocol(provider, provider === 'openrouter' ? 'fixture/chat' : undefined).invoke(
+        {},
+        'fixture-secret',
+        AbortSignal.timeout(1000),
+      ),
+    ).rejects.toMatchObject({
+      code: 'decision_provider_failed',
+      evidence: {
+        providerError: { http_status: 402, code: '402', message: 'Credit limit reached for [REDACTED].' },
+      },
+    });
+    expect(call).toHaveBeenCalledOnce();
+  },
+);
+
+it('retains a plain-text HTTP rejection and rejects an HTTP 200 error envelope', async () => {
+  vi.stubGlobal('fetch', async () => new Response('Temporarily overloaded.\n', { status: 503 }));
+  await expect(
+    decisionProtocol('anthropic').invoke({}, 'fixture', AbortSignal.timeout(1000)),
+  ).rejects.toMatchObject({
+    code: 'decision_provider_failed',
+    evidence: { providerError: { http_status: 503, message: 'Temporarily overloaded.\n' } },
+  });
+  vi.stubGlobal('fetch', async () =>
+    Response.json({ error: { message: 'Generation rejected.', code: 'generation_error' } }),
+  );
+  await expect(
+    decisionProtocol('openrouter', 'fixture/chat').invoke(
+      {},
+      'fixture',
+      AbortSignal.timeout(1000),
+      undefined,
+      true,
+    ),
+  ).rejects.toMatchObject({
+    code: 'decision_provider_failed',
+    evidence: {
+      providerError: { http_status: 200, message: 'Generation rejected.', code: 'generation_error' },
+    },
+  });
+});
 it('retains malformed JSON privately and does not invent billable counts', async () => {
   vi.stubGlobal(
     'fetch',

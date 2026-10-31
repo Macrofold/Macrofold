@@ -4,6 +4,13 @@ import { digest } from './explicit-context';
 import { inferenceUsage, inferenceBilling } from './model-gateway';
 import { emptyUsage } from './model-protocol';
 
+/** Provider messages can echo request content. Keep both disclosure fields in
+ * encrypted invocation evidence, never the unencrypted Run summary. */
+export function inferenceReceiptMetadata(receipt: InferenceReceipt) {
+  const { value: _value, provider_error: _providerError, ...metadata } = receipt;
+  return metadata;
+}
+
 export function initialReceipt(
   configuration: InferenceConfig | ImmediateInferenceConfig,
   invocationId: string,

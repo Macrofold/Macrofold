@@ -59,6 +59,8 @@ pub struct InferenceReceipt {
     pub deployment: Option<Box<models::InferenceReceiptDeployment>>,
     #[serde(rename = "cost_attribution", skip_serializing_if = "Option::is_none")]
     pub cost_attribution: Option<Box<models::InferenceReceiptCostAttribution>>,
+    #[serde(rename = "provider_error", skip_serializing_if = "Option::is_none")]
+    pub provider_error: Option<Box<models::InferenceProviderError>>,
 }
 
 impl InferenceReceipt {
@@ -87,6 +89,7 @@ impl InferenceReceipt {
             billing: Box::new(billing),
             deployment: None,
             cost_attribution: None,
+            provider_error: None,
         }
     }
 }

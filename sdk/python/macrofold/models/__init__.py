@@ -133,6 +133,7 @@ from macrofold.models.inference_error_detail import InferenceErrorDetail
 from macrofold.models.inference_error_details import InferenceErrorDetails
 from macrofold.models.inference_error_details_issues_inner import InferenceErrorDetailsIssuesInner
 from macrofold.models.inference_limits import InferenceLimits
+from macrofold.models.inference_provider_error import InferenceProviderError
 from macrofold.models.inference_receipt import InferenceReceipt
 from macrofold.models.inference_receipt_cost_attribution import InferenceReceiptCostAttribution
 from macrofold.models.inference_receipt_deployment import InferenceReceiptDeployment

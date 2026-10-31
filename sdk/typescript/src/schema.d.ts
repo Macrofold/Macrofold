@@ -3560,6 +3560,7 @@ export interface components {
                 /** @constant */
                 infrastructure_cost_included: false;
             };
+            provider_error?: components["schemas"]["InferenceProviderError"];
         } & unknown;
         /** @description Trusted read_context tool only. References are scoped to this application and audience. No shell, customer code, or mutating tools. */
         BoundedAgentPolicy: {
@@ -5746,6 +5747,17 @@ export interface components {
             code: string;
             http_status?: number;
             duration_ms: number;
+        };
+        /** @description Upstream rejection diagnostic for the authorized caller. Provider wording is preserved except credential redaction and explicit bounds; this is untrusted content, not retry authority. Stored encrypted with inference output. */
+        InferenceProviderError: {
+            /** @description Actual upstream HTTP status; an explicit streaming error can arrive after HTTP 200. */
+            http_status: number;
+            /** @description Provider error message, preserving wording except credential redaction and the 16 KiB bound. */
+            message: string;
+            /** @description Optional upstream scalar error code normalized to a string; Macrofold classification remains reason_code. */
+            code?: string;
+            /** @description True when the upstream message was shortened to its byte limit. */
+            truncated?: boolean;
         };
     };
     responses: never;

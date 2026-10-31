@@ -238,6 +238,8 @@ pub mod inference_error_details_issues_inner;
 pub use self::inference_error_details_issues_inner::InferenceErrorDetailsIssuesInner;
 pub mod inference_limits;
 pub use self::inference_limits::InferenceLimits;
+pub mod inference_provider_error;
+pub use self::inference_provider_error::InferenceProviderError;
 pub mod inference_receipt;
 pub use self::inference_receipt::InferenceReceipt;
 pub mod inference_receipt_cost_attribution;

@@ -200,6 +200,41 @@ After commit and connection release, schedule existing trace/request-summary exp
 
 ## Response and client contract
 
+### Upstream rejection messages
+
+The direct inference follow-up adds optional `InferenceReceipt.provider_error`
+alongside the existing classified `reason_code`. It contains the upstream
+`http_status`, textual `message`, optional scalar `code` normalized to a string,
+and `truncated: true` only when the 16 KiB message bound is reached. Preserve
+provider wording except credential redaction; forward no headers, stack or raw
+response envelope. Explicit SSE error messages use the same contract and preserve
+the actual HTTP status even when it is 200. Successful malformed model output is
+not an upstream error message.
+
+Implementation owners and completion criteria:
+
+1. The shared provider parser extracts recognized JSON/plain-text rejections and
+   explicit SSE errors. Direct and custom deployment protocols reuse it, retain
+   usage independently and never retry an inference. Redact the selected secret,
+   credential-bearing configured headers and recognizable credential strings.
+2. Core carries the diagnostic through encrypted invocation evidence and shared
+   receipt construction. Keep exact messages out of unencrypted Run metadata,
+   logs and lifecycle events. Reuse batched encrypted result hydration for GET,
+   replay and recovery; the live successful path gains no query. Revocation and
+   purge suppress this content just as they suppress output values.
+3. Update OpenAPI, all generated clients, public JSON/SSE examples and internal
+   ownership documentation. Preserve terminal HTTP/status/retry/accounting
+   contracts and distinguish provider rejection from uncertain execution.
+4. Verify exact messages, secret exclusion, malformed/oversized errors, streaming
+   usage, replay, revocation/purge, transport and all SDKs with disposable fixtures.
+   Native agent startup is a separate queued path; its phase timings do not
+   establish direct inference latency or a tens-of-milliseconds cold harness SLA.
+
+Implemented and verified locally: shared extraction, encrypted receipt ownership,
+all five SDKs and JSON/SSE API fixtures pass. See the [verification record](../features/decisions/verification.md#upstream-rejection-messages).
+
+### Shared receipt fields
+
 Keep `InferenceResponse`, `RunResult` and `InferenceReceipt` as the public ownership chain. Extend `InferenceReceipt` with reusable OpenAPI components for invocation usage and billing; persist them in the same saved result. Do not return the organization wallet, another Run's costs, credential IDs beyond existing authorized fields, or unrestricted report data.
 
 | Field under `result.inference` | Definition                                                                                                                                                                                                                                                                                                                                        |

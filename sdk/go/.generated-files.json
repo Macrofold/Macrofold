@@ -153,6 +153,7 @@
   "model_inference_error_details.go",
   "model_inference_error_details_issues_inner.go",
   "model_inference_limits.go",
+  "model_inference_provider_error.go",
   "model_inference_receipt.go",
   "model_inference_receipt_cost_attribution.go",
   "model_inference_receipt_deployment.go",

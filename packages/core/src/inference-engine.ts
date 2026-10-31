@@ -488,6 +488,7 @@ async function advanceInferenceStep(
           httpStatus: evidence.httpStatus,
           modelRevision: evidence.modelRevision,
           providerResponse: evidence.response,
+          providerError: evidence.providerError,
           completedAt: evidence.completedAt ?? undefined,
           completedAtMonotonicMs: evidence.completedAtMonotonicMs ?? undefined,
           failure_code: error.code,

@@ -43,6 +43,7 @@ type InferenceReceipt struct {
 	Billing InferenceBilling `json:"billing"`
 	Deployment *InferenceReceiptDeployment `json:"deployment,omitempty"`
 	CostAttribution *InferenceReceiptCostAttribution `json:"cost_attribution,omitempty"`
+	ProviderError *InferenceProviderError `json:"provider_error,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -736,6 +737,38 @@ func (o *InferenceReceipt) SetCostAttribution(v InferenceReceiptCostAttribution)
 	o.CostAttribution = &v
 }
 
+// GetProviderError returns the ProviderError field value if set, zero value otherwise.
+func (o *InferenceReceipt) GetProviderError() InferenceProviderError {
+	if o == nil || IsNil(o.ProviderError) {
+		var ret InferenceProviderError
+		return ret
+	}
+	return *o.ProviderError
+}
+
+// GetProviderErrorOk returns a tuple with the ProviderError field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceReceipt) GetProviderErrorOk() (*InferenceProviderError, bool) {
+	if o == nil || IsNil(o.ProviderError) {
+		return nil, false
+	}
+	return o.ProviderError, true
+}
+
+// HasProviderError returns a boolean if a field has been set.
+func (o *InferenceReceipt) HasProviderError() bool {
+	if o != nil && !IsNil(o.ProviderError) {
+		return true
+	}
+
+	return false
+}
+
+// SetProviderError gets a reference to the given InferenceProviderError and assigns it to the ProviderError field.
+func (o *InferenceReceipt) SetProviderError(v InferenceProviderError) {
+	o.ProviderError = &v
+}
+
 func (o InferenceReceipt) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -786,6 +819,9 @@ func (o InferenceReceipt) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CostAttribution) {
 		toSerialize["cost_attribution"] = o.CostAttribution
+	}
+	if !IsNil(o.ProviderError) {
+		toSerialize["provider_error"] = o.ProviderError
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -866,6 +902,7 @@ func (o *InferenceReceipt) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "billing")
 		delete(additionalProperties, "deployment")
 		delete(additionalProperties, "cost_attribution")
+		delete(additionalProperties, "provider_error")
 		o.AdditionalProperties = additionalProperties
 	}
 

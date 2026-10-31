@@ -138,4 +138,29 @@ for await (const event of client.inferences.stream(body)) {
 }
 assert.equal(text, 'Hello from the SDK fixture.');
 assert(terminal);
+const rejectedBody: Schema['InferenceCreate'] = {
+  ...body,
+  input: { messages: [{ role: 'user', content: 'sdk-provider-error' }] },
+};
+function rejectedReceipt(result: Schema['RunResult'] | undefined) {
+  assert(result);
+  assert.equal(result.execution_outcome, 'failure');
+  assert(result.inference?.reason_code);
+  assert.deepEqual(result.inference.provider_error, {
+    http_status: 402,
+    message: 'SDK provider spending limit reached.',
+    code: 'insufficient_quota',
+  });
+}
+const rejected = await client.inferences.create(rejectedBody);
+assert.equal(rejected.status, 'failed');
+rejectedReceipt(rejected.result);
+let failed = false;
+for await (const event of client.inferences.stream(rejectedBody)) {
+  if (event.type === 'run.failed') {
+    rejectedReceipt(event.data.result);
+    failed = true;
+  }
+}
+assert(failed);
 console.log('TypeScript immediate JSON/SSE application acceptance passed.');

@@ -18373,6 +18373,9 @@
               "infrastructure_cost_included"
             ],
             "additionalProperties": false
+          },
+          "provider_error": {
+            "$ref": "#/components/schemas/InferenceProviderError"
           }
         },
         "required": [
@@ -26890,6 +26893,37 @@
           "stage",
           "code",
           "duration_ms"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceProviderError": {
+        "type": "object",
+        "description": "Upstream rejection diagnostic for the authorized caller. Provider wording is preserved except credential redaction and explicit bounds; this is untrusted content, not retry authority. Stored encrypted with inference output.",
+        "properties": {
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "description": "Actual upstream HTTP status; an explicit streaming error can arrive after HTTP 200."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 16384,
+            "description": "Provider error message, preserving wording except credential redaction and the 16 KiB bound."
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Optional upstream scalar error code normalized to a string; Macrofold classification remains reason_code."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the upstream message was shortened to its byte limit."
+          }
+        },
+        "required": [
+          "http_status",
+          "message"
         ],
         "additionalProperties": false
       }

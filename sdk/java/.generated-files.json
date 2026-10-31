@@ -161,6 +161,7 @@
   "src/main/java/dev/macrofold/model/InferenceErrorDetails.java",
   "src/main/java/dev/macrofold/model/InferenceErrorDetailsIssuesInner.java",
   "src/main/java/dev/macrofold/model/InferenceLimits.java",
+  "src/main/java/dev/macrofold/model/InferenceProviderError.java",
   "src/main/java/dev/macrofold/model/InferenceReceipt.java",
   "src/main/java/dev/macrofold/model/InferenceReceiptCostAttribution.java",
   "src/main/java/dev/macrofold/model/InferenceReceiptDeployment.java",

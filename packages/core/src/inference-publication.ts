@@ -68,7 +68,7 @@ export async function inferencePublicationReceipt(
     }
   }
   if (!allowed) {
-    const { value: _value, ...rest } = receipt;
+    const { value: _value, provider_error: _providerError, ...rest } = receipt;
     receipt = {
       ...rest,
       outcome: 'failed',

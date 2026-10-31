@@ -150,6 +150,7 @@
   "src/models/inference_error_details.rs",
   "src/models/inference_error_details_issues_inner.rs",
   "src/models/inference_limits.rs",
+  "src/models/inference_provider_error.rs",
   "src/models/inference_receipt.rs",
   "src/models/inference_receipt_cost_attribution.rs",
   "src/models/inference_receipt_deployment.rs",

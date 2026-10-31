@@ -45,6 +45,60 @@ The same staging worktree also passed a 5 MiB dashboard upload and authenticated
 
 This accepts the short managed Claude staging journey, including native history, worktree restoration, model transport, encrypted checkpoint publication, settlement and cleanup. Other harnesses, BYOK, cancellation/recovery, sustained capacity and vendor invoice reconciliation remain separate release checks.
 
+## OpenCode model-request diagnostics
+
+An October 31 local caller check reached OpenCode but ended with `harness_error`.
+The retained model trace establishes an upstream OpenRouter HTTP 402 rejection
+in 213 ms, before generation; the Run lifecycle took 29.075 seconds including
+8.596 seconds queued. Its 300-second execution deadline was not reached. The
+checkpoint verified and the rejected BYOK request settled with zero charge.
+
+The retained `POST /v1/runs` observation took 86 ms and returned HTTP 202, so
+initial admission does not account for most of the 8.596-second queue interval.
+The historical placement/failed-claim reason was not retained.
+
+Internal phase timings further narrow the startup intervals. Provision/prepare
+spent 216 ms actively working, followed by a 4.358-second gap before input;
+input inventory took 70 ms, hydration 26 ms and starting restore 14 ms. A further
+1.852-second gap preceded restore checking (11 ms) and launch (46 ms). The two
+large gaps coincide with dispatcher provisioning-to-transfer and
+transfer-to-control handoffs, which yield and reclaim through SQL. These are
+control-plane intervals, not measurements of pure idle pool waiting:
+`completedAt` is recorded before the prior phase's final transaction and
+`startedAt` after the next phase's load and fenced claim transactions. The
+dispatcher also awaits candidate/claim queries for its pools sequentially; the
+750 ms idle timer does not bound those queries or admissions. The historical
+query/lock timings were not retained. These measurements replace the broader
+event-only label of 6.7 seconds of file/environment preparation. They do not
+establish a direct inference delay or prove a safe scheduler change.
+
+The copied native session database contains only the gateway's generic rejection;
+the original upstream response body is unavailable. Account credits, key limits
+and temporary provider spending controls cannot be distinguished retrospectively.
+A subsequent read-only check found a valid, funded key without a key-specific
+spending cap; current balance does not establish the historical rejection reason.
+
+The adapter now retains recognized HTTP categories through the existing safe
+`runtime.failed` diagnostic. Twenty-one focused SDK transport/startup tests pass,
+including session, assistant and final-message 402 errors, malformed statuses,
+secret exclusion and single prompt submission. The actual pinned OpenCode binary
+also passes an offline native-image authentication rejection with the precise
+diagnostic, verified saved files and no external network. TypeScript and its SDK
+build pass. Terminal failure codes, deadlines, accounting and retries are unchanged.
+
+A separate, bounded synthetic public-API Run through the same saved BYOK connection
+and Muse model succeeds with the exact expected answer and verified persistence.
+Its Run lifecycle takes 19.880 seconds, including 172 ms queued. Langfuse readback
+confirms complete 161 input/192 output tokens, zero Macrofold BYOK charge and
+$0.0000545 provider-reported cost. Its temporary workspace is marked for deletion
+and its Docker compute is confirmed removed. The local native
+worker overlay is activated with the previous image retained; preview and poller
+processes are preserved. No runtime dependencies changed. This establishes a local
+diagnostic fix and current model access, not a full release-image rebuild, hosted
+acceptance or completion of the caller's original interpretation workflow. The
+quoted caller-verifier identity warning was not traceable to retained evidence;
+its independent qualification remains unverified.
+
 ## Remaining acceptance
 
 The Claude worktree-context regression is covered by `pnpm test:native claude-code`: its network-disabled model fixture inspects actual Anthropic requests for the persistent worktree and temporary-file boundary. The test fails against the previous image when a run has no custom instructions. The corrected adapter passes file creation, checkpoint capture, portable restore and continuation, including custom instructions on the resumed turn. The `--permissions` variant also passes allowed/denied file access, blocked shell bypass, broker invocation and restored file tools; strict TypeScript and documentation checks pass. These scripted responses verify context delivery and persistence mechanics. An earlier live run reported writing `/tmp/hello.txt`, outside the captured workspace worktree, despite successful execution and a verified checkpoint. After rebuilding the image, the operator confirmed that a separately approved Claude Haiku 4.5 retest created `hello.txt` containing `Hello from the agent` after a dashboard refresh, using a $0.50 run budget and a 120-second timeout. The supplied API result reports `final: true`, `execution_outcome: success`, `persistence_status: verified` and a checkpoint ID. A subsequent live continuation used a $0.20 maximum budget and a two-minute timeout; the operator confirmed the original line and the appended `Session continuation works` line after refreshing the workspace file. Dashboard evidence before that continuation showed $0.00 reserved and $0.17 in aggregate run charges over 30 days, not an exact charge for the retest. Local CLI device login and workspace listing succeeded; `pnpm cli doctor` returned `ok: true` with zero inference requests. These observations establish the local file and continuation journey, not exact per-run settlement, restored conversation recall or hosted acceptance.

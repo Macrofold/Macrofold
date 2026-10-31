@@ -16,6 +16,13 @@ For your own hosted model, use a [custom deployment binding](../execution/model-
 
 Use [bounded agents and tasks](tasks.md) only when one decision is insufficient. Native [run and session APIs](../api/README.md) retain their behavior. These execution modes are general capabilities, separate from the optional [Customer agents integration path](../customer-agents/README.md).
 
+For one LLM request, call `POST /v1/inferences`: it dispatches directly, without
+the native Run queue, Docker setup, file restoration or harness initialization.
+Passing `harness: "opencode"` to a Run/session API explicitly requests the native
+agent path and its queued execution. A warm Worker alone does not make a fresh
+Session warm; native reuse also requires a compatible retained Session and
+worktree. Cold native startup and first model response have separate timing costs.
+
 ## Before submitting
 
 1. Decision execution is supported by default. Your deployment needs provider credentials and paid-execution authorization. An explicit admission pause (`RUN_ADMISSION_ENABLED=false`) returns `inference_disabled`.
@@ -204,6 +211,31 @@ Do not enable paid execution or apply external effects without our approval.
 | `uncertain`      | A provider request may have completed without a usable committed response | Inspect evidence and provisional cost; no automatic repetition  |
 
 `inference_control_unavailable` means Macrofold could not refresh its authorization/cancellation checks before their freshness deadline. It does not prove the provider failed or stopped. Partial tokens and provider-reported cost can survive an interrupted stream; preserve the receipt and its uncertainty rather than automatically resubmitting.
+
+An upstream rejection also includes `provider_error` when the provider supplied a
+message, alongside Macrofold's classified `reason_code`:
+
+```json
+{
+  "reason_code": "decision_provider_failed",
+  "provider_error": {
+    "http_status": 402,
+    "code": "insufficient_credits",
+    "message": "Insufficient credits for this request."
+  }
+}
+```
+
+The example illustrates the shape; actual wording and optional `code` come from
+the provider. The message preserves its wording except credential redaction and
+a 16 KiB bound (`truncated: true` when shortened). JSON results, terminal SSE
+results, result GETs and idempotent replay expose the same diagnostic while
+retained and authorized. A streaming error can have `http_status: 200` because
+the upstream HTTP response had already started. Treat provider text as untrusted
+content, never as a retry instruction. Exact messages are encrypted with the
+invocation response and disappear with content deletion; compact classified
+reasons and accounting remain. Malformed successful output and transport failures
+without a provider message do not invent one.
 
 Canonical run status separately records cancellation, timeout, success, or failure. `succeeded` can carry an abstention, refusal, or stale-input outcome; inspect the receipt before using a value. Cancellation cannot guarantee remote termination. Late evidence cannot revive a terminal run or authorize an application effect.
 

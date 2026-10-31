@@ -95,3 +95,38 @@ it('counts retained native reasoning against the assembled response limit', asyn
   );
   expect(result.incomplete).toBe('provider_response_too_large');
 });
+
+it.each([true, false])(
+  'retains a streaming error message and usage without emitting its text (chat=%s)',
+  async (chat) => {
+    const events: InferenceOutput[] = [];
+    const frames = chat
+      ? [{ usage: { prompt_tokens: 11, completion_tokens: 2 }, choices: [] }]
+      : [{ type: 'message_start', message: { id: 'a', usage: { input_tokens: 11 } } }];
+    const result = await readInferenceStream(
+      stream([
+        ...frames,
+        {
+          type: 'error',
+          error: { code: 500, message: 'Upstream overloaded. token=fixture-secret' },
+          usage: chat ? { completion_tokens: 3 } : { output_tokens: 3 },
+        },
+      ]),
+      chat,
+      (event) => {
+        events.push(event);
+      },
+      ['fixture-secret'],
+    );
+    expect(result.incomplete).toBe('provider_stream_error');
+    expect(result.providerError).toEqual({
+      http_status: 200,
+      code: '500',
+      message: 'Upstream overloaded. token=[REDACTED]',
+    });
+    expect(result.raw.usage).toMatchObject(
+      chat ? { prompt_tokens: 11, completion_tokens: 3 } : { input_tokens: 11, output_tokens: 3 },
+    );
+    expect(events).toEqual([]);
+  },
+);

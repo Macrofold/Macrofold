@@ -1,6 +1,6 @@
 import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { pool } from '../../db';
-import { advanceCloudRun } from './cloud-engine';
+import { advanceCloudRun, type CloudRunContext } from './cloud-engine';
 import type { MachineProvider } from './ports';
 import type { NativeRunRow } from './runs';
 import { orderDispatchJobs, pendingRunCandidates } from './scheduling';
@@ -59,37 +59,67 @@ async function failedJob(job: DispatchJob): Promise<never> {
 /** Serialize only short SQL admissions in fair order. Concurrent contenders for
  * the same organization/global lock can repeatedly beat the eligible head and
  * then reject themselves. Provider work remains independently concurrent. */
-async function startJob(provider: Provider, job: DispatchJob, resource?: DispatchClass) {
+async function startJob(
+  provider: Provider,
+  job: DispatchJob,
+  resource?: DispatchClass,
+  handoff?: (resource: DispatchClass) => boolean,
+) {
+  let preparedRun: NativeRunRow | undefined;
   try {
-    if (job.state === 'pending') await claimRun(job.organization_id, job.resource_id);
+    if (job.state === 'pending') {
+      const claimed = await observeWorkerStep(
+        'admission',
+        { organization_id: job.organization_id, run_id: job.resource_id },
+        () => claimRun(job.organization_id, job.resource_id),
+      );
+      if (claimed?.kind === 'native_agent') preparedRun = claimed;
+    }
   } catch {
     return { completion: failedJob(job) };
   }
-  return { completion: advanceJob(provider, job, resource) };
+  return { completion: advanceJob(provider, job, resource, handoff, preparedRun) };
 }
 
-/** A short native quantum retains only the current resource slot. Each advance
- * still claims its phase and rereads cancellation. Yield before crossing pools
- * or a real wait, and regularly let other jobs compete through SQL admission. */
-async function advanceJob(provider: Provider, job: DispatchJob, resource?: DispatchClass) {
+/** Already-admitted native work may transfer a free local slot, never queue for
+ * it. One quantum bounds all its advances; SQL remains the recovery owner. */
+async function advanceJob(
+  provider: Provider,
+  job: DispatchJob,
+  resource?: DispatchClass,
+  handoff?: (resource: DispatchClass) => boolean,
+  preparedRun?: NativeRunRow,
+) {
   try {
     const fields = { organization_id: job.organization_id, run_id: job.resource_id };
     const started = performance.now();
+    let currentResource = resource;
+    let retained = false;
+    let steps = 0;
+    const context: CloudRunContext | undefined =
+      preparedRun || (resource && resource !== 'inference') ? { run: preparedRun } : undefined;
+    if (context && resource && resource !== 'inference')
+      context.retainReady = (next) => {
+        if (steps >= 16 || performance.now() - started >= 5000 || next === 'inference') return false;
+        if (next !== currentResource && !handoff?.(next)) return false;
+        currentResource = next;
+        retained = true;
+        return true;
+      };
     let result: Awaited<ReturnType<typeof advanceCloudRun>>;
-    for (let steps = 1; ; steps++) {
+    for (;;) {
+      steps++;
+      retained = false;
       result = await observeWorkerStep('advance', fields, () =>
-        advanceCloudRun(job.organization_id, job.resource_id, provider),
+        advanceCloudRun(job.organization_id, job.resource_id, provider, context),
       );
       if (
-        !resource ||
-        resource === 'inference' ||
+        !retained ||
         !result.canContinue ||
-        result.nextDispatchClass !== resource ||
+        result.nextDispatchClass !== currentResource ||
         result.done ||
         result.queued ||
-        result.delaySeconds !== 0 ||
-        steps >= 16 ||
-        performance.now() - started >= 5000
+        result.delaySeconds !== 0
       )
         break;
     }
@@ -102,7 +132,9 @@ async function advanceJob(provider: Provider, job: DispatchJob, resource?: Dispa
         "UPDATE dispatch_jobs SET lease_until=NULL WHERE id=$1 AND state='pending' AND lease_until=$2::timestamptz",
         [job.id, job.claimed_lease_until],
       );
-    else
+    // Native publication sets its next due time in the fenced phase commit.
+    // Retained work keeps a recovery lease until it yields; do not overwrite it.
+    else if (!result.nextDispatchClass)
       await observeWorkerStep(
         'reschedule',
         { ...fields, done: result.done, queued: result.queued, delay_seconds: result.delaySeconds },
@@ -146,6 +178,11 @@ export async function dispatchCloudPoller(provider: Provider, concurrency = 64, 
  * SQL still owns fairness, global capacity and cross-process recovery. */
 export class CloudDispatcher {
   private readonly active = new Map<string, { resource: DispatchClass; task: Promise<void> }>();
+  private readonly discovering = new Map<DispatchClass, number>();
+  private readonly scans = new Map<DispatchClass, { task: Promise<void>; again: boolean }>();
+  private readonly progressWaiters = new Set<() => void>();
+  private admissions = Promise.resolve();
+  private draining?: Promise<void>;
   private readonly limits: DispatchLimits;
   private ready = false;
   constructor(
@@ -161,64 +198,146 @@ export class CloudDispatcher {
       if (!Number.isSafeInteger(value) || value < 1 || value > 1024)
         throw new RangeError('Dispatch concurrency must be between 1 and 1024.');
   }
-  async tick() {
-    // Provision/transfer/control share the same fair native queue observation.
-    // It is a hint only; every claim still checks current capacity and ordering.
-    let nativeCandidates: Awaited<ReturnType<typeof pendingRunCandidates>> | undefined;
-    for (const resource of dispatchClasses) {
-      const used = [...this.active.values()].filter((value) => value.resource === resource).length;
-      const slots = this.limits[resource] - used;
-      if (slots <= 0) continue;
-      if (resource !== 'inference' && !nativeCandidates)
-        nativeCandidates = await observeWorkerStep('candidates', {}, () =>
-          pendingRunCandidates(
-            Math.max(100, this.limits.provision, this.limits.transfer, this.limits.control),
-            'native',
-          ),
+  private freeSlots(resource: DispatchClass) {
+    const active = [...this.active.values()].filter((value) => value.resource === resource).length;
+    return this.limits[resource] - active - (this.discovering.get(resource) ?? 0);
+  }
+  private progress() {
+    this.ready = true;
+    for (const resolve of this.progressWaiters) resolve();
+  }
+  private start(job: DispatchJob, resource: DispatchClass) {
+    if (this.active.has(job.resource_id)) return;
+    const entry = { resource, task: Promise.resolve() };
+    this.active.set(job.resource_id, entry);
+    const handoff = (next: DispatchClass) => {
+      if (this.freeSlots(next) <= 0) return false;
+      entry.resource = next;
+      this.progress();
+      return true;
+    };
+    entry.task = (async () => {
+      let started: ReturnType<typeof startJob>;
+      if (job.state === 'pending') {
+        // Discovery order is advisory. Serialize admissions; schedulerTurn still
+        // grants the fair global turn, irrespective of which query finished first.
+        started = this.admissions.then(() => startJob(this.provider, job, resource, handoff));
+        this.admissions = started.then(
+          () => undefined,
+          () => undefined,
         );
-      const claims = await claimJobs(
-        slots,
-        this.organization,
-        [...this.active.keys()],
-        resource,
-        resource === 'inference' ? undefined : nativeCandidates,
-      );
-      for (const job of claims) {
-        const { completion } = await startJob(this.provider, job, resource);
-        const task = completion
-          .then((ready) => {
-            this.ready ||= ready;
-          })
-          .catch(() => {
-            // advanceJob persisted its failure budget where possible. A SQL outage
-            // leaves the existing claim for recovery; never start a replacement here.
-            console.error('A cloud step failed; durable recovery retains execution identity.');
-          })
-          .finally(() => {
-            this.active.delete(job.resource_id);
-          });
-        this.active.set(job.resource_id, { resource, task });
+      } else started = startJob(this.provider, job, resource, handoff);
+      const { completion } = await started;
+      await completion;
+    })()
+      .catch(() => {
+        // A failed advance retains its durable identity and failure budget.
+        console.error('A cloud step failed; durable recovery retains execution identity.');
+      })
+      .finally(() => {
+        this.active.delete(job.resource_id);
+        this.progress();
+      });
+    this.progress();
+  }
+  async tick() {
+    if (this.draining) return;
+    // Each class refills independently. A hung query must not stop later ticks
+    // from refilling another class after its first quantum has finished.
+    for (const resource of dispatchClasses) {
+      const scan = this.scans.get(resource);
+      if (scan) {
+        // A wake may arrive after the scan's eligibility snapshot. Coalesce it
+        // into one fresh scan rather than losing it or queuing one per Run.
+        scan.again = true;
+        continue;
       }
+      if (this.freeSlots(resource) <= 0) continue;
+      this.scan(resource);
     }
   }
-  async waitForProgress(idleMs = 750) {
+  private candidates(resource: DispatchClass) {
+    // The scheduler view classifies every queued native Run as provision.
+    // Running transfer/control phases need no fair-admission candidate scan.
+    if (resource === 'transfer' || resource === 'control') return Promise.resolve([]);
+    return observeWorkerStep('candidates', {}, () =>
+      pendingRunCandidates(
+        resource === 'inference'
+          ? Math.max(100, this.limits.inference)
+          : Math.max(100, this.limits.provision, this.limits.transfer, this.limits.control),
+        resource === 'inference' ? 'inference' : 'native',
+      ),
+    );
+  }
+  private scan(resource: DispatchClass) {
+    const scan = { task: Promise.resolve(), again: false };
+    this.scans.set(resource, scan);
+    scan.task = this.discover(resource)
+      .catch(() => {
+        // Contain the detached scan; no claimed external execution is replayed.
+        console.error('Run dispatch is temporarily unavailable.');
+      })
+      .finally(() => {
+        this.scans.delete(resource);
+        if (scan.again && !this.draining && this.freeSlots(resource) > 0) this.scan(resource);
+      });
+  }
+  private async discover(resource: DispatchClass) {
+    const pending = await this.candidates(resource);
+    const slots = this.freeSlots(resource);
+    if (slots <= 0) return;
+    // Reserve in-flight SQL claims too: a handoff cannot consume slots that
+    // this discovery may already have claimed on another database connection.
+    this.discovering.set(resource, slots);
+    try {
+      const claims = await claimJobs(slots, this.organization, [...this.active.keys()], resource, pending);
+      this.discovering.delete(resource);
+      for (const job of claims) this.start(job, resource);
+    } finally {
+      this.discovering.delete(resource);
+    }
+  }
+  async waitForProgress(idleMs = 750, signal?: AbortSignal) {
+    if (signal?.aborted) return;
     if (this.ready) {
       this.ready = false;
       return;
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let onAbort: (() => void) | undefined;
+    let onProgress: (() => void) | undefined;
     try {
       await Promise.race([
-        ...[...this.active.values()].map(({ task }) => task),
+        new Promise<void>((resolve) => {
+          onProgress = resolve;
+          this.progressWaiters.add(resolve);
+        }),
         new Promise<void>((resolve) => {
           timer = setTimeout(resolve, idleMs);
         }),
+        ...(signal
+          ? [
+              new Promise<void>((resolve) => {
+                onAbort = resolve;
+                signal.addEventListener('abort', onAbort, { once: true });
+                if (signal.aborted) resolve();
+              }),
+            ]
+          : []),
       ]);
     } finally {
       clearTimeout(timer);
+      if (signal && onAbort) signal.removeEventListener('abort', onAbort);
+      if (onProgress) this.progressWaiters.delete(onProgress);
+      this.ready = false;
     }
   }
-  async drain() {
-    await Promise.allSettled([...this.active.values()].map(({ task }) => task));
+  drain() {
+    return (this.draining ??= (async () => {
+      await Promise.allSettled([...this.scans.values()].map(({ task }) => task));
+      await Promise.allSettled([...this.active.values()].map(({ task }) => task));
+    })().finally(() => {
+      this.draining = undefined;
+    }));
   }
 }

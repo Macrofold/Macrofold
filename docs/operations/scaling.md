@@ -43,6 +43,25 @@ Native/bounded API handlers submit durable work and return identifiers; they do 
 
 The standalone alternative runs the same domain and provider code with Node web/worker processes. PostgreSQL dispatch leases allow multiple workers. This is an alternative deployment topology, not another scheduler to activate alongside Workflow without a migration procedure.
 
+### Standalone wakeup connection
+
+Apply migrations 059–060 before restarting the matching standalone poller. Native
+admission and eligibility changes then wake it after commit; the same fair SQL
+claims remain authoritative. No caller parameter or new queue service is needed.
+
+The poller keeps one dedicated session connection for PostgreSQL `LISTEN`.
+It uses `DATABASE_LISTENER_URL` when set, otherwise `AUTH_DATABASE_URL`, then
+`DATABASE_URL`. All must address the same database. Local Docker defaults already
+use a direct connection. For a transaction-pooled database, configure a restricted
+direct/session URL through deployment secrets; never use a migration-owner role.
+[PgBouncer documents that LISTEN requires session pooling](https://www.pgbouncer.org/features.html).
+
+An unavailable listener logs `dispatch_wakeup_unavailable` without exposing the
+URL, retries with bounded connection/cleanup waits, and retains the 750 ms poll
+fallback. Reconnection requests a fresh scan. Notifications contain no resource
+identity or content and grant no authority. They are delivered only after commit,
+as specified by [PostgreSQL](https://www.postgresql.org/docs/17/sql-notify.html).
+
 | Control | Implemented value or behavior | What changing it means |
 | --- | --- | --- |
 | Fleet execution | Native `200`, lightweight `2000`, total defaults to their sum | Separate resource ceilings; matching configuration across all schedulers |
@@ -56,7 +75,7 @@ The standalone alternative runs the same domain and provider code with Node web/
 | `ORCHESTRATION_BACKEND` | `workflow` by default; `poller` alternative | Selects the deployment's orchestration mechanism |
 | Standalone dispatch | Inference/provision/transfer/control: `256/16/8/64` per process | Separate refillable pools; no shared step ceiling |
 | Workflow queue checks | Queued work stays in PostgreSQL | Start Workflow only after claiming capacity; no day-long queue polling history |
-| Runtime checks | Normal cloud phase delay approximately `2` seconds | Actual interval also includes step and provider latency |
+| Runtime checks | Ready phases continue immediately; quiet fallback probes wait `2` seconds and pending restore checks `3` seconds | Native event waits return ready output immediately; actual intervals include SQL/provider latency |
 | Detailed run SSE | Up to `55` seconds per connection, followed by reconnect/replay | Each reader polls independently, with at most one prefetched page |
 | Dashboard refresh SSE | One shared subscription per tab; bounded invalidation and reconciliation | Process-shared SQL reads of current revision stamps; best-effort signals, no replay log |
 | `RUN_ADMISSION_ENABLED=false` | Rejects new run submissions | Does not cancel accepted runs or prevent their queued dispatch |
@@ -306,6 +325,11 @@ Current pools are instantiated per Node process/runtime instance:
 | Total potential per process | 132 |
 
 For example, 100 processes can potentially open 13,200 clients; this does **not** mean 100 agents need 13,200 database connections. Fluid instance reuse, lazy opening, and pooler multiplexing affect actual usage. A direct auth endpoint still consumes backend connections. Increasing process count and pool sizes together can amplify pressure.
+
+Each standalone poller additionally owns **one** direct wakeup connection, for a
+potential 133 connections with all three pools filled. Budget replicas and any
+separately enabled event listeners too; LISTEN connections are not transaction
+pooler slots. They remain outside domain transactions and carry no tenant state.
 
 Add measurements of `pg.Pool.totalCount`, `idleCount`, and `waitingCount` if absent. Database session counts alone do not reveal clients waiting inside application pools. Keep the credential pool separate: the code uses it to avoid nested credential refresh exhausting the caller's pool.
 

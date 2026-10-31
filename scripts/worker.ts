@@ -11,6 +11,8 @@ import { observeWorkerStep } from '../packages/core/src/worker-diagnostics';
 import { runPollerLoop } from '../packages/core/src/poller-loop';
 import { initializePerformance } from '../packages/core/src/performance-composition';
 import { shutdownPerformance } from '../packages/core/src/performance';
+import { PollerWakeup } from '../packages/core/src/poller-wakeup';
+import { listenDispatchWakeup } from '../packages/db/dispatch-wakeup';
 assertSecurityConfiguration();
 initializePerformance();
 if (!isLocal() && (config.execution !== 'vercel' || config.orchestration !== 'poller'))
@@ -18,6 +20,8 @@ if (!isLocal() && (config.execution !== 'vercel' || config.orchestration !== 'po
     'The standalone worker requires EXECUTION_PROVIDER=vercel and ORCHESTRATION_BACKEND=poller in production.',
   );
 let closing = false;
+const wakeup = new PollerWakeup();
+const listener = listenDispatchWakeup(() => wakeup.notify());
 const dispatcher = isSimulated() ? new LocalDispatcher() : new CloudDispatcher(machines);
 const workers = new WorkerDispatcher();
 const maintenance = new MaintenanceDispatcher(
@@ -29,26 +33,35 @@ const maintenance = new MaintenanceDispatcher(
 );
 process.on('SIGINT', () => {
   closing = true;
+  wakeup.notify();
 });
 process.on('SIGTERM', () => {
   closing = true;
+  wakeup.notify();
 });
 console.log(
   isSimulated()
     ? 'Worker ready: local simulation, no paid API calls.'
     : `Worker ready: durable ${config.execution} poller. Paid execution remains controlled by ALLOW_PAID_EXECUTION.`,
 );
-await runPollerLoop(
-  {
-    tick: () => observeWorkerStep('dispatch', {}, () => dispatcher.tick()),
-    drain: () => dispatcher.drain(),
-    ...(dispatcher instanceof CloudDispatcher ? { waitForProgress: () => dispatcher.waitForProgress() } : {}),
-  },
-  maintenance,
-  () => closing,
-);
-await shutdownTracing();
-await shutdownPerformance();
-await pool.end();
-await authPool.end();
-await credentialPool.end();
+try {
+  await runPollerLoop(
+    {
+      tick: () => observeWorkerStep('dispatch', {}, () => dispatcher.tick()),
+      drain: () => dispatcher.drain(),
+      ...(dispatcher instanceof CloudDispatcher
+        ? { waitForProgress: (signal?: AbortSignal) => dispatcher.waitForProgress(750, signal) }
+        : {}),
+    },
+    maintenance,
+    () => closing,
+    wakeup,
+  );
+} finally {
+  await listener.close();
+  await shutdownTracing();
+  await shutdownPerformance();
+  await pool.end();
+  await authPool.end();
+  await credentialPool.end();
+}

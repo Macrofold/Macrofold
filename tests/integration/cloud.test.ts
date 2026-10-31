@@ -12,7 +12,9 @@ import {
   advanceCloudRun,
   MAX_RUN_ADVANCES,
   MAX_RECOVERY_FAILURES,
+  type CloudRunContext,
 } from '../../packages/core/src/cloud-engine';
+import * as runSource from '../../packages/core/src/runs';
 import { FaultMachine } from '../fixtures/cloud-machine';
 import { readContent, saveContent } from '../../packages/providers/src/storage';
 import type { AgentPermissions } from '../../packages/contracts/permissions';
@@ -94,6 +96,90 @@ async function advanceTo(s: Awaited<ReturnType<typeof scenario>>, provider: Faul
   }
   throw new Error(`Fixture did not reach ${phase}`);
 }
+
+describe('prepared native phase advancement', () => {
+  it('reuses immutable configuration while observing cancellation before the next phase', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    const context: CloudRunContext = {};
+    const reads = vi.spyOn(runSource, 'getRun');
+    await advanceCloudRun(s.org, s.runId, provider, context);
+    expect(context.run?.execution_binding?.phase).toBe('input');
+    const fullReads = reads.mock.calls.length;
+    expect(fullReads).toBeGreaterThan(0);
+    await transaction(s.org, (tx) =>
+      tx.query('UPDATE runs SET cancel_requested=true WHERE id=$1', [s.runId]),
+    );
+    const staging = vi.spyOn(provider, 'stage');
+    const stopped = await advanceCloudRun(s.org, s.runId, provider, context);
+    expect(context.run?.cancel_requested).toBe(true);
+    expect(stopped.delaySeconds).toBeGreaterThan(0);
+    expect(staging).not.toHaveBeenCalled();
+    expect(reads).toHaveBeenCalledTimes(fullReads);
+    expect(provider.starts).toBe(0);
+  });
+
+  it('does not reuse cached phase ownership after another controller claims it', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    const context: CloudRunContext = {};
+    await advanceCloudRun(s.org, s.runId, provider, context);
+    const foreignClaim = id();
+    await transaction(s.org, (tx) =>
+      tx.query(`UPDATE runs SET execution_binding=execution_binding||$2::jsonb WHERE id=$1`, [
+        s.runId,
+        JSON.stringify({ lock: foreignClaim, lockExpires: Date.now() + 120_000 }),
+      ]),
+    );
+    expect(await advanceCloudRun(s.org, s.runId, provider, context)).toMatchObject({
+      done: false,
+      delaySeconds: 5,
+      canContinue: false,
+      nextDispatchClass: 'transfer',
+    });
+    const current = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(current.execution_binding?.lock).toBe(foreignClaim);
+    expect(provider.starts).toBe(0);
+  });
+
+  it('publishes due time atomically and retains dispatcher backoff only for a reserved local slot', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    const retain = vi.fn(() => true);
+    const context: CloudRunContext = { retainReady: retain };
+    await advanceCloudRun(s.org, s.runId, provider, context);
+    const due = async () =>
+      transaction(
+        s.org,
+        async (tx) =>
+          (
+            await tx.query<{ due: boolean; phase: string }>(
+              `SELECT j.available_at<=clock_timestamp() AS due,r.execution_binding->>'phase' AS phase
+       FROM runs r JOIN dispatch_jobs j ON j.resource_id=r.id AND j.kind='run' WHERE r.id=$1`,
+              [s.runId],
+            )
+          ).rows[0],
+      );
+    expect(retain).toHaveBeenCalledWith('transfer');
+    expect(await due()).toEqual({ due: false, phase: 'input' });
+    retain.mockReturnValue(false);
+    await advanceCloudRun(s.org, s.runId, provider, context);
+    expect(await due()).toEqual({ due: true, phase: 'hydrate' });
+  });
+
+  it('rejects a prepared context for another Run before touching execution', async () => {
+    const first = await scenario(),
+      second = await scenario(),
+      provider = new FaultMachine();
+    const context: CloudRunContext = {};
+    await advanceCloudRun(first.org, first.runId, provider, context);
+    await expect(advanceCloudRun(second.org, second.runId, provider, context)).rejects.toMatchObject({
+      code: 'execution_context_mismatch',
+    });
+    expect(provider.starts).toBe(0);
+  });
+});
+
 describe('finite native recovery', () => {
   it.each(['poll', 'publish'])(
     'preserves checkpoint and provisional settlement after a model failure at %s',
@@ -647,7 +733,12 @@ describe('durable cloud lifecycle with fault injection', () => {
         { ...run.execution_binding, lock: 'other-worker', lockExpires: Date.now() + 60000 },
       ]);
     });
-    expect(await advanceCloudRun(s.org, s.runId, provider)).toEqual({ done: false, delaySeconds: 5 });
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toEqual({
+      done: false,
+      delaySeconds: 5,
+      nextDispatchClass: 'transfer',
+      canContinue: false,
+    });
     expect(provider.starts).toBe(0);
     await transaction(s.org, (tx) =>
       tx.query(

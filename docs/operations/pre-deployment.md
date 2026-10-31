@@ -32,6 +32,7 @@ Use a saved preset to verify plain-text streaming and `wait()` through deployed 
 - [ ] Managed and BYOK calls use the intended credentials. Revoked BYOK never falls back to a platform key. Provider usage and application settlement reconcile.
 - [ ] Cancellation, input races, execution timeout, unknown launch acknowledgment, fencing, Workflow continuation, and worker recovery preserve one execution identity.
 - [ ] Queue expiry uses the accepted deadline, retains history, emits explicit failure, and releases reserved funds exactly once.
+- [ ] Apply migrations 059–060 and run current standalone pollers with a session-capable wakeup connection. Check reconnect/polling recovery and scheduling/handoff tails on the hosted topology at expected fleet load; the [local qualification](../projects/native-scheduling-latency.md#matched-local-qualification) establishes p95, not a strict maximum or cloud latency SLA.
 - [ ] Maximum supported execution/persistence workloads fit provider lifetime, transfer, memory, and Workflow budgets.
 - [ ] R2 permissions, binary uploads/downloads, exact-origin CORS, expired capabilities, missing/corrupt objects, and restore failures behave as specified.
 - [ ] Conflicting file writes fail without overwriting newer state. Deletion/undo and delayed object collection preserve retained references.

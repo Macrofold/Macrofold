@@ -16,7 +16,11 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 - Opt-in performance profiling: [feature specification](performance-profiling-feature-spec.md) and [technical design](performance-profiling-tech-design.md). Implemented default-off operator flag, bounded content-free profiles and concurrent foreground/background attribution; observer-overhead qualification remains explicit.
 
+- Native memory and startup efficiency: [feature specification](native-memory-startup-feature-spec.md) and [technical design](native-memory-startup-tech-design.md). Proposed allocation-memory failure summaries, optional bounded memory/stage profiles and selected-harness SDK loading. Design only; memory savings, observer cost and native/hosted acceptance remain unverified.
+
 - Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Implementation and verification in progress: immediate request ownership, shared accounting, batched authorization observation, typed recovery and all five SDKs. Hosted lifetime and measured deployment capacity remain acceptance gates.
+
+- Native scheduling latency: [implementation and qualification](native-scheduling-latency.md). Commit wakeups, bounded direct pool handoffs, independent discovery and immutable preparation reuse are active locally; matched scheduling/handoff p95 targets pass. Hosted/fleet qualification and strict maximum-latency tails remain explicit.
 
 - Hugging Face model deployments: [feature specification](hugging-face-model-deployments-feature-spec.md), [technical design](hugging-face-model-deployments-tech-design.md), [shared contract](hugging-face-model-deployments-contract.md), [research](hugging-face-model-deployments-research.md) and [agent brief](hugging-face-model-deployments-agent-brief.md). Production BYOK and external-endpoint serving, direct inference, lifecycle, protected runtime and operator/client surfaces are implemented locally. The [feature guide](../features/execution/model-deployments.md) owns setup; [remaining acceptance](../maintainers/TODO.md#hugging-face-model-deployments) distinguishes local checks from actual RunPod/GPU qualification, registry publication and subsequent OpenLegend integration.
 

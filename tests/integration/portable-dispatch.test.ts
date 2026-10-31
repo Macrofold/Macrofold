@@ -273,7 +273,46 @@ it('records a failed step once, contains its rejection, and honors retry backoff
   expect(log.mock.calls.flat().join(' ')).not.toContain('private failure');
 });
 
-it('rereads cancellation during retained native work and yields before changing resource pools', async () => {
+it("does not replace a competing phase owner's due time after losing the phase claim", async () => {
+  const f = await fixture(),
+    run = await f.native(),
+    provider = new FaultMachine();
+  await advanceCloudRun(f.p.organizationId, run.run_id, provider);
+  const originalAdvance = cloudEngine.advanceCloudRun;
+  const foreignClaim = 'competing-phase-owner';
+  vi.spyOn(cloudEngine, 'advanceCloudRun').mockImplementationOnce(async (...args) => {
+    // Another controller wins after this dispatcher's job selection. It retains
+    // its own due timestamp; observing its live phase cannot reset it to 5 s.
+    await transaction(f.p.organizationId, async (tx) => {
+      await tx.query('UPDATE runs SET execution_binding=execution_binding||$2::jsonb WHERE id=$1', [
+        run.run_id,
+        JSON.stringify({ lock: foreignClaim, lockExpires: Date.now() + 120_000 }),
+      ]);
+      await tx.query(
+        "UPDATE dispatch_jobs SET available_at=now()+interval '2 minutes' WHERE resource_id=$1",
+        [run.run_id],
+      );
+    });
+    return originalAdvance(...args);
+  });
+  const dispatcher = new CloudDispatcher(provider, 1, f.p.organizationId);
+  await dispatcher.tick();
+  await dispatcher.drain();
+  const saved = (
+    await transaction(f.p.organizationId, (tx) =>
+      tx.query(
+        `SELECT j.available_at>clock_timestamp()+interval '1 minute' AS retained,
+     r.execution_binding->>'lock' AS owner FROM runs r JOIN dispatch_jobs j
+     ON j.resource_id=r.id AND j.kind='run' WHERE r.id=$1`,
+        [run.run_id],
+      ),
+    )
+  ).rows[0];
+  expect(saved).toEqual({ retained: true, owner: foreignClaim });
+  expect(provider.starts).toBe(0);
+});
+
+it('rereads cancellation during retained work and preserves its checkpoint across free pool handoffs', async () => {
   const f = await fixture(),
     run = await f.native(),
     provider = new FaultMachine();
@@ -290,12 +329,19 @@ it('rereads cancellation during retained native work and yields before changing 
   await dispatcher.tick();
   await dispatcher.drain();
   expect(provider.cancellations).toBe(1);
-  expect((await f.get(run.run_id)).execution_binding?.phase).toBe('index');
-  expect(
-    (await pool.query('SELECT dispatch_class FROM reporting.scheduling_runs WHERE id=$1', [run.run_id]))
-      .rows[0]?.dispatch_class,
-  ).toBe('transfer');
-  expect(provider.closes).toHaveLength(0);
+  await vi.waitFor(
+    async () => {
+      await dispatcher.tick();
+      await dispatcher.drain();
+      expect((await f.get(run.run_id)).status).toBe('cancelled');
+    },
+    { timeout: 8000, interval: 20 },
+  );
+  const saved = await f.get(run.run_id);
+  expect(saved.result.persistence_status).toBe('verified');
+  expect(saved.execution_binding?.phase).toBe('done');
+  expect(provider.closes).toEqual([false]);
+  expect(provider.starts).toBe(1);
 });
 
 it('can fill more than twenty phase slots without exceeding the configured pool', async () => {
@@ -318,7 +364,7 @@ it('can fill more than twenty phase slots without exceeding the configured pool'
   );
   try {
     await dispatcher.tick();
-    expect(advance).toHaveBeenCalledTimes(24);
+    await vi.waitFor(() => expect(advance).toHaveBeenCalledTimes(24), { timeout: 8000 });
     await dispatcher.tick();
     expect(advance).toHaveBeenCalledTimes(24);
   } finally {
@@ -357,7 +403,7 @@ it.each([
   const dispatcher = new CloudDispatcher(new FaultMachine(), dispatchLimits(), f.p.organizationId);
   try {
     await dispatcher.tick();
-    expect(advance).toHaveBeenCalledTimes(limit);
+    await vi.waitFor(() => expect(advance).toHaveBeenCalledTimes(limit), { timeout: 8000 });
     await dispatcher.tick();
     expect(advance).toHaveBeenCalledTimes(limit);
   } finally {

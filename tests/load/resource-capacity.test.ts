@@ -193,7 +193,8 @@ it('honors real default rate boundaries while keeping cancellation independent o
       prompt: 'Fixture',
     }),
   );
-  const now = Date.now();
+  // Retry-After is the remainder of the current minute, not always sixty.
+  const now = Math.floor(Date.now() / 60_000) * 60_000;
   vi.spyOn(Date, 'now').mockReturnValue(now);
   // Seed counters rather than wait for thousands of identical requests. The
   // capacity benchmark separately measures sustained HTTP throughput.

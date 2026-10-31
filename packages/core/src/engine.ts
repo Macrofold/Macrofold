@@ -11,7 +11,16 @@ import { config, isLocal } from './config';
 import { id } from './crypto';
 import { assert } from './errors';
 import { emit } from './events';
-import { getRun, terminal, requireNativeRun, type RunRow, type NativeRunRow } from './runs';
+import {
+  getRun,
+  terminal,
+  requireNativeRun,
+  mergeCurrentRunControl,
+  runControlColumns,
+  type RunControl,
+  type RunRow,
+  type NativeRunRow,
+} from './runs';
 import { settle } from './ledger';
 import * as resources from './resources';
 import { checkpointState, prepareCheckpoint, saveCheckpoint, normalizePath, type FileRecord } from './files';
@@ -49,12 +58,23 @@ export async function claimRun(org: string, runId: string) {
 }
 
 /** Queued execution adds weighted ordering and native placement to shared caps. */
-export async function claimRunInTransaction(tx: Tx, org: string, runId: string) {
+async function claimRunInTransaction(tx: Tx, org: string, runId: string) {
   let run = await getRun(tx, runId);
-  await lock(tx, `organization:${org}`);
+  // claimRun already owns the organization lock. Reuse accepted input, but
+  // refresh controls after taking the Worktree/Run fence.
   const contextLock = run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`;
   if (!(await tryLock(tx, contextLock))) return null;
-  run = await getRun(tx, runId);
+  // Keep the existing Worktree -> Worker -> Run row-lock order. Worker lifecycle
+  // actions may cancel queued Runs while holding their Worker lock.
+  run = mergeCurrentRunControl(
+    run,
+    (
+      await tx.query<RunControl>(
+        `SELECT ${runControlColumns},deadline<=clock_timestamp() AS deadline_passed FROM runs WHERE id=$1`,
+        [runId],
+      )
+    ).rows[0],
+  );
   const blocked = await tx.query(
     "SELECT 1 FROM dispatch_jobs WHERE kind='run' AND resource_id=$1 AND state='blocked'",
     [runId],
@@ -163,18 +183,22 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string) 
   if (!turn || turn.id !== runId) return null;
   if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx, run))) return null;
   await recordTurn(tx, org, turn);
-  await tx.query(
-    "UPDATE runs SET status='provisioning',started_at=now(),heartbeat_at=now(),lease_generation=lease_generation+1,deadline=now()+($2::integer*interval '1 second') WHERE id=$1",
+  const updated = await tx.query<RunControl>(
+    `UPDATE runs SET status='provisioning',started_at=now(),heartbeat_at=now(),lease_generation=lease_generation+1,
+     deadline=now()+($2::integer*interval '1 second') WHERE id=$1
+     RETURNING ${runControlColumns},deadline<=clock_timestamp() AS deadline_passed`,
     [runId, run.config.limits?.timeout_seconds || 900],
   );
+  run = mergeCurrentRunControl(run, updated.rows[0]);
   if (run.kind === 'native_agent')
     await resources.update(tx, 'worktrees', run.worktree_id, { status: 'busy' });
-  await emit(tx, org, runId, 'run.provisioning', {});
+  const event = await emit(tx, org, runId, 'run.provisioning', {}, undefined, run);
+  if (event) run.event_sequence = event.sequence;
   await tx.query(
     "UPDATE dispatch_jobs SET state='running',lease_until=now()+interval '90 seconds',attempts=attempts+1 WHERE resource_id=$1",
     [runId],
   );
-  return getRun(tx, runId);
+  return run;
 }
 
 /** Separate the short admission claim from long-running execution. Dispatchers

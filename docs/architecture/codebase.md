@@ -51,6 +51,15 @@ The native adapter registry lives in `packages/contracts/harnesses.ts`; the nati
 
 `capacity.ts` owns validated deployment resource settings; `request-capacity.ts` partitions HTTP traffic. `portable-dispatch.ts` owns independent cloud step pools and SQL dispatch claims. `concurrent.ts` refills bounded I/O slots and drains failures. `maintenance-dispatch.ts` owns independent component cadences; `poller-loop.ts` coordinates process lifetime and graceful draining. None replaces SQL execution policy. [Scheduling](../features/execution/scheduling.md#orchestration-and-failure-behavior) explains these boundaries.
 
+`poller-wakeup.ts` coalesces commit hints without retaining resource payloads.
+Migrations 059–060 supply those hints; `db/dispatch-wakeup.ts` composes the poller's
+owned session listener through `db/notifications.ts`, shared with local Run-event
+listening. The portable dispatcher owns bounded local cross-pool handoffs and
+independent class discovery. `CloudRunContext` reuses accepted immutable input
+only within that local quantum; cloud-engine phase claims still load current
+controls, and phase/outbox publication remains one fenced commit. See the
+[native scheduling plan and qualification](../projects/native-scheduling-latency.md).
+
 `packages/core/src/resource-models.ts` maps persisted resource data to concrete domain models; `api-types.ts` checks handler results against the public contract. `operations.ts` requires an explicit scope and resource binding for every operation result. The [agent permission guide](../features/execution/permissions.md) maps canonical policies, admission and native enforcement.
 
 Small file mutations use a bounded storage preparation lease, immutable object/Git preparation outside SQL, and a short revision-checked publication transaction. See [file implementation](../features/workspaces/implementation.md). Provider wire details live behind `ModelProtocol`; the shared gateway retains authority, credential selection, reservations and settlement. See [billing implementation](../features/billing/implementation.md).

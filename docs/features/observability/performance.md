@@ -74,6 +74,14 @@ When the framework-to-handler gap is large, profile framework startup and module
 
 ## Other diagnostic choices
 
+For native scheduling, include admission commit, candidate/claim queries and
+phase publication in the measured interval. `phaseTimings.activeMs` excludes
+the initial claim and final transaction; it cannot establish scheduling overhead
+by itself. Poller `admission`, `candidates`, `claim` and `advance` jobs use the same
+optional collector. The [native qualification](../../projects/native-scheduling-latency.md)
+compares an actual API/separate-poller path and full cross-pool boundaries, with
+small and near-limit prompts, rather than treating provider work as total latency.
+
 Full execution tracing remains the default when configured. `TRACING_CAPTURE_CONTENT=false` keeps execution timings, IDs, usage and costs while avoiding optional content capture. `TRACING_ENABLED=false` disables that integration. Both are independent of performance profiling.
 
 `REQUEST_ANALYTICS_ENABLED=false` disables optional retained HTTP request observations. `API_PRODUCT_EVENTS_ENABLED=false` disables successful API-operation observations. Both default to true. These settings preserve billing, authorization/rate accounting, administrative audits, actor activity and durable domain milestones. Request reports describe observed activity and cannot establish exact total traffic, especially after collection is disabled.

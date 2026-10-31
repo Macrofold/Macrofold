@@ -32,6 +32,8 @@ export async function withFixtureDatabase(
       MIGRATION_DATABASE_URL: ownerURL.href,
       DATABASE_URL: runtimeURL.href,
       AUTH_DATABASE_URL: runtimeURL.href,
+      // A deployment's direct LISTEN URL must never escape fixture isolation.
+      DATABASE_LISTENER_URL: '',
       DATA_DIR: directory,
       PLATFORM_MODE: 'local',
       EXECUTION_PROVIDER: 'simulator',

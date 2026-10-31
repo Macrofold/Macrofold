@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { MaintenanceDispatcher } from '../../packages/core/src/maintenance-dispatch';
 import { runPollerLoop } from '../../packages/core/src/poller-loop';
+import { PollerWakeup } from '../../packages/core/src/poller-wakeup';
 
 function barrier() {
   let release!: () => void;
@@ -11,6 +12,85 @@ function barrier() {
 }
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+it('wakes an idle poller immediately on a commit hint and cancels its losing progress wait', async () => {
+  const wakeup = new PollerWakeup(),
+    waiting = barrier(),
+    drained = barrier();
+  let closing = false,
+    aborted = false;
+  const dispatcher = {
+    tick: vi.fn(async () => {
+      if (dispatcher.tick.mock.calls.length === 2) closing = true;
+    }),
+    waitForProgress: (signal?: AbortSignal) =>
+      new Promise<void>((resolve) => {
+        signal?.addEventListener(
+          'abort',
+          () => {
+            aborted = true;
+            resolve();
+          },
+          { once: true },
+        );
+        waiting.release();
+      }),
+    drain: async () => {
+      drained.release();
+    },
+  };
+  const loop = runPollerLoop(
+    dispatcher,
+    { tick: async () => {}, drain: async () => {} },
+    () => closing,
+    wakeup,
+  );
+  try {
+    await waiting.promise;
+    wakeup.notify();
+    await drained.promise;
+    expect(dispatcher.tick).toHaveBeenCalledTimes(2);
+    expect(aborted).toBe(true);
+  } finally {
+    closing = true;
+    wakeup.notify();
+    await loop;
+  }
+});
+
+it('does not lose a wake delivered during dispatch discovery and retains idle polling fallback', async () => {
+  vi.useFakeTimers();
+  const wakeup = new PollerWakeup();
+  let closing = false;
+  const dispatcher = {
+    tick: vi.fn(async () => {
+      if (dispatcher.tick.mock.calls.length === 1) wakeup.notify();
+      if (dispatcher.tick.mock.calls.length === 3) closing = true;
+    }),
+    drain: async () => {},
+  };
+  const loop = runPollerLoop(
+    dispatcher,
+    { tick: async () => {}, drain: async () => {} },
+    () => closing,
+    wakeup,
+  );
+  try {
+    await vi.advanceTimersByTimeAsync(0);
+    expect(dispatcher.tick).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(749);
+    expect(dispatcher.tick).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    await loop;
+    expect(dispatcher.tick).toHaveBeenCalledTimes(3);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    closing = true;
+    wakeup.notify();
+    await loop;
+    vi.useRealTimers();
+  }
 });
 
 it('keeps polling during slow maintenance, never overlaps sweeps, and drains both on shutdown', async () => {

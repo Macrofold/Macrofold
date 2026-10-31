@@ -1,5 +1,5 @@
-import pg from 'pg';
 import { config, isLocal } from './config';
+import { listenDatabaseNotifications } from '../../db/notifications';
 
 export const runEventChannel = 'macrofold_run_events';
 export type EventListener = (
@@ -12,36 +12,13 @@ export type EventListener = (
 export const listenRunEvents: EventListener = (hint) => {
   if (!isLocal() || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(config.databaseUrl).hostname))
     return;
-  let stopped = false,
-    connected = false,
-    client: pg.Client | undefined,
-    retry: NodeJS.Timeout | undefined;
-  const connect = () => {
-    const current = new pg.Client({
-      connectionString: config.databaseUrl,
-      connectionTimeoutMillis: 1000,
-      query_timeout: 1000,
-    });
-    client = current;
-    const disconnected = () => {
-      if (client !== current) return;
-      connected = false;
-      client = undefined;
-      void current.end().catch(() => {});
-      if (!stopped && !retry) {
-        retry = setTimeout(() => {
-          retry = undefined;
-          connect();
-        }, 5000);
-        retry.unref();
-      }
-    };
-    current.on('error', disconnected);
-    current.on('end', disconnected);
-    current.on('notification', (notification) => {
-      if (stopped || notification.channel !== runEventChannel || !notification.payload) return;
+  const listener = listenDatabaseNotifications({
+    connectionString: config.databaseUrl,
+    channel: runEventChannel,
+    notification(payload) {
+      if (!payload) return;
       try {
-        const ids: unknown = JSON.parse(notification.payload);
+        const ids: unknown = JSON.parse(payload);
         if (
           Array.isArray(ids) &&
           ids.length === 2 &&
@@ -51,26 +28,12 @@ export const listenRunEvents: EventListener = (hint) => {
       } catch {
         /* Malformed hints cannot affect durable replay. */
       }
-    });
-    void current
-      .connect()
-      .then(() => current.query(`LISTEN ${runEventChannel}`))
-      .then(() => {
-        if (stopped || client !== current) return;
-        connected = true;
-      })
-      .catch(disconnected);
-  };
-  connect();
+    },
+  });
   return {
-    connected: () => connected,
+    connected: listener.connected,
     close() {
-      stopped = true;
-      connected = false;
-      clearTimeout(retry);
-      const current = client;
-      client = undefined;
-      void current?.end().catch(() => {});
+      void listener.close();
     },
   };
 };

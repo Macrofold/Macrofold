@@ -51,8 +51,8 @@ type Phase =
   | 'publish'
   | 'close'
   | 'done';
-// Mirrors the content-free scheduling view in 051_dispatch_resources.sql. The
-// hint retains an existing slot only; every resource change returns to SQL claim.
+// Mirrors the content-free scheduling view in 051_dispatch_resources.sql. Local
+// handoffs retain bounded capacity; every phase still takes its SQL fence.
 const phaseDispatchClass: Record<Phase, Exclude<DispatchClass, 'inference'>> = {
   provision: 'provision',
   input: 'transfer',
@@ -95,6 +95,15 @@ export type ExecutionState = {
     Record<Phase, { startedAt: number; completedAt?: number; activeMs: number; attempts: number }>
   >;
 };
+/** Private to one bounded local quantum, never serialized into Workflow history.
+ * Configuration is immutable; every advance freshly claims current controls.
+ * retainReady synchronously reserves a local slot before the fenced publication.
+ * See docs/projects/native-scheduling-latency.md#implementation-owners. */
+export type CloudRunContext = {
+  run?: NativeRunRow;
+  retainReady?: (nextClass: DispatchClass) => boolean;
+};
+
 // Covers the legal 100k-entry/10-GiB restore and publish envelope, including
 // one-object hydration batches. Wall-clock deadlines independently cap stalls.
 export const MAX_RUN_ADVANCES = 250_000;
@@ -148,14 +157,24 @@ export async function advanceCloudRun(
   org: string,
   runId: string,
   machineProvider: MachineProvider | ((run: NativeRunRow) => MachineProvider),
+  context?: CloudRunContext,
 ): Promise<{
   done: boolean;
   delaySeconds: number;
   queued?: boolean;
+  /** Native phase scheduling stays with its fenced owner, even after losing a
+   * claim. Dispatchers must not replace that owner's due time. */
   nextDispatchClass?: DispatchClass;
   canContinue?: boolean;
 }> {
-  let run = await transaction(org, (tx) => getRun(tx, runId));
+  if (context?.run)
+    assert(
+      context.run.id === runId && context.run.organization_id === org,
+      500,
+      'execution_context_mismatch',
+      'Prepared execution belongs to a different Run.',
+    );
+  let run = context?.run ?? (await transaction(org, (tx) => getRun(tx, runId)));
   if (run.kind !== 'native_agent') {
     const { advanceInference } = await import('./inference-engine');
     return advanceInference(org, runId);
@@ -181,7 +200,10 @@ export async function advanceCloudRun(
     provider: config.execution === 'docker' ? 'docker' : 'vercel',
     phase: 'provision',
   }) as ExecutionState;
-  if (state.recoveryBlocked || state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
+  if (
+    !context?.run &&
+    (state.recoveryBlocked || state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
+  )
     return { done: true, delaySeconds: 0 };
   const claim = id();
   const owns = await transaction(org, async (tx) => {
@@ -191,6 +213,9 @@ export async function advanceCloudRun(
       await tx.query<
         Pick<
           NativeRunRow,
+          | 'id'
+          | 'organization_id'
+          | 'kind'
           | 'execution_binding'
           | 'status'
           | 'cancel_requested'
@@ -198,24 +223,46 @@ export async function advanceCloudRun(
           | 'model_error_request_id'
           | 'input_request'
           | 'lease_generation'
+          | 'event_sequence'
         >
       >(
-        'SELECT execution_binding,status,cancel_requested,deadline,model_error_request_id,input_request,lease_generation FROM runs WHERE id=$1 FOR UPDATE',
+        'SELECT id,organization_id,kind,execution_binding,status,cancel_requested,deadline,model_error_request_id,input_request,lease_generation,event_sequence FROM runs WHERE id=$1 FOR UPDATE',
         [runId],
       )
     ).rows[0];
     assert(current, 404, 'not_found', 'Run not found.');
+    assert(
+      current.id === run.id && current.organization_id === org && current.kind === run.kind,
+      409,
+      'execution_context_mismatch',
+      'The execution identity changed.',
+    );
     Object.assign(run, current);
     state = (current.execution_binding || state) as ExecutionState;
-    if (state.lock && (state.lockExpires || 0) > Date.now()) return false;
+    if (
+      state.recoveryBlocked ||
+      state.phase === 'done' ||
+      (terminal(run.status) && !current.execution_binding)
+    )
+      return 'done' as const;
+    if (state.lock && (state.lockExpires || 0) > Date.now()) return 'busy' as const;
     state = { ...state, lock: claim, lockExpires: Date.now() + 120_000 };
     await tx.query('UPDATE runs SET execution_binding=$2,heartbeat_at=now() WHERE id=$1', [
       runId,
       JSON.stringify(state),
     ]);
-    return true;
+    return 'owned' as const;
   });
-  if (!owns) return { done: false, delaySeconds: 5 };
+  if (owns !== 'owned')
+    return {
+      done: owns === 'done',
+      delaySeconds: owns === 'done' ? 0 : 5,
+      // A losing observer must not overwrite the phase owner's published due
+      // time with an unfenced dispatcher reschedule.
+      nextDispatchClass: phaseDispatchClass[state.phase],
+      canContinue: false,
+    };
+  if (context) context.run = run;
   const phase = state.phase;
   const stopStorageTiming = ['input', 'hydrate', 'restore', 'restore_wait'].includes(phase)
     ? startPerformanceStage('storage.restore')
@@ -578,42 +625,44 @@ export async function advanceCloudRun(
     state.failures = 0;
   } catch (error) {
     if (error instanceof AppError && error.code === 'worker_starting') {
-      return { done: false, delaySeconds: 3 };
+      delaySeconds = 3;
+      canContinue = false;
+    } else {
+      state.failures = (state.failures || 0) + 1;
+      const code = error instanceof AppError ? error.code : 'execution_transport_failed';
+      if (['publish', 'close'].includes(state.phase) && state.failures >= MAX_RECOVERY_FAILURES) {
+        // A failed settlement/stop is not permission to release money or writers.
+        // Stop automatic retries while retaining the original binding and files.
+        state.recoveryBlocked = true;
+        await transaction(org, (tx) =>
+          blockRunRecovery(tx, org, runId, {
+            code: 'run_recovery_required',
+            step: state.phase === 'close' ? 'cleanup' : state.publicationStep || 'finalization',
+            cause: code,
+            attempts: state.failures!,
+            ...(state.error ? { original_failure_code: state.error } : {}),
+          }),
+        );
+      } else if (
+        state.failures >= 3 &&
+        state.phase !== 'close' &&
+        (state.phase !== 'publish' || !state.error)
+      ) {
+        state.error ||= code;
+        state.preserve = Boolean(state.machine);
+        // Freeze an uncertain execution before final accounting. Never restart the prompt to recover it.
+        if (state.machine)
+          await provider
+            .close(state.machine, true)
+            .then((r) => {
+              state.snapshotId = r.snapshotId;
+            })
+            .catch(() => {});
+        state.phase = 'publish';
+        state.failures = 0;
+      }
+      delaySeconds = Math.min(60, 2 ** state.failures);
     }
-    state.failures = (state.failures || 0) + 1;
-    const code = error instanceof AppError ? error.code : 'execution_transport_failed';
-    if (['publish', 'close'].includes(state.phase) && state.failures >= MAX_RECOVERY_FAILURES) {
-      // A failed settlement/stop is not permission to release money or writers.
-      // Stop automatic retries while retaining the original binding and files.
-      state.recoveryBlocked = true;
-      await transaction(org, (tx) =>
-        blockRunRecovery(tx, org, runId, {
-          code: 'run_recovery_required',
-          step: state.phase === 'close' ? 'cleanup' : state.publicationStep || 'finalization',
-          cause: code,
-          attempts: state.failures!,
-          ...(state.error ? { original_failure_code: state.error } : {}),
-        }),
-      );
-    } else if (
-      state.failures >= 3 &&
-      state.phase !== 'close' &&
-      (state.phase !== 'publish' || !state.error)
-    ) {
-      state.error ||= code;
-      state.preserve = Boolean(state.machine);
-      // Freeze an uncertain execution before final accounting. Never restart the prompt to recover it.
-      if (state.machine)
-        await provider
-          .close(state.machine, true)
-          .then((r) => {
-            state.snapshotId = r.snapshotId;
-          })
-          .catch(() => {});
-      state.phase = 'publish';
-      state.failures = 0;
-    }
-    delaySeconds = Math.min(60, 2 ** state.failures);
   } finally {
     stopStorageTiming?.();
     timing.activeMs += Math.round(performance.now() - started);
@@ -621,8 +670,15 @@ export async function advanceCloudRun(
     if (state.phase !== phase) timing.completedAt = Date.now();
     delete state.lock;
     delete state.lockExpires;
-    // Reset successful-step recovery and renew the job in the same fenced commit.
-    // A ready same-class continuation need not rediscover/reclaim this job.
+    const retained =
+      state.phase !== 'done' &&
+      !state.recoveryBlocked &&
+      delaySeconds === 0 &&
+      canContinue &&
+      Boolean(context?.retainReady?.(phaseDispatchClass[state.phase]));
+    // Publish the phase and its due time together. A retained local quantum keeps
+    // the normal crash backoff; making every ready phase due would let another
+    // poller steal it between local handoffs. Real waits/yields remain durable.
     committed = await transaction(org, async (tx) =>
       Boolean(
         (
@@ -631,17 +687,31 @@ export async function advanceCloudRun(
           UPDATE runs SET execution_binding=$2::jsonb||jsonb_build_object('eventOffset',greatest(coalesce((execution_binding->>'eventOffset')::bigint,0),coalesce(($2::jsonb->>'eventOffset')::bigint,0))),heartbeat_at=now()
           WHERE id=$1 AND execution_binding->>'lock'=$3 RETURNING id
         ), renewed AS (
-          UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes',failure_attempts=0,error=NULL
+          UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes',failure_attempts=0,error=NULL,
+            available_at=clock_timestamp()+($5::double precision*interval '1 second')
           WHERE kind='run' AND resource_id IN(SELECT id FROM updated) AND state IN('pending','running') AND $4::boolean
           RETURNING id
         ) SELECT id FROM updated`,
-            [runId, JSON.stringify(state), claim, state.phase !== 'done' && !state.recoveryBlocked],
+            [
+              runId,
+              JSON.stringify(state),
+              claim,
+              state.phase !== 'done' && !state.recoveryBlocked,
+              retained ? 120 : delaySeconds,
+            ],
           )
         ).rowCount,
       ),
     );
+    if (committed && context?.run) context.run.execution_binding = state;
   }
-  if (!committed) return { done: false, delaySeconds: 5 };
+  if (!committed)
+    return {
+      done: false,
+      delaySeconds: 5,
+      nextDispatchClass: phaseDispatchClass[state.phase],
+      canContinue: false,
+    };
   return {
     done: state.phase === 'done' || Boolean(state.recoveryBlocked),
     delaySeconds,

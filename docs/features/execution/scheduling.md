@@ -43,11 +43,41 @@ The fairness model follows the noisy-neighbor principle in [AWS fair queues](htt
 
 ## Orchestration and failure behavior
 
+The standalone poller uses commit wake hints, immediate bounded local pool
+handoffs, independent pool discovery and reusable immutable preparation. The
+[implementation and qualification record](../../projects/native-scheduling-latency.md)
+separates the under-100-ms free-capacity target from measured results. Durable
+claims, fair admission and recovery remain authoritative; cold Host/harness
+startup and genuinely occupied capacity have independent costs.
+
 Queue waiting resides in PostgreSQL. Failed claims retain expiry-bounded adaptive backoff; a fresh eligibility hint can wake pending work after capacity changes without waiting for an older capacity backoff. A distinct short dispatcher lease prevents duplicate pending advances. Its exact database timestamp fences release, so a stale response cannot clear another dispatcher's claim. Provider errors and running phase retries still honor their `available_at` deadline. Workflow starts only after capacity is claimed; a queued invocation returns to the outbox without a sleep loop.
 
 Every Workflow invocation advances at most 128 phases before handing off the same persisted execution through the existing outbox. Orchestration generation fencing protects successor leases, while the existing phase lock and native supervisor preserve execution identity. The combined retry/sleep budget is at most 1,449 events per invocation. See [Workflow history and waiting](workflow-history.md) for the budget, scheduling/cancellation latency, crash boundaries and rollout procedure.
 
 Standalone poller workers claim due rows with `FOR UPDATE SKIP LOCKED`; queued dispatch claims have a five-second lease and active cloud steps a two-minute dispatch backoff. [CloudDispatcher](../../../packages/core/src/portable-dispatch.ts) uses independent per-process pools: 256 inference advances, 16 native provisioning advances, eight restore/checkpoint transfers and 64 lifecycle/control advances. Migration 051 exposes only the derived `dispatch_class` in the restricted scheduler view. Locally active Run IDs remain excluded even if a dispatch claim expires; cross-process phase fencing remains authoritative. These settings replace `WORKER_CONCURRENCY` and its silent twenty-step clamp. They are separate from fleet active-Run ceilings and customer budgets. A full transfer pool cannot consume model slots.
+
+Migrations 059–060 publish content-free wake hints after due-job and eligibility
+changes commit. A standalone poller owns one direct PostgreSQL session listener;
+lost hints or listener failures retain the 750 ms idle polling fallback. A
+notification never selects a tenant, authorizes a Run or overrides capacity.
+Non-native completion skips notification when no queued work exists, using the
+indexed scheduling view; ordinary direct inference does not initiate empty
+fleet scans. [Operator configuration](../../operations/scaling.md#standalone-wakeup-connection)
+documents the direct session URL and connection budget.
+
+Account plan/concurrency/timeout changes also emit a committed hint; unchanged
+limits and unrelated account metadata remain silent. Raising a cap does not
+require another Run to finish or the periodic fallback before rediscovery.
+
+Each pool discovers work independently, so a slow query cannot hold another
+pool's later refill. Already-running transfer/control phases skip queued
+eligibility discovery. Pending admissions still use the same ordered, fair SQL
+claim. Ready native phases may exchange their local slot for a free next-class
+slot within one bounded sixteen-advance/five-second quantum; full targets and
+real waits yield to SQL. Phase state and its next due time publish atomically.
+Retained local work keeps its crash backoff instead of being immediately stolen
+by another poller. Every advance freshly claims current cancellation, deadline,
+generation and phase ownership; only immutable accepted configuration is reused.
 
 The simulator uses [LocalDispatcher](../../../packages/core/src/local-dispatch.ts) with separate inference and native/control pools. Only its short admission is sequential; executions remain asynchronous. Workflow starts take up to 100 candidate jobs and issue at most 16 start acknowledgements concurrently; admission remains SQL-coordinated. Workflow steps themselves are scheduled by the hosting platform, not the standalone process pools. All execution paths share fleet/account/Worker admission.
 

@@ -31,6 +31,13 @@ The scheduler combines placement eligibility with its existing fair organization
 
 Dedicated compute is charged once per allocation, including retained idle capacity. Resource-priced offerings settle monotonic cumulative meters at accepted rates, not a share determined by accidental physical occupancy. Starting, draining and unconfirmed-stop allocations retain their financial obligations. The current Host implementation is Worker/organization scoped even for non-dedicated pricing; cross-customer physical packing remains a separately validated provider optimization, not a security promise.
 
+An already-admitted ready phase is not another fair admission. The standalone
+dispatcher may exchange its local slot between independent resource pools within
+a bounded quantum, while every phase retains its database fence and current
+control checks. Commit notifications accelerate discovery; they never replace
+the durable outbox, select tenants or grant capacity. The [scheduling record](../projects/native-scheduling-latency.md)
+owns measurements and rollout limits.
+
 Manual pause records graceful intent and drains; automatic idle sleep remains enabled and can wake. Provider Host expiration does not replace the Worker ID. Clean authorized file materializations and compatible live harnesses are independent bounded caches. A verified cold continuation must not depend on a surviving warm process. [Architecture](worker-execution.md), [implementation](../features/execution/workers/implementation.md), [measured evidence](../features/execution/workers/verification.md).
 
 ## Separate connector selection from authority

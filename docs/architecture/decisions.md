@@ -29,6 +29,12 @@ A Worker is a stable autoscaling execution target, not a machine or a Worktree o
 
 The scheduler combines placement eligibility with its existing fair organization turns. A full Worker cannot block an unrelated eligible target, and explicit targeting cannot spill into a different price or security contract. Short SQL claims commit before provider, model, or checkpoint I/O. Shared scheduling facts are computed once per decision; ordered local admission avoids a burst of losing lock contenders without serializing actual execution.
 
+Cloud and simulator dispatchers share one small admission arbiter. FIFO heads
+alternate between waiting native/inference classes, so an inference burst cannot
+consume every local admission turn before native work. Existing slots bound the
+queue; SQL still decides tenant fairness and actual capacity. Direct HTTP
+inference does not enter this queued-dispatch arbiter.
+
 Dedicated compute is charged once per allocation, including retained idle capacity. Resource-priced offerings settle monotonic cumulative meters at accepted rates, not a share determined by accidental physical occupancy. Starting, draining and unconfirmed-stop allocations retain their financial obligations. The current Host implementation is Worker/organization scoped even for non-dedicated pricing; cross-customer physical packing remains a separately validated provider optimization, not a security promise.
 
 An already-admitted ready phase is not another fair admission. The standalone

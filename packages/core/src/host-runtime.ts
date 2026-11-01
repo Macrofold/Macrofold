@@ -5,7 +5,7 @@ import type { NativeConfiguration } from '../../runtime/src/types';
 import type { MachineBinding, MachineProvider, MachineTools, StdioInvocation } from './ports';
 import { assert } from './errors';
 import { actorAuthorized } from './actor-authorization';
-import { getNativeRun, type NativeRunRow } from './runs';
+import { getNativeRun, terminal, type NativeRunRow } from './runs';
 
 const probeSchema = z.object({
   events: z.array(z.object({ sequence: z.number(), type: z.string(), data: z.record(z.string(),z.unknown()), emitted_at: z.number().int().nonnegative().optional() })),
@@ -72,12 +72,20 @@ export abstract class HostRuntime implements MachineProvider, MachineTools {
   }
 }
 
-/** Recheck revocation/cancellation at launch without holding a lock during provider I/O. */
+/** Recheck execution eligibility and authority before provider I/O. */
 export async function requireNativeLaunch(tx: Tx, expected: NativeRunRow) {
   await lock(tx, `worktree:${expected.worktree_id}`);
   const run = await getNativeRun(tx, expected.id);
-  assert(run.lease_generation === expected.lease_generation && !run.cancel_requested && run.deadline && run.deadline.getTime() > Date.now(),
-    409, 'run_stopped', 'The Run no longer permits native launch.');
+  assert(
+    run.lease_generation === expected.lease_generation &&
+      !terminal(run.status) &&
+      !run.cancel_requested &&
+      run.deadline &&
+      run.deadline.getTime() > Date.now(),
+    409,
+    'run_stopped',
+    'The Run no longer permits native launch.',
+  );
   assert(await actorAuthorized(tx, run), 403, 'permission_revoked', 'Execution authority was revoked before launch.');
   return run;
 }

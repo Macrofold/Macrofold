@@ -1,4 +1,5 @@
 import { setTimeout as pause } from 'node:timers/promises';
+import { errorDiagnostics } from './error-diagnostics';
 import type { PollerWakeup } from './poller-wakeup';
 
 type Dispatcher = {
@@ -20,8 +21,8 @@ export async function runPollerLoop(
       await maintenance.tick();
       try {
         await dispatcher.tick();
-      } catch {
-        console.error('Run dispatch is temporarily unavailable.');
+      } catch (error) {
+        console.error(JSON.stringify({ code: 'run_dispatch_unavailable', ...errorDiagnostics(error) }));
       }
       if (closing()) break;
       if (wakeup && generation !== undefined) {

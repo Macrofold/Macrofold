@@ -5,7 +5,13 @@ import { authPool, pool, transaction } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';
 import { createWorktree, type FileRecord } from '../../packages/core/src/files';
-import { admitRun, getNativeRun as getRun, presentRun } from '../../packages/core/src/runs';
+import {
+  admitRun,
+  cancelRun,
+  getNativeRun as getRun,
+  presentRun,
+  submitInput,
+} from '../../packages/core/src/runs';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
 import {
@@ -22,6 +28,7 @@ import { AppError } from '../../packages/core/src/errors';
 import { streamEvents } from '../../packages/core/src/events';
 import { dispatchFailed, MAX_DISPATCH_FAILURES } from '../../packages/core/src/dispatch-failures';
 import { retireFixtureRuns } from '../fixtures/account';
+import { requireNativeLaunch } from '../../packages/core/src/host-runtime';
 
 const organizations = new Set<string>();
 async function scenario(attachments?: string[], permissions?: AgentPermissions) {
@@ -95,6 +102,21 @@ async function advanceTo(s: Awaited<ReturnType<typeof scenario>>, provider: Faul
     await advanceCloudRun(s.org, s.runId, provider);
   }
   throw new Error(`Fixture did not reach ${phase}`);
+}
+
+/** Model lease expiry/takeover while a provider request is in flight. */
+async function transferPhaseOwnership(s: Awaited<ReturnType<typeof scenario>>) {
+  const owner = id();
+  await transaction(s.org, async (tx) => {
+    await tx.query('UPDATE runs SET execution_binding=execution_binding||$2::jsonb WHERE id=$1', [
+      s.runId,
+      JSON.stringify({ lock: owner, lockExpires: Date.now() + 120_000 }),
+    ]);
+    await tx.query("UPDATE dispatch_jobs SET available_at=now()+interval '2 minutes' WHERE resource_id=$1", [
+      s.runId,
+    ]);
+  });
+  return owner;
 }
 
 describe('prepared native phase advancement', () => {
@@ -177,6 +199,181 @@ describe('prepared native phase advancement', () => {
       code: 'execution_context_mismatch',
     });
     expect(provider.starts).toBe(0);
+  });
+
+  it('stops a stale provisioning response before preparing or cleaning up its successor', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    await transaction(s.org, (tx) =>
+      tx.query('UPDATE runs SET execution_binding=$2 WHERE id=$1', [
+        s.runId,
+        { provider: 'vercel', phase: 'provision', failures: 2 },
+      ]),
+    );
+    const original = provider.provision.bind(provider);
+    let owner = '';
+    vi.spyOn(provider, 'provision').mockImplementation(async (...args) => {
+      const binding = await original(...args);
+      owner = await transferPhaseOwnership(s);
+      return binding;
+    });
+    const prepare = vi.spyOn(provider, 'prepare');
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toMatchObject({
+      done: false,
+      canContinue: false,
+      delaySeconds: 5,
+    });
+    expect(prepare).not.toHaveBeenCalled();
+    expect(provider.closes).toEqual([]);
+    const row = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(row.execution_binding).toMatchObject({ lock: owner, phase: 'provision', failures: 2 });
+  });
+
+  it('does not run failure recovery after a transport error loses phase ownership', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    await advanceTo(s, provider, 'launch');
+    await transaction(s.org, (tx) =>
+      tx.query(
+        "UPDATE runs SET execution_binding=jsonb_set(execution_binding,'{failures}','2') WHERE id=$1",
+        [s.runId],
+      ),
+    );
+    let owner = '';
+    vi.spyOn(provider, 'launch').mockImplementation(async () => {
+      owner = await transferPhaseOwnership(s);
+      throw new Error('Synthetic transport response after phase takeover');
+    });
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toMatchObject({
+      done: false,
+      canContinue: false,
+      delaySeconds: 5,
+    });
+    expect(provider.closes).toEqual([]);
+    const row = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(row.execution_binding).toMatchObject({ lock: owner, phase: 'launch', failures: 2 });
+    expect(
+      (await pool.query('SELECT state FROM dispatch_jobs WHERE resource_id=$1', [s.runId])).rows[0].state,
+    ).toBe('running');
+  });
+
+  it('retains SQLSTATE for owned phase failures without logging private exception text', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(provider, 'prepare').mockImplementation(async () => {
+      await transaction(s.org, (tx) => tx.query('SELECT "fixture_private_value_not_for_logs"'));
+    });
+    await advanceCloudRun(s.org, s.runId, provider);
+    expect(log).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(log.mock.calls[0][0]))).toEqual({
+      code: 'native_phase_failed',
+      phase: 'provision',
+      organization_id: s.org,
+      run_id: s.runId,
+      error_type: 'Error',
+      sqlstate: '42703',
+    });
+    const text = log.mock.calls.flat().join(' ');
+    expect(text).not.toContain('fixture_private_value_not_for_logs');
+    expect(text).not.toContain('SELECT');
+  });
+
+  it('cannot finish its successor dispatch job after a stale close response', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    await advanceTo(s, provider, 'close');
+    let owner = '';
+    vi.spyOn(provider, 'close').mockImplementation(async () => {
+      owner = await transferPhaseOwnership(s);
+      return {};
+    });
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toMatchObject({
+      done: false,
+      canContinue: false,
+    });
+    const row = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(row).toMatchObject({ status: 'succeeded', execution_binding: { lock: owner, phase: 'close' } });
+    expect(
+      (await pool.query('SELECT state FROM dispatch_jobs WHERE resource_id=$1', [s.runId])).rows[0].state,
+    ).toBe('running');
+    expect(provider.starts).toBe(1);
+  });
+
+  it('rejects terminal execution through the shared automatic and Worker launch gate', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    await advanceTo(s, provider, 'close');
+    const expected = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(expected.status).toBe('succeeded');
+    await expect(transaction(s.org, (tx) => requireNativeLaunch(tx, expected))).rejects.toMatchObject({
+      code: 'run_stopped',
+    });
+    expect(provider.starts).toBe(1);
+  });
+
+  it('delivers an acknowledged answer once while continuing to poll the native Run', async () => {
+    const s = await scenario(undefined, { version: 1, questions: 'allow' }),
+      provider = new FaultMachine();
+    await advanceTo(s, provider, 'poll');
+    let answered = false;
+    const answer = vi.spyOn(provider, 'answer').mockImplementation(async () => {
+      answered = true;
+    });
+    vi.spyOn(provider, 'probe').mockImplementation(async (_binding, offset) => ({
+      events: [],
+      nextOffset: offset,
+      status: { state: 'running' },
+      result: null,
+      input: answered ? null : { id: 'fixture-question', question: 'Synthetic question', details: {} },
+    }));
+    await advanceCloudRun(s.org, s.runId, provider);
+    await transaction(s.org, (tx) =>
+      submitInput(tx, s.p, s.runId, {
+        input_request_id: 'fixture-question',
+        answer: { text: 'Synthetic answer' },
+      }),
+    );
+    await advanceCloudRun(s.org, s.runId, provider);
+    await advanceCloudRun(s.org, s.runId, provider);
+    expect(answer).toHaveBeenCalledOnce();
+    expect((await transaction(s.org, (tx) => getRun(tx, s.runId))).status).toBe('running');
+  });
+
+  it.each(['cancellation', 'timeout'] as const)('does not deliver a queued answer after %s', async (stop) => {
+    const s = await scenario(undefined, { version: 1, questions: 'allow' }),
+      provider = new FaultMachine();
+    await advanceTo(s, provider, 'poll');
+    const answer = vi.spyOn(provider, 'answer');
+    vi.spyOn(provider, 'probe').mockImplementation(async (_binding, offset) => ({
+      events: [],
+      nextOffset: offset,
+      status: { state: 'running' },
+      result: null,
+      input: {
+        id: provider.cancellations ? 'stopped-late-question' : 'stopped-question',
+        question: 'Synthetic question',
+        details: {},
+      },
+    }));
+    await advanceCloudRun(s.org, s.runId, provider);
+    await transaction(s.org, async (tx) => {
+      await submitInput(tx, s.p, s.runId, {
+        input_request_id: 'stopped-question',
+        answer: { text: 'Late answer' },
+      });
+      if (stop === 'cancellation') await cancelRun(tx, s.p, s.runId);
+      else
+        await tx.query("UPDATE runs SET deadline=clock_timestamp()-interval '1 second' WHERE id=$1", [
+          s.runId,
+        ]);
+    });
+    await advanceCloudRun(s.org, s.runId, provider);
+    expect(provider.cancellations).toBe(1);
+    expect(answer).not.toHaveBeenCalled();
+    expect((await transaction(s.org, (tx) => getRun(tx, s.runId))).input_request?.id).toBe(
+      'stopped-question',
+    );
   });
 });
 

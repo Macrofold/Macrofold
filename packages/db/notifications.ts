@@ -5,7 +5,7 @@ type NotificationOptions = {
   channel: string;
   notification: (payload: string | undefined) => void;
   connected?: () => void;
-  unavailable?: () => void;
+  unavailable?: (error: unknown) => void;
   retryMs?: number;
 };
 
@@ -57,17 +57,17 @@ export function listenDatabaseNotifications(
     let current: pg.Client;
     try {
       current = createClient();
-    } catch {
-      options.unavailable?.();
+    } catch (error) {
+      options.unavailable?.(error);
       reconnect();
       return;
     }
     client = current;
-    const disconnected = () => {
+    const disconnected = (error?: unknown) => {
       if (client !== current) return;
       connected = false;
       client = undefined;
-      options.unavailable?.();
+      options.unavailable?.(error);
       retiring = retire(current).then(reconnect);
     };
     current.on('error', disconnected);

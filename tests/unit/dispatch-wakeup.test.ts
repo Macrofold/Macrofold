@@ -99,7 +99,8 @@ it('reestablishes LISTEN after disconnection and cancels a pending reconnect on 
   try {
     await vi.advanceTimersByTimeAsync(0);
     expect(listener.connected()).toBe(true);
-    first.client.emit('error', new Error('private database URL'));
+    const failure = new Error('private database URL');
+    first.client.emit('error', failure);
     first.client.emit('end');
     await vi.advanceTimersByTimeAsync(999);
     expect(listener.connected()).toBe(false);
@@ -109,6 +110,7 @@ it('reestablishes LISTEN after disconnection and cancels a pending reconnect on 
     expect(second.query).toHaveBeenCalledExactlyOnceWith('LISTEN test_wakeup');
     expect(ready).toHaveBeenCalledTimes(2);
     expect(lost).toHaveBeenCalledOnce();
+    expect(lost).toHaveBeenCalledWith(failure);
     second.client.emit('end');
     await listener.close();
     await vi.advanceTimersByTimeAsync(5000);
@@ -120,7 +122,8 @@ it('reestablishes LISTEN after disconnection and cancels a pending reconnect on 
 
 it('contains failed LISTEN setup and closes a connection that finishes connecting after shutdown', async () => {
   const first = connection();
-  first.query.mockRejectedValueOnce(new Error('private connection details'));
+  const failure = new Error('private connection details');
+  first.query.mockRejectedValueOnce(failure);
   const lost = vi.fn();
   const unavailable = listenDatabaseNotifications(
     {
@@ -133,6 +136,7 @@ it('contains failed LISTEN setup and closes a connection that finishes connectin
   );
   try {
     await vi.waitFor(() => expect(lost).toHaveBeenCalledOnce());
+    expect(lost).toHaveBeenCalledWith(failure);
     expect(unavailable.connected()).toBe(false);
     expect(first.end).toHaveBeenCalledOnce();
   } finally {
@@ -181,10 +185,11 @@ it('keeps a malformed optional connection from stopping the poller and bounds gr
   vi.useFakeTimers();
   const fixture = connection(),
     lost = vi.fn();
+  const failure = new Error('private URL');
   const factory = vi
     .fn()
     .mockImplementationOnce(() => {
-      throw new Error('private URL');
+      throw failure;
     })
     .mockReturnValueOnce(fixture.client);
   const listener = listenDatabaseNotifications(
@@ -200,6 +205,7 @@ it('keeps a malformed optional connection from stopping the poller and bounds gr
   try {
     expect(listener.connected()).toBe(false);
     expect(lost).toHaveBeenCalledOnce();
+    expect(lost).toHaveBeenCalledWith(failure);
     await vi.advanceTimersByTimeAsync(1000);
     expect(listener.connected()).toBe(true);
     fixture.end.mockImplementationOnce(

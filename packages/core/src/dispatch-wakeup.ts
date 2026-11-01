@@ -1,5 +1,6 @@
-import { config } from '../core/src/config';
-import { listenDatabaseNotifications } from './notifications';
+import { config } from './config';
+import { errorDiagnostics } from './error-diagnostics';
+import { listenDatabaseNotifications } from '../../db/notifications';
 
 export const dispatchWakeupChannel = 'macrofold_dispatch_wakeup';
 
@@ -13,6 +14,7 @@ export function listenDispatchWakeup(wake: () => void) {
     notification: wake,
     connected: wake,
     retryMs: 1000,
-    unavailable: () => console.warn(JSON.stringify({ code: 'dispatch_wakeup_unavailable' })),
+    unavailable: (error) =>
+      console.warn(JSON.stringify({ code: 'dispatch_wakeup_unavailable', ...errorDiagnostics(error) })),
   });
 }

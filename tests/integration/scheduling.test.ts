@@ -1,4 +1,6 @@
 import { afterAll, afterEach, expect, it } from 'vitest';
+import pg from 'pg';
+import { writeFile } from 'node:fs/promises';
 import { pool, authPool, transaction } from '../../packages/db';
 import { fixtureAccount } from '../fixtures/account';
 import { admitRun, getNativeRun as getRun, cancelRun, presentRuns } from '../../packages/core/src/runs';
@@ -7,7 +9,7 @@ import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import { plans, getExecutionPolicy } from '../../packages/core/src/plans';
 import { updateExecutionPolicy } from '../../packages/core/src/organizations';
-import { schedulingReport } from '../../packages/core/src/scheduling';
+import { schedulingReport, schedulingSQL, schedulingParameters } from '../../packages/core/src/scheduling';
 import { handleApi } from '../../packages/core/src/http';
 import { config } from '../../packages/core/src/config';
 import { credit, reserve, settle } from '../../packages/core/src/ledger';
@@ -27,7 +29,9 @@ async function account(plan = 'payg') {
 }
 async function submit(a: Account, input: Partial<Parameters<typeof admitRun>[2]> = {}) {
   return transaction(a.p.organizationId, async (tx) => {
-    const workspace = await resources.create(tx, 'workspaces', a.p.organizationId, { name: 'Scheduler fixture' });
+    const workspace = await resources.create(tx, 'workspaces', a.p.organizationId, {
+      name: 'Scheduler fixture',
+    });
     const ws = await createWorktree(tx, a.p, workspace.id, { name: 'main', branch: 'main' });
     return admitRun(tx, a.p, {
       worktree_id: String((ws.result as { worktree_id: string }).worktree_id),
@@ -70,6 +74,74 @@ async function block(a: Account, runId: string) {
     await dispatchFailed(a.p.organizationId, 'run', runId, 'fixture_dispatch_failure');
 }
 
+it('discovers current Worktree heads without scanning retained terminal Run history', async () => {
+  const a = await account(),
+    active = await submit(a);
+  expect(await claimRun(a.p.organizationId, active.run_id)).not.toBeNull();
+  await transaction(a.p.organizationId, (tx) =>
+    admitRun(tx, a.p, {
+      session_id: active.session_id,
+      prompt: 'Queued behind the active writer',
+      queue_if_busy: true,
+    }),
+  );
+  const queued = await submit(a);
+  await transaction(a.p.organizationId, (tx) =>
+    tx.query(
+      `
+    INSERT INTO runs(id,organization_id,workspace_id,worktree_id,session_id,kind,status,config,completed_at)
+    SELECT gen_random_uuid(),organization_id,workspace_id,worktree_id,session_id,kind,'cancelled',config,now()
+    FROM runs CROSS JOIN generate_series(1,5000) WHERE id=$1`,
+      [active.run_id],
+    ),
+  );
+  const owner = new pg.Client({ connectionString: config.ownerDatabaseUrl });
+  await owner.connect();
+  try {
+    await owner.query('ANALYZE runs');
+  } finally {
+    await owner.end();
+  }
+
+  type Plan = {
+    'Node Type': string;
+    'Relation Name'?: string;
+    'Index Name'?: string;
+    'Actual Rows'?: number;
+    'Rows Removed by Filter'?: number;
+    Plans?: Plan[];
+  };
+  const query = `${schedulingSQL} SELECT worktree_id,id FROM worktree_heads ORDER BY id`;
+  const rows = (await pool.query(query, schedulingParameters())).rows;
+  expect(rows.map((row) => row.id).sort()).toEqual([active.run_id, queued.run_id].sort());
+  const explanation = (
+    await pool.query<{ 'QUERY PLAN': { Plan: Plan; 'Execution Time': number }[] }>(
+      'EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ' + query,
+      schedulingParameters(),
+    )
+  ).rows[0]['QUERY PLAN'][0];
+  const nodes = (plan: Plan): Plan[] => [plan, ...(plan.Plans ?? []).flatMap(nodes)];
+  const runNodes = nodes(explanation.Plan).filter((plan) => plan['Relation Name'] === 'runs');
+  const observation = {
+    fixture: 'worktree_head_history',
+    retained_rows: 5000,
+    execution_ms: explanation['Execution Time'],
+    run_scans: runNodes.map((plan) => ({
+      type: plan['Node Type'],
+      index: plan['Index Name'],
+      rows: plan['Actual Rows'],
+      removed: plan['Rows Removed by Filter'],
+    })),
+  };
+  if (process.env.SCHEDULING_PLAN_OUTPUT)
+    await writeFile(process.env.SCHEDULING_PLAN_OUTPUT, JSON.stringify(observation, null, 2), {
+      mode: 0o600,
+    });
+  console.info(JSON.stringify(observation));
+  expect(runNodes.length).toBeGreaterThan(0);
+  expect(runNodes.some((plan) => plan['Node Type'] === 'Seq Scan')).toBe(false);
+});
+
 it('a blocked queued Run cannot steal fair turns from healthy Worktrees or other tenants', async () => {
   const a = await account(),
     b = await account();
@@ -111,7 +183,8 @@ it.each(['cancel', 'expire'] as const)(
     const a = await account();
     const accepted = await submit(a);
     await block(a, accepted.run_id);
-    if (action === 'cancel') await transaction(a.p.organizationId, (tx) => cancelRun(tx, a.p, accepted.run_id));
+    if (action === 'cancel')
+      await transaction(a.p.organizationId, (tx) => cancelRun(tx, a.p, accepted.run_id));
     else
       await transaction(a.p.organizationId, (tx) =>
         tx.query("UPDATE runs SET queue_expires_at=now()-interval '1 second' WHERE id=$1", [accepted.run_id]),
@@ -313,9 +386,9 @@ it('authorizes execution policy mutations and validates deadline input through t
   const saved = await request('/v1/organization/execution-policy', 'PATCH', { concurrency_limit: 1 });
   expect(saved.status).toBe(200);
   expect((await saved.json()).concurrency_limit).toBe(1);
-  expect((await request('/v1/organization/execution-policy', 'PATCH', { concurrency_limit: 21 })).status).toBe(
-    400,
-  );
+  expect(
+    (await request('/v1/organization/execution-policy', 'PATCH', { concurrency_limit: 21 })).status,
+  ).toBe(400);
   const run = await submit(a);
   for (const queue_timeout_seconds of [0, 86401, 1.5])
     expect(

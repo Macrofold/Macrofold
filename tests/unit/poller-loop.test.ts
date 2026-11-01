@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { DatabaseError } from 'pg';
 import { MaintenanceDispatcher } from '../../packages/core/src/maintenance-dispatch';
 import { runPollerLoop } from '../../packages/core/src/poller-loop';
 import { PollerWakeup } from '../../packages/core/src/poller-wakeup';
@@ -143,10 +144,11 @@ it('keeps polling during slow maintenance, never overlaps sweeps, and drains bot
 
 it('contains maintenance and dispatch failures and continues the loop without logging raw errors', async () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const cause = Object.assign(new DatabaseError('private provider error', 0, 'error'), { code: '53300' });
   let closing = false;
   const dispatcher = {
     tick: vi.fn(async () => {
-      if (dispatcher.tick.mock.calls.length === 1) throw Error('private provider error');
+      if (dispatcher.tick.mock.calls.length === 1) throw cause;
       closing = true;
     }),
     waitForProgress: async () => {},
@@ -167,6 +169,9 @@ it('contains maintenance and dispatch failures and continues the loop without lo
   expect(dispatcher.tick).toHaveBeenCalledTimes(2);
   expect(dispatcher.drain).toHaveBeenCalledOnce();
   expect(error.mock.calls.flat().join(' ')).not.toContain('private');
+  expect(error).toHaveBeenCalledWith(
+    JSON.stringify({ code: 'run_dispatch_unavailable', error_type: 'Error', sqlstate: '53300' }),
+  );
   expect(error).toHaveBeenCalledTimes(2);
 });
 

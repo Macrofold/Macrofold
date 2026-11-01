@@ -1,4 +1,5 @@
 import { config, isLocal } from './config';
+import { errorDiagnostics } from './error-diagnostics';
 import { listenDatabaseNotifications } from '../../db/notifications';
 
 export const runEventChannel = 'macrofold_run_events';
@@ -15,6 +16,8 @@ export const listenRunEvents: EventListener = (hint) => {
   const listener = listenDatabaseNotifications({
     connectionString: config.databaseUrl,
     channel: runEventChannel,
+    unavailable: (error) =>
+      console.warn(JSON.stringify({ code: 'run_event_listener_unavailable', ...errorDiagnostics(error) })),
     notification(payload) {
       if (!payload) return;
       try {

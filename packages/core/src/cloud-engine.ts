@@ -10,6 +10,7 @@ import { recordTrace } from './tracing';
 import { observeWorkerStep, observeRuntimeEvents } from './worker-diagnostics';
 import { id, sha256 } from './crypto';
 import { assert, AppError } from './errors';
+import { errorDiagnostics } from './error-diagnostics';
 import { config } from './config';
 import { claimRun, principalFor } from './engine';
 import type { NativeRunRow } from './runs';
@@ -109,6 +110,7 @@ export type CloudRunContext = {
 export const MAX_RUN_ADVANCES = 250_000;
 export const RUN_RECOVERY_MS = 30 * 60_000;
 export const MAX_RECOVERY_FAILURES = 8;
+const PHASE_LEASE_MS = 120_000;
 type ExecutionObject = { id: string; kind: string; name: string; data: Record<string, unknown> };
 async function objects(
   tx: Tx,
@@ -149,6 +151,10 @@ async function processed(org: string, objects: ExecutionObject[]) {
         objects.map((o) => o.id),
       ]),
     );
+}
+
+function requirePhaseWrite(result: { rowCount: number | null }) {
+  assert(result.rowCount, 409, 'lease_lost', 'Execution phase belongs to another controller step.');
 }
 
 /** A small durable state machine. Each call performs bounded I/O and is safe to repeat.
@@ -246,7 +252,7 @@ export async function advanceCloudRun(
     )
       return 'done' as const;
     if (state.lock && (state.lockExpires || 0) > Date.now()) return 'busy' as const;
-    state = { ...state, lock: claim, lockExpires: Date.now() + 120_000 };
+    state = { ...state, lock: claim, lockExpires: Date.now() + PHASE_LEASE_MS };
     await tx.query('UPDATE runs SET execution_binding=$2,heartbeat_at=now() WHERE id=$1', [
       runId,
       JSON.stringify(state),
@@ -349,7 +355,7 @@ export async function advanceCloudRun(
           `SELECT id FROM runs WHERE id=$1 AND execution_binding->>'lock'=$2 FOR UPDATE`,
           [runId, claim],
         );
-        assert(owned.rowCount, 409, 'lease_lost', 'Restore preparation belongs to another controller step.');
+        requirePhaseWrite(owned);
         await objects(tx, org, runId, [
           ...descriptions.flatMap((item) =>
             item.chunks.map((chunk) => ({ kind: 'input_chunk', name: chunk.sha256, data: chunk })),
@@ -369,12 +375,13 @@ export async function advanceCloudRun(
       );
       state.machine = await provider.provision(`run-${runId}`, run.config.limits?.timeout_seconds || 900);
       // Persist the original VM binding before any subsequent provider operation can execute a command.
-      await transaction(org, (tx) =>
-        tx.query("UPDATE runs SET execution_binding=$2 WHERE id=$1 AND execution_binding->>'lock'=$3", [
-          runId,
-          JSON.stringify(state),
-          claim,
-        ]),
+      await transaction(org, async (tx) =>
+        requirePhaseWrite(
+          await tx.query(
+            "UPDATE runs SET execution_binding=$2 WHERE id=$1 AND execution_binding->>'lock'=$3",
+            [runId, JSON.stringify(state), claim],
+          ),
+        ),
       );
       const session = await transaction(org, (tx) => resources.get(tx, 'sessions', run.session_id));
       const model = run.config.rate_card;
@@ -440,18 +447,23 @@ export async function advanceCloudRun(
         'The run stopped before launch.',
       );
       await transaction(org, async (tx) => {
-        await tx.query("UPDATE runs SET status='running' WHERE id=$1", [runId]);
+        requirePhaseWrite(
+          await tx.query("UPDATE runs SET status='running' WHERE id=$1 AND execution_binding->>'lock'=$2", [
+            runId,
+            claim,
+          ]),
+        );
         await emit(tx, org, runId, 'run.started', { simulated: false }, { id: 'lifecycle', sequence: 1 });
       });
       await provider.launch(state.machine!);
       state.phase = 'poll';
     } else if (state.phase === 'poll') {
-      if (
+      const stopping =
         run.cancel_requested ||
-        run.model_error_request_id ||
+        Boolean(run.model_error_request_id) ||
         state.questionDenied ||
-        run.deadline!.getTime() <= Date.now()
-      ) {
+        run.deadline!.getTime() <= Date.now();
+      if (stopping) {
         state.cancelStartedAt ??= Date.now();
         assert(
           Date.now() - state.cancelStartedAt < 60_000,
@@ -461,10 +473,15 @@ export async function advanceCloudRun(
         );
         await provider.cancel(state.machine!);
       }
-      if (run.input_request?.answer && !run.model_error_request_id && !state.questionDenied) {
+      if (!stopping && run.status === 'waiting_for_input' && run.input_request?.answer) {
         await provider.answer(state.machine!, run.input_request.id, run.input_request.answer);
-        await transaction(org, (tx) =>
-          tx.query("UPDATE runs SET status='running' WHERE id=$1 AND status='waiting_for_input'", [runId]),
+        await transaction(org, async (tx) =>
+          requirePhaseWrite(
+            await tx.query(
+              "UPDATE runs SET status='running' WHERE id=$1 AND status='waiting_for_input' AND execution_binding->>'lock'=$2",
+              [runId, claim],
+            ),
+          ),
         );
       }
       const result = await observeWorkerStep('native_probe', { organization_id: org, run_id: runId }, () =>
@@ -477,7 +494,7 @@ export async function advanceCloudRun(
         { organization_id: org, run_id: runId, lease_generation: run.lease_generation },
         result.events,
       );
-      if (result.input && !questionsAllowed(run.config.permission_layers || [])) {
+      if (!stopping && result.input && !questionsAllowed(run.config.permission_layers || [])) {
         state.questionDenied = true;
         await provider.cancel(state.machine!);
       }
@@ -514,18 +531,14 @@ export async function advanceCloudRun(
           currentRun: run,
           execution: { claim, offset: result.nextOffset },
         });
-        if (
-          result.input &&
-          !state.questionDenied &&
-          !run.model_error_request_id &&
-          state.inputId !== result.input.id
-        ) {
+        if (result.input && !stopping && !state.questionDenied && state.inputId !== result.input.id) {
           // The gateway can fence spending while a native probe is in flight.
           const waiting = await tx.query(
             `UPDATE runs SET status='waiting_for_input',input_request=$2,
              execution_binding=jsonb_set(execution_binding,'{inputId}',to_jsonb($2::jsonb->>'id')) WHERE id=$1
-             AND model_error_request_id IS NULL AND NOT cancel_requested RETURNING id`,
-            [runId, JSON.stringify(result.input)],
+             AND model_error_request_id IS NULL AND NOT cancel_requested
+             AND execution_binding->>'lock'=$3 RETURNING id`,
+            [runId, JSON.stringify(result.input), claim],
           );
           if (waiting.rowCount) {
             await emit(tx, org, runId, 'input.requested', {
@@ -546,7 +559,12 @@ export async function advanceCloudRun(
           state.preserve = true;
         }
         await transaction(org, async (tx) => {
-          await tx.query("UPDATE runs SET status='persisting' WHERE id=$1", [runId]);
+          requirePhaseWrite(
+            await tx.query(
+              "UPDATE runs SET status='persisting' WHERE id=$1 AND execution_binding->>'lock'=$2",
+              [runId, claim],
+            ),
+          );
           await emit(tx, org, runId, 'run.persisting', {}, { id: 'lifecycle', sequence: 2 });
         });
       } else if (!result.result && !provider.waitForEvents) delaySeconds = 2;
@@ -615,19 +633,39 @@ export async function advanceCloudRun(
       }
       if (!state.machine) await provider.cleanupUnbound?.();
       state.phase = 'done';
-      await transaction(org, (tx) =>
-        tx.query(
-          "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
-          [runId],
-        ),
-      );
     }
     state.failures = 0;
   } catch (error) {
-    if (error instanceof AppError && error.code === 'worker_starting') {
+    // Any upstream failure can arrive after this phase's lease expired. Renew
+    // the same claim atomically before recovery can stop an allocation or block
+    // its job; a stale controller must leave its successor's work alone.
+    const phaseOwned = await transaction(org, async (tx) =>
+      Boolean(
+        (
+          await tx.query(
+            `UPDATE runs SET execution_binding=jsonb_set(execution_binding,'{lockExpires}',to_jsonb($3::bigint)),
+       heartbeat_at=clock_timestamp() WHERE id=$1 AND execution_binding->>'lock'=$2 RETURNING id`,
+            [runId, claim, Date.now() + PHASE_LEASE_MS],
+          )
+        ).rowCount,
+      ),
+    );
+    if (!phaseOwned) {
+      delaySeconds = 5;
+      canContinue = false;
+    } else if (error instanceof AppError && error.code === 'worker_starting') {
       delaySeconds = 3;
       canContinue = false;
     } else {
+      console.error(
+        JSON.stringify({
+          code: 'native_phase_failed',
+          phase,
+          organization_id: org,
+          run_id: runId,
+          ...errorDiagnostics(error),
+        }),
+      );
       state.failures = (state.failures || 0) + 1;
       const code = error instanceof AppError ? error.code : 'execution_transport_failed';
       if (['publish', 'close'].includes(state.phase) && state.failures >= MAX_RECOVERY_FAILURES) {
@@ -687,17 +725,19 @@ export async function advanceCloudRun(
           UPDATE runs SET execution_binding=$2::jsonb||jsonb_build_object('eventOffset',greatest(coalesce((execution_binding->>'eventOffset')::bigint,0),coalesce(($2::jsonb->>'eventOffset')::bigint,0))),heartbeat_at=now()
           WHERE id=$1 AND execution_binding->>'lock'=$3 RETURNING id
         ), renewed AS (
-          UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes',failure_attempts=0,error=NULL,
+          UPDATE dispatch_jobs SET state=CASE WHEN $4::text='done' THEN 'done' ELSE state END,
+            lease_until=CASE WHEN $4::text='done' THEN NULL ELSE now()+interval '5 minutes' END,
+            failure_attempts=0,error=NULL,
             available_at=clock_timestamp()+($5::double precision*interval '1 second')
-          WHERE kind='run' AND resource_id IN(SELECT id FROM updated) AND state IN('pending','running') AND $4::boolean
+          WHERE kind='run' AND resource_id IN(SELECT id FROM updated) AND state IN('pending','running') AND $4::text IS NOT NULL
           RETURNING id
         ) SELECT id FROM updated`,
             [
               runId,
               JSON.stringify(state),
               claim,
-              state.phase !== 'done' && !state.recoveryBlocked,
-              retained ? 120 : delaySeconds,
+              state.recoveryBlocked ? null : state.phase === 'done' ? 'done' : 'running',
+              retained ? PHASE_LEASE_MS / 1000 : delaySeconds,
             ],
           )
         ).rowCount,
@@ -743,7 +783,12 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
           )
         ).rows
       : [];
-    await tx.query("UPDATE runs SET status='persisting' WHERE id=$1", [runId]);
+    requirePhaseWrite(
+      await tx.query("UPDATE runs SET status='persisting' WHERE id=$1 AND execution_binding->>'lock'=$2", [
+        runId,
+        state.lock,
+      ]),
+    );
     return { run, worktree, objects };
   });
   try {

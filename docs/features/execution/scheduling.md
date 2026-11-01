@@ -65,19 +65,35 @@ indexed scheduling view; ordinary direct inference does not initiate empty
 fleet scans. [Operator configuration](../../operations/scaling.md#standalone-wakeup-connection)
 documents the direct session URL and connection budget.
 
+[The core wakeup composition](../../../packages/core/src/dispatch-wakeup.ts)
+selects that connection and safe diagnostics; the shared
+[database listener](../../../packages/db/notifications.ts) owns connection,
+reconnect and close behavior for both poller hints and local Run-event hints.
+Neither adds tenant state or replaces durable SQL eligibility.
+
 Account plan/concurrency/timeout changes also emit a committed hint; unchanged
 limits and unrelated account metadata remain silent. Raising a cap does not
 require another Run to finish or the periodic fallback before rediscovery.
 
 Each pool discovers work independently, so a slow query cannot hold another
 pool's later refill. Already-running transfer/control phases skip queued
-eligibility discovery. Pending admissions still use the same ordered, fair SQL
-claim. Ready native phases may exchange their local slot for a free next-class
+eligibility discovery. Cloud and simulator dispatchers share a short
+[admission queue](../../../packages/core/src/admission-queue.ts): FIFO within
+each execution class, alternating native and inference heads when both wait.
+A large inference burst therefore cannot put every native admission behind it.
+The existing SQL claim still determines fair organization turns and capacity;
+provider/model execution does not hold the local admission turn. After a losing
+cloud admission claim, only its exact pending dispatcher lease is released,
+without immediately loading the request and attempting the same admission again.
+
+Ready native phases may exchange their local slot for a free next-class
 slot within one bounded sixteen-advance/five-second quantum; full targets and
 real waits yield to SQL. Phase state and its next due time publish atomically.
 Retained local work keeps its crash backoff instead of being immediately stolen
 by another poller. Every advance freshly claims current cancellation, deadline,
 generation and phase ownership; only immutable accepted configuration is reused.
+Local refill signals follow slot release or a handoff that frees the old pool;
+merely consuming a slot does not wake another discovery sweep.
 
 The simulator uses [LocalDispatcher](../../../packages/core/src/local-dispatch.ts) with separate inference and native/control pools. Only its short admission is sequential; executions remain asynchronous. Workflow starts take up to 100 candidate jobs and issue at most 16 start acknowledgements concurrently; admission remains SQL-coordinated. Workflow steps themselves are scheduled by the hosting platform, not the standalone process pools. All execution paths share fleet/account/Worker admission.
 
@@ -86,6 +102,34 @@ The simulator uses [LocalDispatcher](../../../packages/core/src/local-dispatch.t
 Maintenance processes at most 100 expired/cancelled/unavailable queued runs per sweep, independently of dispatch leases and execution capacity. Local simulations whose worker heartbeat is older than 90 seconds are failed with `worker_lost`, lease-fenced, settled, and retain their prior verified worktree; their prompts are not replayed. Cloud workers instead resume inspection of the original machine through durable state. Deploy enough maintenance capacity to clear expiry backlogs promptly, and alert on overdue queued records. Typical expiry observation is the next two-second Run maintenance pass or configured Cron sweep; it is not an exact wall-clock guarantee during disruption.
 
 The scheduler's sanitized reporting view exposes only IDs, lifecycle timestamps/status, scheduling and dispatch resource classes, and availability. It contains no prompts, file data, outputs or credentials. Tenant API observations are projected only for already-authorized run IDs. Cross-account reporting remains operator-only and audited.
+
+Poller failures use structured `run_dispatch_unavailable`,
+`poller_advance_failed`, `local_dispatch_failed`, `native_phase_failed`,
+`dispatch_wakeup_unavailable` and `run_event_listener_unavailable` diagnostics. The shared
+[error classifier](../../../packages/core/src/error-diagnostics.ts) preserves
+controlled error type/code and PostgreSQL SQLSTATE when available. Successful
+failure bookkeeping retains the original step cause; if authority/recovery SQL
+also fails, that control failure takes precedence because recovery could not be
+confirmed. Raw messages, SQL, connection URLs and request content are not copied
+into these logs.
+
+### Remaining scheduling limits
+
+Answering a native question or cancelling an active quiet Run can still wait
+for the normal two-second probe interval, even when control capacity is free.
+Accelerating that path needs owner-safe due-job scheduling, not only a wake hint
+or an unfenced overwrite of another controller's retained phase schedule.
+
+Use matching execution-provider poller modes for one database. Heterogeneous
+Docker and Vercel pollers sharing that database do not have provider-aware
+candidate routing and are not a supported topology. This is distinct from
+selecting supported Host offerings through the Worker abstraction.
+
+Global wake hints reach every listening poller. Per-class scans coalesce while
+in flight, but notification fanout and sustained discovery work at fleet scale
+remain unqualified. The [maintainer follow-ups](../../maintainers/TODO.md#native-startup-failure-diagnostics)
+track these limits; the original local latency record does not establish a
+hosted or fleet-wide SLA.
 
 ## API and terminal UX
 

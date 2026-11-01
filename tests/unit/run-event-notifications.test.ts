@@ -1,11 +1,13 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, expect, it, vi } from 'vitest';
+import { DatabaseError } from 'pg';
 const fixture = vi.hoisted(() => ({ local: true, clients: [] as EventEmitter[] }));
 vi.mock('../../packages/core/src/config', () => ({
   config: { databaseUrl: 'postgres://app@127.0.0.1:55432/fixture' },
   isLocal: () => fixture.local,
 }));
-vi.mock('pg', () => ({
+vi.mock('pg', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('pg')>()),
   default: {
     Client: class extends EventEmitter {
       connect = vi.fn(async () => {});
@@ -20,6 +22,7 @@ vi.mock('pg', () => ({
 }));
 import { listenRunEvents, runEventChannel } from '../../packages/core/src/run-event-notifications';
 afterEach(() => {
+  vi.restoreAllMocks();
   fixture.local = true;
   fixture.clients.length = 0;
   vi.useRealTimers();
@@ -51,6 +54,7 @@ it('uses one session listener, accepts only content-free ID hints, and closes wi
 
 it('falls back after a lost connection and retries once per bounded interval until disposed', async () => {
   vi.useFakeTimers();
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
   const listener = listenRunEvents(vi.fn())!;
   await vi.advanceTimersByTimeAsync(0);
   fixture.clients[0].emit('error', new Error('fixture socket failure'));
@@ -65,6 +69,22 @@ it('falls back after a lost connection and retries once per bounded interval unt
   listener.close();
   await vi.advanceTimersByTimeAsync(5000);
   expect(fixture.clients).toHaveLength(2);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('retains the shared safe database classification when a Run-event listener fails', async () => {
+  vi.useFakeTimers();
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const listener = listenRunEvents(vi.fn())!;
+  await vi.advanceTimersByTimeAsync(0);
+  const error = new DatabaseError('private connection details', 0, 'error');
+  error.code = '08006';
+  fixture.clients[0].emit('error', error);
+  expect(warning).toHaveBeenCalledExactlyOnceWith(
+    JSON.stringify({ code: 'run_event_listener_unavailable', error_type: 'Error', sqlstate: '08006' }),
+  );
+  listener.close();
+  await vi.advanceTimersByTimeAsync(5000);
   expect(vi.getTimerCount()).toBe(0);
 });
 

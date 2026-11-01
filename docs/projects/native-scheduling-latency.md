@@ -88,6 +88,98 @@ a local slot indefinitely. No public contracts or unrelated SDK builds change.
 
 ## Verification record
 
+### Implementation review
+
+The follow-up review targets the complete scheduling implementation, including
+its existing shared callers. Keep the current defaults and public API intact;
+prioritize playable interactive workloads over speculative deployment machinery.
+
+Implemented review fixes:
+
+- Fence all phase-owned lifecycle/event/publication writes, including closing
+  the dispatch job, so a resumed stale owner cannot regress or retire a successor.
+  Reuse the current native launch guard for terminal-state rejection.
+- Replace the single long pending-admission promise chain with a small shared
+  arbiter: one SQL admission at a time, FIFO within each execution class and
+  round-robin between waiting classes. Both queued simulator and cloud paths use
+  it; immediate HTTP inference retains its direct path. Existing dispatcher slots
+  bound queued actions, and SQL remains the authority for tenant fairness/caps.
+- Remove refill wakes that only consume capacity. Preserve wakes for actual
+  freed slots, committed eligibility changes and the periodic repair path.
+- Retain sanitized connection/query classifications through the existing error
+  diagnostics helper, including native recovery and both notification consumers;
+  never log SQL, URLs, secrets or raw error messages. Application composition now
+  lives in `core/src/dispatch-wakeup.ts`; connection ownership stays in the shared
+  database listener.
+- Deliver an acknowledged native answer once during ordinary polling, and do not
+  deliver answers or publish new questions after cancellation/deadline controls.
+  Recovery retains the existing idempotent answer identity.
+
+The current source passes 54 unit cases and the 67-case
+cloud/portable/decision/failure/wakeup integration cohort. After the last
+publication fence was added, all 41 cloud cases pass again alongside eight
+runtime-efficiency and four multi-process scheduling/load cases. The cloud cases
+exercise successor takeover during provisioning/failure/close, terminal launch,
+answer delivery and cancellation; a real failing query retains SQLSTATE `42703`
+without exposing its private identifier. Thirteen scheduling cases pass,
+including 5,000 terminal history rows: the candidate plan reads only three
+current rows through existing indexes in 0.232 ms. No new index or query rewrite
+was justified.
+
+A second matched 80-call profile compares pre-review commit `a599c4ce` against
+these changes on the same local topology below. Both children use their actual
+notification behavior; both already support commit hints. All calls launch once,
+verify persistence and complete cleanup. No unattributed SQL or profile drops
+occur. Optional full content-free JSONL output now reuses the existing bounded
+profiler sink, so a later tail need not exceed a summary threshold to be retained.
+
+| Review comparison            | Before mean / p50 / p95 / max | After mean / p50 / p95 / max |
+| ---------------------------- | ----------------------------- | ---------------------------- |
+| Commit → provision, 42 bytes | 38.05 / 37 / 60 / 63 ms       | 35.5 / 34 / 47 / 59 ms       |
+| Commit → provision, 96 KiB   | 38.65 / 37 / 52 / 55 ms       | 35.35 / 34 / 45 / 48 ms      |
+| All handoffs, 42 bytes       | 9.14 / 8 / 17 / 23 ms         | 8.73 / 8 / 12 / 20 ms        |
+| All handoffs, 96 KiB         | 10.33 / 9 / 21 / 35 ms        | 9.23 / 8 / 16 / 38 ms        |
+
+Every individual handoff type has current p95 between 9 and 17 ms. Per twenty
+Runs, small-prompt statements/groups/commits fall from 7,346/5,302/982 to
+7,103/5,101/961; large-prompt counts fall from 7,333/5,291/981 to
+7,124/5,116/964. These include discovery and the full lifecycle; idle timing
+varies. Removing the separate close transaction explains one fewer required
+commit per Run. Full HTTP-request-to-provision p95 is 211/192 ms, separately
+measured and still outside the scheduling target. Do not present this native
+scheduling measurement as sub-100-ms end-to-end inference.
+
+Private review evidence lives in `.data/native-scheduling-review-20261031/`:
+`profile-review.json`, `profiles/*.jsonl`, `worktree-head-plan.json`,
+`domain-final.log`, `recovery-load.log`, `unit-final.log` and `run-event-final.log`.
+Use a fresh artifact name for each run. The same qualification accepts
+`NATIVE_SCHEDULING_BASELINE_ROOT`, `NATIVE_SCHEDULING_PROFILE_DIR` and the existing
+`PERF_PROFILING_OUTPUT_DIR`; baseline selection is fixture-only, never a serving
+compatibility path.
+
+The actual two-turn Docker/Codex public-API journey passes again, including
+private Host authentication, verified saved files and cleanup, with synthetic
+model transport (`docker-journey-final.log`). Run it with the unpaid parent
+profile; the existing wrapper creates its own isolated Docker execution profile:
+
+```sh
+ALLOW_PAID_EXECUTION=false EXECUTION_PROVIDER=simulator PLATFORM_MODE=local \
+  pnpm test:journey:docker codex
+```
+
+`pnpm check` (including the TypeScript SDK/application build), `pnpm docs:check`
+and final diff checking pass. No public API/SDK transport, runtime image,
+migration or default limit changed, so unrelated SDK matrices/image builds were
+not repeated. All review fixtures use disposable databases/processes; shared
+preview services were not restarted. No paid call or cloud resource was needed.
+This remains local control-plane/native mechanics evidence, not hosted model or
+fleet-scale acceptance.
+
+Do not add provider-aware global dispatch or native control-wakeup machinery in
+this review. Mixed execution-provider pollers sharing one database and faster
+answers/cancellation during native quiet waits remain explicit follow-ups;
+neither justifies weakening phase ownership or replaying native side effects.
+
 ### Matched local qualification
 
 The frozen child poller/core is commit `50f59404`. Both cohorts use the same

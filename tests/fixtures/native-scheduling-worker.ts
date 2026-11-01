@@ -1,10 +1,12 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
+import { access } from 'node:fs/promises';
 import { FaultMachine } from './cloud-machine';
 import type { MachineBinding } from '../../packages/core/src/ports';
 import type { NativeConfiguration } from '../../packages/runtime/src/types';
 import { sha256 } from '../../packages/core/src/crypto';
 import type { PerformanceRecord } from '../../packages/contracts/performance';
+import { PerformanceJsonlSink, privatePerformanceFile } from '../../packages/providers/src/performance-jsonl';
 
 // A frozen source tree is used only by the explicit matched qualification.
 // Every process still uses the disposable database and scripted machine port.
@@ -48,11 +50,19 @@ let statements = 0,
   commits = 0,
   sqlMs = 0;
 const slowOperations: PerformanceRecord[] = [];
+// Optional detailed output reuses the serving profiler's bounded private sink.
+// Summary-only artifacts cannot retrospectively attribute a sub-threshold tail.
+const profileOutput =
+  process.env.NATIVE_SCHEDULING_PROFILE === '1' ? process.env.PERF_PROFILING_OUTPUT_DIR : undefined;
+const profileSink = profileOutput
+  ? new PerformanceJsonlSink(await privatePerformanceFile(profileOutput), true)
+  : undefined;
 const capture = performanceModule.configurePerformance({
   sampleRate: 1,
   durationSeconds: 3600,
   sink: {
     enqueue(record) {
+      profileSink?.enqueue(record);
       if (record.type !== 'operation') return;
       // Retain existing, content-free records without hot-path IPC. A fixed cap
       // keeps tail diagnostics bounded even when a stressed cohort is slow.
@@ -63,8 +73,8 @@ const capture = performanceModule.configurePerformance({
       commits += record.counters.commits ?? 0;
       sqlMs += record.stages['db.query']?.total_ms ?? 0;
     },
-    flush: async () => {},
-    close: async () => {},
+    flush: () => profileSink?.flush() ?? Promise.resolve(),
+    close: () => profileSink?.close() ?? Promise.resolve(),
   },
 });
 capture.onClose(
@@ -126,13 +136,31 @@ const dispatcher = new CloudDispatcher((run) => {
 });
 let closing = false;
 const maintenance = { tick: async () => {}, drain: async () => {} };
-// The baseline intentionally has no wake listener; its periodic poller is the
-// measured previous implementation, not a manually advanced Run.
-const wakeModule = baseline ? undefined : await import('../../packages/core/src/poller-wakeup');
-const wakeup = wakeModule ? new wakeModule.PollerWakeup() : undefined;
-const wakeListener = wakeup
-  ? (await import('../../packages/db/dispatch-wakeup')).listenDispatchWakeup(() => wakeup.notify())
+async function sourceExists(path: string) {
+  try {
+    await access(new URL(source(path)));
+    return true;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+// Match each frozen tree's real behavior: older baselines poll periodically;
+// recent baselines already listen. Do not manufacture a benchmark improvement.
+const wakeModule: typeof import('../../packages/core/src/poller-wakeup') | undefined = (await sourceExists(
+  'packages/core/src/poller-wakeup.ts',
+))
+  ? await import(source('packages/core/src/poller-wakeup.ts'))
   : undefined;
+const wakeup = wakeModule ? new wakeModule.PollerWakeup() : undefined;
+const listenerPath = (await sourceExists('packages/core/src/dispatch-wakeup.ts'))
+  ? 'packages/core/src/dispatch-wakeup.ts'
+  : 'packages/db/dispatch-wakeup.ts';
+const listenerModule: typeof import('../../packages/core/src/dispatch-wakeup') | undefined = wakeup
+  ? await import(source(listenerPath))
+  : undefined;
+const wakeListener =
+  listenerModule && wakeup ? listenerModule.listenDispatchWakeup(() => wakeup.notify()) : undefined;
 if (wakeListener) {
   const deadline = Date.now() + 5000;
   while (!wakeListener.connected()) {
@@ -153,6 +181,7 @@ process.on('message', (message: unknown) => {
       commits,
       sql_ms: sqlMs,
       slow_operations: slowOperations,
+      profile_dropped: profileSink?.stats().dropped ?? 0,
       launches: [...machines.values()].reduce((total, machine) => total + machine.starts, 0),
       pid: process.pid,
       node: process.version,

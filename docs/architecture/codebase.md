@@ -51,8 +51,12 @@ The native adapter registry lives in `packages/contracts/harnesses.ts`; the nati
 
 `capacity.ts` owns validated deployment resource settings; `request-capacity.ts` partitions HTTP traffic. `portable-dispatch.ts` owns independent cloud step pools and SQL dispatch claims. `concurrent.ts` refills bounded I/O slots and drains failures. `maintenance-dispatch.ts` owns independent component cadences; `poller-loop.ts` coordinates process lifetime and graceful draining. None replaces SQL execution policy. [Scheduling](../features/execution/scheduling.md#orchestration-and-failure-behavior) explains these boundaries.
 
+`admission-queue.ts` shares the short local SQL turn between cloud and simulator
+dispatchers: FIFO within each execution class, alternating waiting classes.
+Provider execution never holds that turn; SQL remains the capacity/fairness owner.
+
 `poller-wakeup.ts` coalesces commit hints without retaining resource payloads.
-Migrations 059–060 supply those hints; `db/dispatch-wakeup.ts` composes the poller's
+Migrations 059–060 supply those hints; `core/src/dispatch-wakeup.ts` composes the poller's
 owned session listener through `db/notifications.ts`, shared with local Run-event
 listening. The portable dispatcher owns bounded local cross-pool handoffs and
 independent class discovery. `CloudRunContext` reuses accepted immutable input

@@ -12,7 +12,7 @@ import { runPollerLoop } from '../packages/core/src/poller-loop';
 import { initializePerformance } from '../packages/core/src/performance-composition';
 import { shutdownPerformance } from '../packages/core/src/performance';
 import { PollerWakeup } from '../packages/core/src/poller-wakeup';
-import { listenDispatchWakeup } from '../packages/db/dispatch-wakeup';
+import { listenDispatchWakeup } from '../packages/core/src/dispatch-wakeup';
 assertSecurityConfiguration();
 initializePerformance();
 if (!isLocal() && (config.execution !== 'vercel' || config.orchestration !== 'poller'))

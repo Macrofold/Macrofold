@@ -1,4 +1,5 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { DatabaseError } from 'pg';
 import type { DispatchClass } from '../../packages/core/src/capacity';
 import type { CloudRunContext, advanceCloudRun } from '../../packages/core/src/cloud-engine';
 
@@ -30,6 +31,14 @@ vi.mock('../../packages/core/src/worker-diagnostics', () => ({
 }));
 import { CloudDispatcher, dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
 import { FaultMachine } from '../fixtures/cloud-machine';
+
+beforeEach(() => {
+  mocks.claim.mockImplementation(async (org: string, run: string) => ({
+    id: run,
+    organization_id: org,
+    kind: 'native_agent',
+  }));
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -459,8 +468,8 @@ it.each([false, true])(
   },
 );
 
-it.each([null, { kind: 'inference', id: 'first', organization_id: 'org' }])(
-  'does not seed native prepared state from an unconfirmed/non-native admission: %j',
+it.each([{ kind: 'inference', id: 'first', organization_id: 'org' }])(
+  'does not seed native prepared state from a non-native admission: %j',
   async (admitted) => {
     mocks.candidates.mockResolvedValue([]);
     mocks.claim.mockResolvedValue(admitted);
@@ -476,6 +485,151 @@ it.each([null, { kind: 'inference', id: 'first', organization_id: 'org' }])(
     await dispatcher.drain();
     expect(mocks.advance).toHaveBeenCalledOnce();
     expect(mocks.advance.mock.calls[0][3]?.run).toBeUndefined();
+  },
+);
+
+it('releases only its exact pending claim without a second admission or overriding another owner', async () => {
+  const dispatcher = fixture([]),
+    lease = '2026-10-31T12:00:05.123456Z';
+  mocks.claim.mockResolvedValue(null);
+  mocks.query.mockImplementation(async (sql: string, args: unknown[]) => ({
+    rows:
+      sql.startsWith('WITH due') && args[4] === 'provision'
+        ? [
+            {
+              id: 'job',
+              resource_id: 'first',
+              organization_id: 'org',
+              state: 'pending',
+              claimed_lease_until: lease,
+            },
+          ]
+        : [],
+  }));
+  await dispatcher.tick();
+  await dispatcher.drain();
+  expect(mocks.claim).toHaveBeenCalledExactlyOnceWith('org', 'first');
+  expect(mocks.advance).not.toHaveBeenCalled();
+  expect(mocks.succeeded).not.toHaveBeenCalled();
+  expect(mocks.failed).not.toHaveBeenCalled();
+  const updates = mocks.query.mock.calls.filter(([sql]) => String(sql).startsWith('UPDATE dispatch_jobs'));
+  expect(updates).toEqual([
+    [
+      "UPDATE dispatch_jobs SET lease_until=NULL WHERE id=$1 AND state='pending' AND lease_until=$2::timestamptz",
+      ['job', lease],
+    ],
+  ]);
+});
+
+it('does not wake an extra refill wave just because work started', async () => {
+  const dispatcher = fixture(),
+    entered = barrier(),
+    phase = barrier();
+  mocks.advance.mockImplementation(async () => {
+    entered.release();
+    await phase.promise;
+    return { ...ready, done: true };
+  });
+  await dispatcher.tick();
+  await entered.promise;
+  vi.useFakeTimers();
+  let completed = false;
+  const waiting = dispatcher.waitForProgress().then(() => {
+    completed = true;
+  });
+  try {
+    await vi.advanceTimersByTimeAsync(0);
+    expect(completed).toBe(false);
+    expect(mocks.query.mock.calls.filter(([sql]) => String(sql).startsWith('WITH due'))).toHaveLength(4);
+    phase.release();
+    await waiting;
+    expect(completed).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    phase.release();
+    await dispatcher.drain();
+    vi.useRealTimers();
+  }
+});
+
+it('gives a queued native head the next SQL turn before the rest of an inference burst', async () => {
+  const dispatcher = new CloudDispatcher(new FaultMachine(), {
+    inference: 2,
+    provision: 1,
+    transfer: 1,
+    control: 1,
+  });
+  const first = barrier(),
+    entered = barrier();
+  mocks.candidates.mockResolvedValue([]);
+  mocks.query.mockImplementation(async (sql: string, args: unknown[]) => ({
+    rows: !sql.startsWith('WITH due')
+      ? []
+      : args[4] === 'inference'
+        ? ['inference-one', 'inference-two'].map((id) => ({
+            id,
+            resource_id: id,
+            organization_id: 'org',
+            state: 'pending',
+          }))
+        : args[4] === 'provision'
+          ? [{ id: 'native', resource_id: 'native', organization_id: 'org', state: 'pending' }]
+          : [],
+  }));
+  mocks.claim.mockImplementation(async (_org: string, run: string) => {
+    if (run === 'inference-one') {
+      entered.release();
+      await first.promise;
+    }
+    return { id: run, organization_id: 'org', kind: run === 'native' ? 'native_agent' : 'inference' };
+  });
+  mocks.advance.mockResolvedValue({ ...ready, done: true });
+  await dispatcher.tick();
+  try {
+    await entered.promise;
+    // All discovery promises are already resolved; flush their queued microtasks
+    // before releasing the first SQL turn, without relying on elapsed time.
+    await new Promise(setImmediate);
+    expect(mocks.claim.mock.calls.map((call) => call[1])).toEqual(['inference-one']);
+    first.release();
+    await dispatcher.drain();
+    expect(mocks.claim.mock.calls.map((call) => call[1])).toEqual([
+      'inference-one',
+      'native',
+      'inference-two',
+    ]);
+  } finally {
+    first.release();
+    await dispatcher.drain();
+  }
+});
+
+it.each(['candidates', 'admission', 'advance'] as const)(
+  'retains safe SQL diagnostics for a failed %s without logging content',
+  async (stage) => {
+    const dispatcher = fixture(stage === 'advance' ? ['one'] : []);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = new DatabaseError('private SQL/provider content', 0, 'error');
+    error.code = '53300';
+    if (stage === 'candidates') mocks.candidates.mockRejectedValueOnce(error);
+    else if (stage === 'advance') mocks.advance.mockRejectedValue(error);
+    else {
+      mocks.claim.mockRejectedValue(error);
+      mocks.query.mockImplementation(async (sql: string, args: unknown[]) => ({
+        rows:
+          sql.startsWith('WITH due') && args[4] === 'provision'
+            ? [{ id: 'one', resource_id: 'one', organization_id: 'org', state: 'pending' }]
+            : [],
+      }));
+    }
+    await dispatcher.tick();
+    await dispatcher.drain();
+    expect(log).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(log.mock.calls[0][0]))).toMatchObject({
+      code: stage === 'candidates' ? 'run_dispatch_unavailable' : 'poller_advance_failed',
+      sqlstate: '53300',
+    });
+    expect(log.mock.calls.flat().join(' ')).not.toContain('private');
   },
 );
 

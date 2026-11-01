@@ -6,6 +6,8 @@ import type { NativeRunRow } from './runs';
 import { orderDispatchJobs, pendingRunCandidates } from './scheduling';
 import { claimRun } from './engine';
 import { observeWorkerStep } from './worker-diagnostics';
+import { errorDiagnostics } from './error-diagnostics';
+import { FairAdmissionQueue } from './admission-queue';
 import { dispatchClasses, dispatchLimits, type DispatchClass, type DispatchLimits } from './capacity';
 
 type Provider = MachineProvider | ((run: NativeRunRow) => MachineProvider);
@@ -51,9 +53,22 @@ async function claimJobs(
   return orderDispatchJobs(claims.rows, pending);
 }
 
-async function failedJob(job: DispatchJob): Promise<never> {
+async function failedJob(job: DispatchJob, error: unknown): Promise<never> {
+  // If recording recovery also fails, that control failure takes precedence:
+  // durable retry bookkeeping could not be confirmed.
   await dispatchFailed(job.organization_id, 'run', job.resource_id, 'poller_advance_failed');
-  throw new Error('A durable run step failed; its execution identity is retained.');
+  // Internal consumers classify/count the failure; retain its safe diagnostic
+  // identity instead of discarding the database cause behind a generic Error.
+  throw error;
+}
+
+function releasePendingClaim(job: DispatchJob) {
+  // Only the exact short claim may be released; another controller's state and
+  // due time remain untouched after a lost fair-admission race.
+  return pool.query(
+    "UPDATE dispatch_jobs SET lease_until=NULL WHERE id=$1 AND state='pending' AND lease_until=$2::timestamptz",
+    [job.id, job.claimed_lease_until],
+  );
 }
 
 /** Serialize only short SQL admissions in fair order. Concurrent contenders for
@@ -73,10 +88,14 @@ async function startJob(
         { organization_id: job.organization_id, run_id: job.resource_id },
         () => claimRun(job.organization_id, job.resource_id),
       );
-      if (claimed?.kind === 'native_agent') preparedRun = claimed;
+      if (!claimed) {
+        await releasePendingClaim(job);
+        return { completion: Promise.resolve(false) };
+      }
+      if (claimed.kind === 'native_agent') preparedRun = claimed;
     }
-  } catch {
-    return { completion: failedJob(job) };
+  } catch (error) {
+    return { completion: failedJob(job, error) };
   }
   return { completion: advanceJob(provider, job, resource, handoff, preparedRun) };
 }
@@ -127,11 +146,7 @@ async function advanceJob(
     // owners and early-return paths still use the shared dispatcher reset.
     if (!result.nextDispatchClass) await dispatchSucceeded(job.organization_id, 'run', job.resource_id);
     // The exact DB timestamp fences release of the short pending dispatcher lease.
-    if (result.queued)
-      await pool.query(
-        "UPDATE dispatch_jobs SET lease_until=NULL WHERE id=$1 AND state='pending' AND lease_until=$2::timestamptz",
-        [job.id, job.claimed_lease_until],
-      );
+    if (result.queued) await releasePendingClaim(job);
     // Native publication sets its next due time in the fenced phase commit.
     // Retained work keeps a recovery lease until it yields; do not overwrite it.
     else if (!result.nextDispatchClass)
@@ -145,8 +160,8 @@ async function advanceJob(
           ),
       );
     return !result.done && !result.queued && result.delaySeconds === 0;
-  } catch {
-    return failedJob(job);
+  } catch (error) {
+    return failedJob(job, error);
   }
 }
 
@@ -181,7 +196,7 @@ export class CloudDispatcher {
   private readonly discovering = new Map<DispatchClass, number>();
   private readonly scans = new Map<DispatchClass, { task: Promise<void>; again: boolean }>();
   private readonly progressWaiters = new Set<() => void>();
-  private admissions = Promise.resolve();
+  private readonly admissions = new FairAdmissionQueue();
   private draining?: Promise<void>;
   private readonly limits: DispatchLimits;
   private ready = false;
@@ -219,26 +234,23 @@ export class CloudDispatcher {
     entry.task = (async () => {
       let started: ReturnType<typeof startJob>;
       if (job.state === 'pending') {
-        // Discovery order is advisory. Serialize admissions; schedulerTurn still
-        // grants the fair global turn, irrespective of which query finished first.
-        started = this.admissions.then(() => startJob(this.provider, job, resource, handoff));
-        this.admissions = started.then(
-          () => undefined,
-          () => undefined,
+        // Preserve FIFO within each class without putting a native head behind
+        // an entire inference burst. SQL still grants the actual fair turn.
+        started = this.admissions.run(resource === 'inference' ? 'inference' : 'native', () =>
+          startJob(this.provider, job, resource, handoff),
         );
       } else started = startJob(this.provider, job, resource, handoff);
       const { completion } = await started;
       await completion;
     })()
-      .catch(() => {
+      .catch((error: unknown) => {
         // A failed advance retains its durable identity and failure budget.
-        console.error('A cloud step failed; durable recovery retains execution identity.');
+        console.error(JSON.stringify({ code: 'poller_advance_failed', ...errorDiagnostics(error) }));
       })
       .finally(() => {
         this.active.delete(job.resource_id);
         this.progress();
       });
-    this.progress();
   }
   async tick() {
     if (this.draining) return;
@@ -273,9 +285,15 @@ export class CloudDispatcher {
     const scan = { task: Promise.resolve(), again: false };
     this.scans.set(resource, scan);
     scan.task = this.discover(resource)
-      .catch(() => {
+      .catch((error: unknown) => {
         // Contain the detached scan; no claimed external execution is replayed.
-        console.error('Run dispatch is temporarily unavailable.');
+        console.error(
+          JSON.stringify({
+            code: 'run_dispatch_unavailable',
+            dispatch_class: resource,
+            ...errorDiagnostics(error),
+          }),
+        );
       })
       .finally(() => {
         this.scans.delete(resource);

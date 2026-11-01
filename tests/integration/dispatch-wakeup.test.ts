@@ -3,7 +3,7 @@ import pg from 'pg';
 import { pool, authPool, credentialPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { listenDatabaseNotifications } from '../../packages/db/notifications';
-import { dispatchWakeupChannel } from '../../packages/db/dispatch-wakeup';
+import { dispatchWakeupChannel } from '../../packages/core/src/dispatch-wakeup';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';

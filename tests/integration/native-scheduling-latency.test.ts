@@ -79,6 +79,7 @@ const messages = z.discriminatedUnion('type', [
     groups: z.number(),
     commits: z.number(),
     sql_ms: z.number(),
+    profile_dropped: z.number(),
     slow_operations: z
       .array(
         z
@@ -385,6 +386,7 @@ async function cohort(count: number, baseline?: string, replicas = 1, prompt = s
     await api.drainBackground();
     expect(pollers.flatMap((poller) => poller.errors)).toEqual([]);
     const metrics = await Promise.all(pollers.map((poller) => poller.metrics()));
+    expect(metrics.reduce((sum, metric) => sum + metric.profile_dropped, 0)).toBe(0);
     expect(metrics.reduce((sum, metric) => sum + metric.launches, 0)).toBe(count);
     expect(metrics.reduce((sum, metric) => sum + metric.statements, 0)).toBeGreaterThan(0);
     return {
@@ -468,13 +470,15 @@ it('yields to a full transfer pool without blocking provisioning and resumes onc
   const fixture = await account();
   const worktrees = await Promise.all([fixture.worktree(), fixture.worktree()]);
   const api = await fixtureHttpApi({ retainBackground: true });
-  const poller = await worker(undefined, {
-    NATIVE_SCHEDULING_HOLD_RESTORE: '1',
-    DISPATCH_TRANSFER_CONCURRENCY: '1',
-  });
+  let poller: Awaited<ReturnType<typeof worker>> | undefined;
   try {
+    poller = await worker(undefined, {
+      NATIVE_SCHEDULING_HOLD_RESTORE: '1',
+      DISPATCH_TRANSFER_CONCURRENCY: '1',
+    });
+    const current = poller;
     const first = await submit(api.origin, fixture.key, worktrees[0]);
-    await until(() => poller.received.some((message) => message.type === 'restore_waiting'));
+    await until(() => current.received.some((message) => message.type === 'restore_waiting'));
     const second = await submit(api.origin, fixture.key, worktrees[1]);
     await until(
       async () => (await state(fixture.p.organizationId, second.run_id)).execution_binding?.phase === 'input',
@@ -483,7 +487,7 @@ it('yields to a full transfer pool without blocking provisioning and resumes onc
     expect(blocked.execution_binding?.phaseTimings?.input).toBeUndefined();
     expect((await state(fixture.p.organizationId, first.run_id)).execution_binding?.phase).toBe('restore');
     poller.child.send({ type: 'release' });
-    await until(() => poller.received.filter((message) => message.type === 'closed').length === 2);
+    await until(() => current.received.filter((message) => message.type === 'closed').length === 2);
     for (const run of [first, second]) {
       await until(
         async () => (await state(fixture.p.organizationId, run.run_id)).execution_binding?.phase === 'done',
@@ -493,9 +497,12 @@ it('yields to a full transfer pool without blocking provisioning and resumes onc
     expect((await poller.metrics()).launches).toBe(2);
     expect(poller.errors).toEqual([]);
   } finally {
-    if (poller.child.connected) poller.child.send({ type: 'release' });
-    await stop(poller.child);
-    await api.close();
+    try {
+      if (poller?.child.connected) poller.child.send({ type: 'release' });
+      if (poller) await stop(poller.child);
+    } finally {
+      await api.close();
+    }
   }
 });
 
@@ -503,7 +510,9 @@ it.skipIf(process.env.NATIVE_SCHEDULING_PROFILE !== '1')(
   'qualifies matched empty-queue scheduling and free-pool handoff intervals',
   async () => {
     const diagnostic = process.env.NATIVE_SCHEDULING_DIAGNOSTIC === '1';
-    const baseline = resolve('.data/native-scheduling-20261031/baseline');
+    const baseline = resolve(
+      process.env.NATIVE_SCHEDULING_BASELINE_ROOT ?? '.data/native-scheduling-20261031/baseline',
+    );
     if (!diagnostic) await access(baseline + '/packages/core/src/portable-dispatch.ts');
     const count = Number(process.env.NATIVE_SCHEDULING_PROFILE_COUNT ?? 20);
     if (!Number.isSafeInteger(count) || count < 5 || count > 100)
@@ -516,7 +525,9 @@ it.skipIf(process.env.NATIVE_SCHEDULING_PROFILE !== '1')(
       const after = await cohort(count, undefined, 1, prompt);
       cohorts.push({ prompt_bytes: Buffer.byteLength(prompt), before, after });
     }
-    const directory = resolve('.data/native-scheduling-20261031');
+    const directory = resolve(
+      process.env.NATIVE_SCHEDULING_PROFILE_DIR ?? '.data/native-scheduling-20261031',
+    );
     await mkdir(directory, { recursive: true });
     const output =
       process.env.NATIVE_SCHEDULING_PROFILE_OUTPUT ??

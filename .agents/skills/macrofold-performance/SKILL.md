@@ -1,8 +1,8 @@
 ---
 name: macrofold-performance
 description: >-
-  Investigate or change Macrofold hot paths, database queries, scheduling, scaling or browser
-  latency. Not prose-only mentions of performance or routine cosmetic edits.
+  Design, add or change Macrofold request/execution I/O, database queries, queues, concurrency,
+  capacity or latency, including feature work. Not prose-only mentions or routine cosmetic edits.
 ---
 
 # Bound work, preserve meaning, measure
@@ -19,4 +19,4 @@ Measure query plans, lock/pool wait, dispatch/phase latency, provider latency, t
 
 Apply the [critical-path policy](../../rules/state-and-execution.md#critical-path-work) to the complete caller flow: enumerate synchronous SQL/commit wait groups, bytes returned/written, repeated serialization/discovery and background load. Attribute each barrier to its guarantee before optimizing it. Async syntax, a pipeline, a stored procedure or after-response scheduling does not by itself remove database/CPU work; verify the actual driver/host behavior and failure semantics.
 
-Exercise a relevant bounded stress workload and the changed runtime path under [Testing](../../../TESTING.md). Use disposable fixtures and new private output paths. Record matched before/after evidence, variance and remaining bottlenecks; unavailable baseline or runtime access is a limit, not invented improvement. A timeout is incomplete, not a capacity pass. Do not require stress for unrelated edits or weaken behavior just to hit a timing number. Live compute/model spending remains governed by root authorization, not by benchmark configuration.
+Exercise the changed runtime path under [Testing](../../../TESTING.md); add a bounded stress workload when concurrency, capacity, scaling or latency claims require it. Use disposable fixtures and new private output paths. Record matched before/after evidence, variance and remaining bottlenecks; unavailable baseline or runtime access is a limit, not invented improvement. A timeout is incomplete, not a capacity pass. Do not weaken behavior just to hit a timing number. Live compute/model spending remains governed by root authorization, not by benchmark configuration.

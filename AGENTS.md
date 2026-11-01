@@ -14,12 +14,12 @@ Remove this section once the product is deployed and has real users; reassess co
 
 For deployment and setup, perform all authorized work available through tools. Ask the operator only for a decision, missing information, or an action that requires their identity or inaccessible account access. Keep a private step-by-step deployment record with commands, results, resource identities, and remaining work; exclude secret values. Update the shared guides when the reusable procedure changes.
 
-1. Inspect the working tree; preserve unrelated edits and the running preview. Read [implementation status](docs/status/README.md) before choosing a change.
+1. Inspect the working tree; preserve unrelated edits and the running preview. For implementation, technical design, code review or claims about supported behavior/completion, read [implementation status](docs/status/README.md) before choosing scope.
 2. **Before planning or making implementation changes, or reviewing code, read the full mandatory baseline with your file-reading tool:** the [implemented architecture](docs/architecture/README.md), [architecture decisions](docs/architecture/decisions.md), [codebase map](docs/architecture/codebase.md), [rules index](.agents/rules/README.md), **every rule file under `.agents/rules/` (including subdirectories)**, and [testing policy](TESTING.md). Enumerate the rules directory so newly added rules are included. This applies to application code, tests, scripts, migrations, and configuration. Do not select only the rules whose titles appear relevant.
 3. Read the affected feature guides and implementation details, relevant source/callers/tests, and scoped `AGENTS.md` files along every affected path, even when your session started at the repository root. Follow any additional reading requirements in those instructions, including installed framework documentation where required. Revisit scope-specific reading when the task expands to another layer.
 4. For documentation-only work, read [documentation rules](.agents/rules/documentation.md), the rules index, and any rules or guides whose instructions you are changing. Apply the rules to the requested work; reading the complete baseline is not permission to refactor unrelated code.
 
-Links are explicit reading instructions, not automatic imports. Read required files in full; a filename, search excerpt, or summary does not replace their contents. Read once per task unless a file changes or its instructions are no longer available in context. Background research and unrelated feature references remain optional unless a rule explicitly requires them.
+Links are explicit reading instructions, not automatic imports. Read required files in full, using bounded sections when needed. If output truncates, read the omitted sections rather than repeating oversized batches. A filename, search excerpt, or summary does not replace their contents. Read once per task unless a file changes or its instructions are no longer available in context. Background research and unrelated feature references remain optional unless a rule explicitly requires them.
 
 Trace the affected flow and correct the owning layer. Reuse existing code or maintained dependencies when they fit. Do not reduce requested functionality to make a diff smaller. New abstractions need a present purpose; existing security, provider, and recovery boundaries are present purposes.
 
@@ -38,7 +38,7 @@ After the mandatory baseline, route by intent and impact, not keywords: new file
 - Implementation or project continuation: [task and feature routes](docs/engineering/agent-guidance/task-routing.md), then affected owners and [maintainer work](docs/maintainers/TODO.md).
 - Feature-spec/tech-design or architecture requests, changed cross-layer contracts, or chat approval/start/continuation of a project plan: [Design](.agents/skills/macrofold-design/SKILL.md).
 - Requested or substantial implementation review: [Review](.agents/skills/macrofold-review/SKILL.md).
-- Changed hot paths, scheduling, scaling or latency investigation: [Performance](.agents/skills/macrofold-performance/SKILL.md).
+- New or changed request/execution I/O, database queries, queues, concurrency, capacity or latency: [Performance](.agents/skills/macrofold-performance/SKILL.md), including feature work rather than only optimization tasks.
 - Jev/TypeSafe, LLM prompts, model context, embeddings or provider execution: [AI](.agents/skills/macrofold-ai/SKILL.md).
 - Development startup off the current base, or any rebase/merge conflict: [Rebase](.agents/skills/macrofold-rebase/SKILL.md).
 - Instructions, skills, adapters or their checker: [Guidance maintenance](.agents/skills/macrofold-guidance/SKILL.md).

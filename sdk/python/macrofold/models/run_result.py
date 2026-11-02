@@ -43,8 +43,10 @@ class RunResult(BaseModel):
     content_expired: Optional[StrictBool] = None
     content_expired_at: Optional[datetime] = None
     inference: Optional[InferenceReceipt] = None
+    failure_code: Optional[StrictStr] = Field(default=None, description="Stable failure classification, including model_output_limit_exceeded for an incomplete native completion. Partial output and verified checkpoints may still be available.")
+    output_text_truncated: Optional[StrictBool] = Field(default=None, description="True when retained native failure answer text exceeded the 4 MiB diagnostic bound. Available text remains partial and must not be published as a complete answer.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["run_id", "final", "output_text", "structured_output", "artifact_ids", "checkpoint_id", "execution_outcome", "persistence_status", "error", "content_expired", "content_expired_at", "inference"]
+    __properties: ClassVar[List[str]] = ["run_id", "final", "output_text", "structured_output", "artifact_ids", "checkpoint_id", "execution_outcome", "persistence_status", "error", "content_expired", "content_expired_at", "inference", "failure_code", "output_text_truncated"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -121,7 +123,9 @@ class RunResult(BaseModel):
             "error": ErrorDetail.from_dict(obj["error"]) if obj.get("error") is not None else None,
             "content_expired": obj.get("content_expired"),
             "content_expired_at": obj.get("content_expired_at"),
-            "inference": InferenceReceipt.from_dict(obj["inference"]) if obj.get("inference") is not None else None
+            "inference": InferenceReceipt.from_dict(obj["inference"]) if obj.get("inference") is not None else None,
+            "failure_code": obj.get("failure_code"),
+            "output_text_truncated": obj.get("output_text_truncated")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -122,7 +122,9 @@ const server = createServer(async (incoming, outgoing) => {
       console.error('Fixture runtime rejection', response.status, await response.clone().text());
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     if (response.body)
-      Readable.fromWeb(response.body as import('node:stream/web').ReadableStream).pipe(outgoing);
+      Readable.fromWeb(response.body as import('node:stream/web').ReadableStream)
+        .on('error', () => outgoing.destroy())
+        .pipe(outgoing);
     else outgoing.end();
   } catch (error) {
     console.error('Fixture request failed', error);

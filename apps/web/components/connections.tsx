@@ -13,6 +13,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { request, useData, useDataPages } from '../lib/dashboard-data';
 import { useConnectionAccess } from '../lib/connection-access';
@@ -36,7 +37,14 @@ import {
 import { AddConnectionDialog } from './add-connection';
 import { ProviderLogo, ProviderLabel, providerName } from './provider-logo';
 import { connectionLogoProvider } from '../lib/provider-branding';
-const credentialKinds = ['model', 'claude_subscription', 'hugging_face', 'runpod', 'external_model'];
+const credentialKinds = [
+  'model',
+  'claude_subscription',
+  'hugging_face',
+  'runpod',
+  'external_model',
+  'memory_service',
+];
 export function ConnectionsView() {
   const filters = useSearchParams(),
     router = useRouter();
@@ -170,17 +178,19 @@ export function ConnectionsView() {
                       ? 'RunPod hosting account'
                       : c.kind === 'external_model'
                         ? `External model endpoint · ${c.url}`
-                        : c.kind === 'model'
-                          ? `${providerName(c.provider || '')} · Your API key`
-                          : c.kind === 'composio'
-                            ? c.provider === 'runpod'
-                              ? 'RunPod app tools · Separate from model hosting'
-                              : `${providerName(c.provider || '')} · Connected app`
-                            : c.kind === 'search'
-                              ? `${providerName(c.provider || '')} · ${c.auth_method === 'api_key' ? 'Your API key' : 'Managed usage'}`
-                              : c.kind === 'mcp_stdio'
-                                ? `${c.package} · ${c.package_version}`
-                                : c.url || c.kind}
+                        : c.kind === 'memory_service'
+                          ? `Memory service · ${c.provider === 'claude-mem' ? 'Claude-mem' : 'Hindsight'}`
+                          : c.kind === 'model'
+                            ? `${providerName(c.provider || '')} · Your API key`
+                            : c.kind === 'composio'
+                              ? c.provider === 'runpod'
+                                ? 'RunPod app tools · Separate from model hosting'
+                                : `${providerName(c.provider || '')} · Connected app`
+                              : c.kind === 'search'
+                                ? `${providerName(c.provider || '')} · ${c.auth_method === 'api_key' ? 'Your API key' : 'Managed usage'}`
+                                : c.kind === 'mcp_stdio'
+                                  ? `${c.package} · ${c.package_version}`
+                                  : c.url || c.kind}
               </p>
               {c.account_identity && <p>Account: {c.account_identity}</p>}
               {c.access_match?.scopes.length ? (
@@ -259,6 +269,11 @@ export function ConnectionsView() {
                     <Button variant="secondary" onClick={() => setAdding('runpod')}>
                       Use for model hosting
                     </Button>
+                  )}
+                  {c.kind === 'memory_service' && (
+                    <Link className="button secondary" href="/library">
+                      Manage memory in Agent library
+                    </Link>
                   )}
                   {!credentialKinds.includes(c.kind) && (
                     <Button variant="secondary" onClick={() => setAccessConnection(c)}>
@@ -341,7 +356,9 @@ function ConnectionSettings({
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const subscription = connection.kind === 'claude_subscription';
-  const hostingCredential = ['hugging_face', 'runpod', 'external_model'].includes(connection.kind);
+  const replaceableCredential = ['hugging_face', 'runpod', 'external_model', 'memory_service'].includes(
+    connection.kind,
+  );
   const identity = useApi<Schema['Identity']>(subscription ? '/v1/me' : undefined);
   const connections = usePages<Schema['Connection']>(subscription ? '/v1/connections' : undefined);
   const client = useQueryClient();
@@ -364,7 +381,7 @@ function ConnectionSettings({
               params: { path: { connection_id: connection.id } },
               body: {
                 name,
-                ...(hostingCredential && replacementSecret ? { secret: replacementSecret } : {}),
+                ...(replaceableCredential && replacementSecret ? { secret: replacementSecret } : {}),
                 ...(subscription && (backup !== originalBackup || budget !== originalBudget)
                   ? {
                       api_fallback: backup
@@ -395,10 +412,14 @@ function ConnectionSettings({
         <Field label="Connection ID">
           <input readOnly value={connection.id} />
         </Field>
-        {hostingCredential && connection.auth_method !== 'none' && (
+        {replaceableCredential && connection.auth_method !== 'none' && (
           <Field
             label="Replacement account or endpoint token (optional)"
-            hint="Leave empty to keep the current token. Use the same authorized upstream account. Active owned resources are checked before RunPod account-key rotation; uncertain ownership blocks the change."
+            hint={
+              connection.kind === 'memory_service'
+                ? 'Leave empty to keep the current key. A replacement blocks installed memory until fresh explicit setup. Keep old account access for cleanup before switching accounts.'
+                : 'Leave empty to keep the current token. Use the same authorized upstream account. Active owned resources are checked before RunPod account-key rotation; uncertain ownership blocks the change.'
+            }
           >
             <input
               type="password"

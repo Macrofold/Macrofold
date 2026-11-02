@@ -430,7 +430,7 @@ class ConnectionsResource:
         )
         return decode(models.AuthorizationLink, result, identity)
 
-    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription", "hugging_face", "runpod", "external_model"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription", "hugging_face", "runpod", "external_model", "memory_service"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createConnection",
@@ -599,7 +599,7 @@ class ConnectionsResource:
         )
         return decode(models.ConnectionTest, result, identity)
 
-    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription", "hugging_face", "runpod", "external_model"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription", "hugging_face", "runpod", "external_model", "memory_service"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("updateConnection",
@@ -2464,6 +2464,218 @@ class ModelDeploymentsResource:
         )
         return decode(models.ModelDeployment, result, identity)
 
+class AgentIntegrationsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def create(self, *, workspace_id: str | UUID, worktree_id: str | UUID, pack_id: Literal["file-memory", "hindsight", "claude-mem"], service: params.CreateAgentIntegrationServiceParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.AgentIntegration:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createAgentIntegration",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"workspace_id": workspace_id,"worktree_id": worktree_id,"pack_id": pack_id,"service": service}),
+        )
+        return decode(models.AgentIntegration, result, identity)
+
+    def create_note(self, integration_id: str | UUID, *, content: str, request_options: RequestOptions | None = None) -> models.AgentMemoryQueued:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createAgentIntegrationNote",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"content": content}),
+        )
+        return decode(models.AgentMemoryQueued, result, identity)
+
+    def delete(self, integration_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.AgentIntegrationDelete:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteAgentIntegration",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentIntegrationDelete, result, identity)
+
+    def delete_memory(self, integration_id: str | UUID, *, path: str, if_match: str, request_options: RequestOptions | None = None) -> models.Operation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteAgentIntegrationMemory",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({"path": path}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.Operation, result, identity)
+
+    def export_memory(self, integration_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.AgentMemoryExport:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("exportAgentIntegrationMemory",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentMemoryExport, result, identity)
+
+    def forget_memory(self, integration_id: str | UUID, *, if_match: str, confirm_delete_all: Literal[True], request_options: RequestOptions | None = None) -> models.AgentMemoryForgetReceipt:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("forgetAgentIntegrationMemory",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"confirm_delete_all": confirm_delete_all}),
+        )
+        return decode(models.AgentMemoryForgetReceipt, result, identity)
+
+    def get(self, integration_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.AgentIntegration:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getAgentIntegration",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentIntegration, result, identity)
+
+    def get_source(self, integration_id: str | UUID, source_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.AgentMemorySource:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getAgentIntegrationSource",
+            path=parameters({"integration_id": integration_id,"source_id": source_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentMemorySource, result, identity)
+
+    def list_activity(self, integration_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.AgentMemoryActivityPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listAgentIntegrationActivity",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentMemoryActivityPage, result, identity)
+
+    def list_memories(self, integration_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.AgentMemoryPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listAgentIntegrationMemories",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentMemoryPage, result, identity)
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.AgentIntegrationPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listAgentIntegrations",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentIntegrationPage, result, identity)
+
+    def list_integration_packs(self, *, request_options: RequestOptions | None = None) -> models.IntegrationPackPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listIntegrationPacks",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.IntegrationPackPage, result, identity)
+
+    def retry_check(self, integration_id: str | UUID, source_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.AgentMemoryQueued:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("retryAgentIntegrationCheck",
+            path=parameters({"integration_id": integration_id,"source_id": source_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+
+        )
+        return decode(models.AgentMemoryQueued, result, identity)
+
+    def search_memory(self, integration_id: str | UUID, *, query: str, request_options: RequestOptions | None = None) -> models.AgentMemorySearchResult:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("searchAgentIntegrationMemory",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"query": query}),
+        )
+        return decode(models.AgentMemorySearchResult, result, identity)
+
+    def update(self, integration_id: str | UUID, *, if_match: str, state: Literal["active", "paused", "disabled"], request_options: RequestOptions | None = None) -> models.AgentIntegration:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateAgentIntegration",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"state": state}),
+        )
+        return decode(models.AgentIntegration, result, identity)
+
+    def write_memory(self, integration_id: str | UUID, *, if_match: str, path: str, content: str, request_options: RequestOptions | None = None) -> models.Operation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("writeAgentIntegrationMemory",
+            path=parameters({"integration_id": integration_id}),
+            query=parameters({"path": path}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"content": content}),
+        )
+        return decode(models.Operation, result, identity)
+
 class Resources:
     def _init_resources(self, client: Client) -> None:
         self.tasks = TasksResource(client)
@@ -2495,3 +2707,4 @@ class Resources:
         self.requests = RequestsResource(client)
         self.harnesses = HarnessesResource(client)
         self.model_deployments = ModelDeploymentsResource(client)
+        self.agent_integrations = AgentIntegrationsResource(client)

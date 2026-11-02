@@ -38,6 +38,12 @@ pub struct RunResult {
     pub content_expired_at: Option<chrono::DateTime<chrono::FixedOffset>>,
     #[serde(rename = "inference", skip_serializing_if = "Option::is_none")]
     pub inference: Option<Box<models::InferenceReceipt>>,
+    /// Stable failure classification, including model_output_limit_exceeded for an incomplete native completion. Partial output and verified checkpoints may still be available.
+    #[serde(rename = "failure_code", skip_serializing_if = "Option::is_none")]
+    pub failure_code: Option<String>,
+    /// True when retained native failure answer text exceeded the 4 MiB diagnostic bound. Available text remains partial and must not be published as a complete answer.
+    #[serde(rename = "output_text_truncated", skip_serializing_if = "Option::is_none")]
+    pub output_text_truncated: Option<bool>,
 }
 
 impl RunResult {
@@ -55,6 +61,8 @@ impl RunResult {
             content_expired: None,
             content_expired_at: None,
             inference: None,
+            failure_code: None,
+            output_text_truncated: None,
         }
     }
 }

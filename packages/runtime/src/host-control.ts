@@ -41,6 +41,7 @@ type Assignment = {
   preparation?: Promise<{ reused: boolean; restoreNamespaces: ('workspace' | 'home')[] }>;
   supervision?: Promise<void>;
   finished: boolean;
+  cancelled: boolean;
   children: Set<ChildProcess>;
   restoration?: Promise<string>;
   released: boolean;
@@ -216,6 +217,7 @@ export class HostController {
           prompt: parsed.prompt,
           harness: parsed.harness,
           model: parsed.model,
+          modelLimits: parsed.modelLimits,
           deadline: parsed.deadline,
         }),
       )
@@ -344,6 +346,7 @@ export class HostController {
       filesReused,
       sessionReused: !!handle.runtime.child,
       finished: false,
+      cancelled: false,
       children: new Set(),
       released: false,
       recovery: false,
@@ -465,6 +468,7 @@ export class HostController {
         ? waitForRuntimeEvents(value.directory, request.offset, request.wait_ms)
         : probeRuntime(value.directory, request.offset);
     if (request.action === 'cancel') {
+      value.cancelled = true;
       await mkdir(value.directory, { recursive: true, mode: 0o700 });
       await writeFile(`${value.directory}/cancel`, 'cancel', { mode: 0o600 });
       if (!value.supervision) for (const child of value.children) child.kill('SIGTERM');
@@ -567,8 +571,14 @@ export class HostController {
             const clean = request.persisted && result?.persistence === 'captured';
             // Keep the writer and resource claim until every fallible cleanup step
             // succeeds. A retry must not race a new Run against unconfirmed writers.
+            // A gateway failure may cancel after an SDK reported success and
+            // froze. Keep verified files, but never retain that cancelled SDK.
             const retain =
-              clean && value.handle.runtime.child && value.handle.runtime.child.exitCode === null;
+              clean &&
+              !value.cancelled &&
+              result?.outcome === 'success' &&
+              value.handle.runtime.child &&
+              value.handle.runtime.child.exitCode === null;
             const memoryMiB = retain ? await agentMemoryMiB(value.handle.uid) : 0;
             if (!retain) await this.evict(value.handle, value.id);
             if (value.meterClaimed) await this.meter.release(value.id);

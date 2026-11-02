@@ -98,11 +98,13 @@ async function start(value,expectWarm=false) {
   tokens.set(value.token,value);
   const configuration={runId:run.id,harness,provider:harness==='claude-code'?'anthropic':'openai',
     model:harness==='claude-code'?'claude-sonnet-4-6':'gpt-5.4',
+    modelLimits:{contextTokens:128000,maxOutputTokens:65536},
     prompt:value.resumeId?'Confirm the prior task is complete.':'Create native.txt with a short note, then finish.',
     workspace:'/workspace',stateHome:'/agent-home',gatewayURL:'http://127.0.0.1:8787',toolURL:'http://127.0.0.1:8787/mcp',
-    token:value.token,deadline:new Date(Date.now()+90000).toISOString(),toolGrants:false,resumeId:value.resumeId};
+    token:value.token,deadline:new Date(Date.now()+90000).toISOString(),toolGrants:false,resumeId:value.resumeId,
+    ...(value.permissions?{permissions:value.permissions}:{})};
   const prepare=scoped(run,'prepare',{configuration,worktree_id:value.worktree,session_id:value.session,
-    permission_view:digest('fixture-permissions'),checkpoint_id:value.checkpoint,session_revision:value.revision,
+    permission_view:digest(value.permissions?JSON.stringify(value.permissions):'fixture-permissions'),checkpoint_id:value.checkpoint,session_revision:value.revision,
     compatibility_key:digest(`fixture-${harness}`),resources:{memory_mib:1536,cpu_millis:500}});
   const prepared=await request(prepare);
   assert.equal(prepared.reused,expectWarm,'warm reuse is distinct from a filesystem cache hit');
@@ -197,7 +199,12 @@ try {
       const prior=a.fixture.observed.length;
       const second=await start(a,true);await finish(second,'success',true);
       assert(a.fixture.observed.slice(prior).some(event=>event.hasPriorPrompt),'warm continuation retains the conversation');
+      const anotherWarm=await start(a,true);await finish(anotherWarm,'success',true);
       await request(scoped(first,'cancel'),409);
+      // A changed policy must invalidate the resident process on its own, even
+      // when the checkpoint/session revisions still match the retained handle.
+      a.permissions=[{version:1,files:{write:{exclude:['private/**']}}}];
+      const changedPermissions=await start(a,false);await finish(changedPermissions);
       // Force a new native process and rebuild a stale materialization without depending on the old process.
       a.checkpoint=randomUUID();
       const third=await start(a,false);await finish(third,'success',false);
@@ -208,7 +215,7 @@ try {
       assert.equal((await request(scoped(continuing,'probe',{offset:0}))).result,null,'cancelling C cannot signal D');
       d.hold=false;d.releaseModel();await finish(continuing);
       assert.equal((await request({action:'health'})).active_assignments,0);
-      console.log(`PASS ${harness}: simultaneous native Runs, independent capture/cancel, warm continuation, cold reload, credentials and stale-assignment fencing.`);
+      console.log(`PASS ${harness}: simultaneous native Runs, independent capture/cancel, two warm turns, policy-change cold resume, cold reload, credentials and stale-assignment fencing.`);
     }
   }
 } finally {

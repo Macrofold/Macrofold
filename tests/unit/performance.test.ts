@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { finished } from 'node:stream/promises';
 import type { PerformanceRecord, PerformanceSink } from '../../packages/contracts/performance';
+import type { NativeMemoryProfile } from '../../packages/contracts/native-diagnostics';
 import {
   createPerformanceCollector,
   profilingConfiguration,
@@ -25,6 +26,102 @@ function fixture(sampleRate = 1) {
   const collector = createPerformanceCollector({ sink, sampleRate, durationSeconds: 300 });
   return { collector, records };
 }
+
+const nativeIdentity = {
+  organizationId: '11111111-1111-4111-8111-111111111111',
+  runId: '22222222-2222-4222-8222-222222222222',
+  harness: 'opencode' as const,
+};
+function nativeReport(): NativeMemoryProfile {
+  return {
+    capture_id: '33333333-3333-4333-8333-333333333333',
+    origin_instance_id: '44444444-4444-4444-8444-444444444444',
+    run_id: nativeIdentity.runId,
+    harness: nativeIdentity.harness,
+    sample_rate: 1,
+    reused: false,
+    started_at: new Date().toISOString(),
+    duration_ms: 20,
+    ended_by: 'turn_end',
+    memory_status: 'not_observed',
+    limit_bytes: null,
+    peak_observed_rss_bytes: null,
+    samples_seen: 0,
+    recent: [],
+    stages: [],
+    largest_processes: [],
+    heap_marks: [],
+    dropped: { frames: 0, pss_reads: 0, recent_samples: 0 },
+  };
+}
+describe('native profile delivery', () => {
+  it('selects a whole turn deterministically without depending on an enclosing scope', async () => {
+    const { collector } = fixture();
+    try {
+      const deadline = Date.now() + 20_000;
+      const first = collector.nativeCapture(nativeIdentity.runId, deadline);
+      expect(first).toMatchObject({ expires_at_ms: deadline, sample_rate: 1 });
+      expect(collector.nativeCapture(nativeIdentity.runId, deadline)).toEqual(first);
+      expect(collector.nativeCapture('untrusted-run', deadline)).toBeUndefined();
+      expect(collector.nativeCapture(nativeIdentity.runId, Date.now() - 1)).toBeUndefined();
+    } finally {
+      await collector.close();
+    }
+    const zero = fixture(0);
+    try {
+      expect(zero.collector.nativeCapture(nativeIdentity.runId, Date.now() + 20_000)).toBeUndefined();
+    } finally {
+      await zero.collector.close();
+    }
+  });
+  it('receives a foreign worker capture during the finite receive window without creating new scopes', async () => {
+    vi.useFakeTimers();
+    const records: PerformanceRecord[] = [];
+    const collector = createPerformanceCollector({
+      sampleRate: 1,
+      durationSeconds: 1,
+      sink: { enqueue: (record) => records.push(record), flush: async () => {}, close: async () => {} },
+    });
+    const detach = vi.fn();
+    collector.onClose(detach);
+    try {
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(collector.active()).toBe(false);
+      expect(detach).toHaveBeenCalledOnce();
+      expect(collector.nativeCapture(nativeIdentity.runId, Date.now() + 1000)).toBeUndefined();
+      expect(collector.importNative(nativeReport(), nativeIdentity)).toBe(true);
+      const imported = records.find((record) => record.native_memory);
+      expect(imported).toMatchObject({
+        capture_id: nativeReport().capture_id,
+        instance_id: nativeReport().origin_instance_id,
+        run_id: nativeIdentity.runId,
+        organization_id: nativeIdentity.organizationId,
+        counters: {},
+        stages: {},
+      });
+      expect(imported?.receiver_instance_id).not.toBe(imported?.instance_id);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(collector.importNative(nativeReport(), nativeIdentity)).toBe(false);
+      expect(records.find((record) => record.state === 'completed')?.duration_ms).toBe(1000);
+    } finally {
+      await collector.close();
+      vi.useRealTimers();
+    }
+  });
+  it('rejects mismatched or content-bearing reports and closes immediately on explicit shutdown', async () => {
+    const { collector, records } = fixture();
+    expect(
+      collector.importNative({ ...nativeReport(), run_id: nativeReport().capture_id }, nativeIdentity),
+    ).toBe(false);
+    expect(collector.importNative({ ...nativeReport(), prompt: 'private content' }, nativeIdentity)).toBe(
+      false,
+    );
+    expect(records.some((record) => record.native_memory)).toBe(false);
+    await collector.close();
+    expect(collector.importNative(nativeReport(), nativeIdentity)).toBe(false);
+    expect(records.find((record) => record.state === 'completed')?.dropped?.native_invalid).toBe(2);
+  });
+});
 describe('optional process profiling', () => {
   it('allows normal actions beyond the 256-scope cap without retaining extra scopes', async () => {
     const { collector, records } = fixture();
@@ -117,6 +214,8 @@ describe('optional process profiling', () => {
       expect(businessCompleted).toBe(false);
       expect(records.find((record) => record.type === 'operation')?.truncated).toBe(true);
       expect(detach).toHaveBeenCalledOnce();
+      expect(close).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(10_000);
       expect(close).toHaveBeenCalledOnce();
       release();
       expect(await business).toBe('preserved');

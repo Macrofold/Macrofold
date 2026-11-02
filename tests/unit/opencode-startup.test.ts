@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createOpencodeServer } from '@opencode-ai/sdk/v2/server';
-import { OpenCodeAdapter } from '../../packages/runtime/src/opencode';
+import { createAdapter } from '../../packages/runtime/src/opencode';
 import type { NativeConfiguration } from '../../packages/runtime/src/types';
 
 vi.mock('@opencode-ai/sdk/v2/server', () => ({ createOpencodeServer: vi.fn() }));
@@ -32,6 +32,7 @@ it.each([60_000, 2_000])(
       prompt: 'Never executed',
       workspace: '/workspace',
       stateHome: '/agent-home',
+      modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
       gatewayURL: 'http://127.0.0.1:1',
       toolURL: 'http://127.0.0.1:1',
       token: 'fixture',
@@ -39,7 +40,8 @@ it.each([60_000, 2_000])(
       toolGrants: false,
     };
     const emit = vi.fn();
-    const execution = new OpenCodeAdapter().run({ configuration, signal: abort.signal, emit, ask: vi.fn() });
+    const adapter = await createAdapter();
+    const execution = adapter.run({ configuration, signal: abort.signal, emit, ask: vi.fn() });
     const result = expect(execution).rejects.toThrow('fixture cancelled');
     abort.abort();
     await result;

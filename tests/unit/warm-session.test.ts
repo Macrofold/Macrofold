@@ -10,6 +10,7 @@ const configuration: NativeConfiguration = {
   prompt: 'first prompt',
   workspace: '/workspace',
   stateHome: '/agent-home',
+  modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
   gatewayURL: 'http://fixture/first/model',
   toolURL: 'http://fixture/first/mcp',
   token: 'first-capability',
@@ -29,6 +30,19 @@ describe('resident conversation compatibility', () => {
       }),
     ).toBe(warmSessionKey(configuration));
     expect(warmSessionKey({ ...configuration, warm: undefined })).toBeUndefined();
+  });
+  it('keeps optional profiling independent of the retained conversation', () => {
+    expect(
+      warmSessionKey({
+        ...configuration,
+        performance: {
+          capture_id: '2b082c6a-263e-4d6c-ac20-cc7d2fc8fa12',
+          origin_instance_id: 'cc68939e-b52d-406d-9acf-6d99e2df238c',
+          sample_rate: 1,
+          expires_at_ms: Date.now() + 60_000,
+        },
+      }),
+    ).toBe(warmSessionKey(configuration));
   });
   it.each([
     { model: 'another-model' },

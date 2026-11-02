@@ -43,6 +43,7 @@ public MeResource me(){return new MeResource(this,RequestOptions.defaults());}
 public RequestsResource requests(){return new RequestsResource(this,RequestOptions.defaults());}
 public HarnessesResource harnesses(){return new HarnessesResource(this,RequestOptions.defaults());}
 public ModelDeploymentsResource modelDeployments(){return new ModelDeploymentsResource(this,RequestOptions.defaults());}
+public AgentIntegrationsResource agentIntegrations(){return new AgentIntegrationsResource(this,RequestOptions.defaults());}
 
 public static final class TasksResource {
       private final Resources client; private final RequestOptions options;
@@ -2141,6 +2142,179 @@ public ModelDeployment setService(UUID deploymentId,ModelDeploymentServiceInput 
         String key=options.identity();
 
         try {return new ModelDeploymentsApi(client).setModelDeploymentService(deploymentId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+    }
+public static final class DeleteAgentIntegrationMemoryParams {
+        private String path;
+private String ifMatch;
+        public DeleteAgentIntegrationMemoryParams(String path,String ifMatch){this.path=Objects.requireNonNull(path,"path");this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public DeleteAgentIntegrationMemoryParams path(String value){this.path=value;return this;}
+public DeleteAgentIntegrationMemoryParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class ForgetAgentIntegrationMemoryParams {
+        private String ifMatch;
+        public ForgetAgentIntegrationMemoryParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public ForgetAgentIntegrationMemoryParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class ListAgentIntegrationActivityParams {
+        private String cursor;
+private Integer limit;
+        public ListAgentIntegrationActivityParams(){}
+        public ListAgentIntegrationActivityParams cursor(String value){this.cursor=value;return this;}
+public ListAgentIntegrationActivityParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListAgentIntegrationMemoriesParams {
+        private String cursor;
+private Integer limit;
+        public ListAgentIntegrationMemoriesParams(){}
+        public ListAgentIntegrationMemoriesParams cursor(String value){this.cursor=value;return this;}
+public ListAgentIntegrationMemoriesParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListAgentIntegrationsParams {
+        private String cursor;
+private Integer limit;
+private UUID workspaceId;
+        public ListAgentIntegrationsParams(){}
+        public ListAgentIntegrationsParams cursor(String value){this.cursor=value;return this;}
+public ListAgentIntegrationsParams limit(Integer value){this.limit=value;return this;}
+public ListAgentIntegrationsParams workspaceId(UUID value){this.workspaceId=value;return this;}
+      }
+public static final class UpdateAgentIntegrationParams {
+        private String ifMatch;
+        public UpdateAgentIntegrationParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public UpdateAgentIntegrationParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class WriteAgentIntegrationMemoryParams {
+        private String ifMatch;
+private String path;
+        public WriteAgentIntegrationMemoryParams(String ifMatch,String path){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");this.path=Objects.requireNonNull(path,"path");}
+        public WriteAgentIntegrationMemoryParams ifMatch(String value){this.ifMatch=value;return this;}
+public WriteAgentIntegrationMemoryParams path(String value){this.path=value;return this;}
+      }
+public static final class AgentIntegrationsResource {
+      private final Resources client; private final RequestOptions options;
+      private AgentIntegrationsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public AgentIntegrationsResource withOptions(RequestOptions options){return new AgentIntegrationsResource(client,Objects.requireNonNull(options));}
+      public AgentIntegration create(AgentIntegrationCreate input) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new AgentIntegrationsApi(client).createAgentIntegration(key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public AgentMemoryQueued createNote(UUID integrationId,AgentMemoryEdit input) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new AgentIntegrationsApi(client).createAgentIntegrationNote(integrationId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public AgentIntegrationDelete delete(UUID integrationId) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new AgentIntegrationsApi(client).deleteAgentIntegration(integrationId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Operation deleteMemory(UUID integrationId,DeleteAgentIntegrationMemoryParams params) throws ApiException {
+
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new AgentIntegrationsApi(client).deleteAgentIntegrationMemory(integrationId,key,params.path,params.ifMatch,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public AgentMemoryExport exportMemory(UUID integrationId) throws ApiException {
+
+
+
+        try {return new AgentIntegrationsApi(client).exportAgentIntegrationMemory(integrationId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public AgentMemoryForgetReceipt forgetMemory(UUID integrationId,AgentMemoryForget input,ForgetAgentIntegrationMemoryParams params) throws ApiException {
+
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new AgentIntegrationsApi(client).forgetAgentIntegrationMemory(integrationId,params.ifMatch,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public AgentIntegration get(UUID integrationId) throws ApiException {
+
+
+
+        try {return new AgentIntegrationsApi(client).getAgentIntegration(integrationId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public AgentMemorySource getSource(UUID integrationId,UUID sourceId) throws ApiException {
+
+
+
+        try {return new AgentIntegrationsApi(client).getAgentIntegrationSource(integrationId,sourceId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public AgentMemoryActivityPage listActivity(UUID integrationId) throws ApiException {
+        return listActivity(integrationId,new ListAgentIntegrationActivityParams());
+      }
+public AgentMemoryActivityPage listActivity(UUID integrationId,ListAgentIntegrationActivityParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new AgentIntegrationsApi(client).listAgentIntegrationActivity(integrationId,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public AgentMemoryPage listMemories(UUID integrationId) throws ApiException {
+        return listMemories(integrationId,new ListAgentIntegrationMemoriesParams());
+      }
+public AgentMemoryPage listMemories(UUID integrationId,ListAgentIntegrationMemoriesParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new AgentIntegrationsApi(client).listAgentIntegrationMemories(integrationId,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public AgentIntegrationPage list() throws ApiException {
+        return list(new ListAgentIntegrationsParams());
+      }
+public AgentIntegrationPage list(ListAgentIntegrationsParams params) throws ApiException {
+
+
+        Objects.requireNonNull(params,"params");
+        try {return new AgentIntegrationsApi(client).listAgentIntegrations(options.organization(),params.cursor,params.limit,params.workspaceId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public IntegrationPackPage listIntegrationPacks() throws ApiException {
+
+
+
+        try {return new AgentIntegrationsApi(client).listIntegrationPacks(options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public AgentMemoryQueued retryCheck(UUID integrationId,UUID sourceId) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new AgentIntegrationsApi(client).retryAgentIntegrationCheck(integrationId,key,sourceId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public AgentMemorySearchResult searchMemory(UUID integrationId,AgentMemorySearch input) throws ApiException {
+
+        String key=options.identity();
+
+        try {return new AgentIntegrationsApi(client).searchAgentIntegrationMemory(integrationId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public AgentIntegration update(UUID integrationId,AgentIntegrationPatch input,UpdateAgentIntegrationParams params) throws ApiException {
+
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new AgentIntegrationsApi(client).updateAgentIntegration(integrationId,params.ifMatch,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Operation writeMemory(UUID integrationId,AgentMemoryEdit input,WriteAgentIntegrationMemoryParams params) throws ApiException {
+
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new AgentIntegrationsApi(client).writeAgentIntegrationMemory(integrationId,params.ifMatch,key,params.path,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
     }

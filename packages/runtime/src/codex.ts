@@ -64,7 +64,7 @@ export function codexEvent(message: RpcMessage): NativeEvent | undefined {
   }
   return undefined;
 }
-export class CodexAdapter implements HarnessAdapter {
+class CodexAdapter implements HarnessAdapter {
   private rpc?: JsonRpcProcess;
   private threadId?: string;
   close() {
@@ -83,6 +83,10 @@ export class CodexAdapter implements HarnessAdapter {
     const overrides: Record<string, unknown> = {
       model_provider: 'platform',
       model: c.model,
+      model_context_window: Math.min(
+        c.modelLimits.contextTokens,
+        c.modelLimits.inputTokens ?? c.modelLimits.contextTokens,
+      ),
       model_reasoning_summary: 'auto',
       'model_providers.platform.name': 'Platform',
       'model_providers.platform.base_url': `${c.gatewayURL}/v1`,
@@ -189,7 +193,8 @@ export class CodexAdapter implements HarnessAdapter {
         resolve({
           output,
           resumeId: threadId,
-          outcome: turn.status === 'completed' ? 'success' : signal.aborted ? 'cancelled' : 'failure',
+          outcome:
+            turn.status === 'completed' && !turn.error ? 'success' : signal.aborted ? 'cancelled' : 'failure',
           ...(turn.error ? { failureCode: 'harness_error' } : {}),
         });
       }
@@ -268,4 +273,8 @@ export class CodexAdapter implements HarnessAdapter {
       if (!c.warm || !succeeded) this.close();
     }
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  return new CodexAdapter();
 }

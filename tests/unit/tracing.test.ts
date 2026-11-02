@@ -35,6 +35,42 @@ const observation: TraceObservation = {
 };
 afterEach(() => vi.restoreAllMocks());
 
+it('traces a runless memory operation as its own root without inventing a Run identity', async () => {
+  const exporter = new InMemorySpanExporter();
+  const sink = new LangfuseTraceSink({ exporter });
+  const { run_id: _run, ...common } = observation.context;
+  sink.record({
+    ...observation,
+    context: {
+      ...common,
+      operation_id: 'memory-operation',
+      run_kind: 'integration_memory',
+      billing_mode: 'external',
+    },
+    id: 'memory-search',
+    name: 'memory.search',
+    type: 'retriever',
+    chargedMicroUsd: '0',
+    usage: undefined,
+    metadata: { external_cost_micro_usd: null },
+  });
+  await sink.flush();
+  const [span] = exporter.getFinishedSpans();
+  expect(span.spanContext()).toMatchObject(
+    traceIdentity('org', 'memory-operation', 'memory-search', 'operation'),
+  );
+  expect(span.parentSpanContext).toBeUndefined();
+  expect(span.attributes['langfuse.trace.metadata.operation_id']).toBe('memory-operation');
+  expect(span.attributes['langfuse.trace.metadata.run_id']).toBeUndefined();
+  expect(span.attributes['langfuse.trace.name']).toBe('operation.integration_memory');
+  expect(JSON.parse(String(span.attributes['langfuse.observation.cost_details']))).toEqual({ total: 0 });
+  expect(span.attributes['langfuse.observation.usage_details']).toBeUndefined();
+  expect(traceIdentity('org', 'memory-operation', 'memory-search', 'operation')).not.toEqual(
+    traceIdentity('org', 'memory-operation', 'memory-search'),
+  );
+  await sink.shutdown();
+});
+
 it('uses official SDK mapping, stable tenant-separated IDs and query dimensions on every span', async () => {
   const exporter = new InMemorySpanExporter();
   const sink = new LangfuseTraceSink({ exporter });

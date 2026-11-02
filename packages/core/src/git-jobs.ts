@@ -287,6 +287,7 @@ export function maintenanceTasks(host?: RepositoryHost): MaintenanceTask[] {
     ['webhooks', dispatchWebhooks],
     ['analytics', async () => (await import('./analytics-export')).forwardProductEvents()],
     ['connections', dispatchConnectionCleanup],
+    ['agent_integrations', async () => (await import('./integration-memory')).dispatchIntegrationJobs()],
     ['transfers', async () => (await import('./transfers')).cleanupTransfers()],
     ['github', async () => (await import('./github-webhooks')).dispatchGithubPulls()],
     ['finance', async () => (await import('./maintenance')).dispatchOrganizationMaintenance()],
@@ -305,9 +306,12 @@ export function maintenanceTasks(host?: RepositoryHost): MaintenanceTask[] {
   return tasks.map(([name, run]) => ({
     name,
     run,
-    intervalMs: ['workers', 'runs', 'decision_tasks', 'trigger_admission', 'trigger_replies'].includes(name)
-      ? 2000
-      : 15000,
+    intervalMs:
+      name === 'agent_integrations'
+        ? 1000
+        : ['workers', 'runs', 'decision_tasks', 'trigger_admission', 'trigger_replies'].includes(name)
+          ? 2000
+          : 15000,
     ...(name === 'decision_tasks'
       ? { drain: async () => (await import('./decision-task-wakes')).drainTaskProgress() }
       : {}),

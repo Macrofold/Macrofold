@@ -86,3 +86,7 @@ Real model reasoning requires an enabled provider route, a key, and an explicitl
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent) and its [programmatic interfaces](https://hermes-agent.nousresearch.com/docs/developer-guide/programmatic-integration).
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and its [agent embedding API](https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/core/agent). Its developer-preview interface is pinned in the runtime image.
 - [Pi](https://github.com/badlogic/pi-mono) and its [SDK](https://pi.dev/docs/latest/sdk).
+
+## Output allowance
+
+All native adapters consume the [admitted model-aware allowance](models.md#native-output-allowance). Reasoning shares that ceiling with answer/tool-call output. A length-ended response fails with `model_output_limit_exceeded`; a saved checkpoint does not make an incomplete answer successful. Inspect the final result before publishing streamed text.

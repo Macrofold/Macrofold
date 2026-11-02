@@ -1,8 +1,8 @@
 ---
 name: macrofold-ai
 description: >-
-  Implement or review Jev/TypeSafe, LLM prompts, model context, embeddings, model outputs or
-  provider execution across Macrofold; not incidental prose mentioning AI.
+  Implement or review Jev/TypeSafe, LLM prompts/context/outputs, embeddings, token limits,
+  native harnesses or provider execution across Macrofold; not incidental prose mentioning AI.
 ---
 
 # Work through the existing AI boundary

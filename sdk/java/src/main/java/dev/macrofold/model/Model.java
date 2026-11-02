@@ -43,7 +43,10 @@ import dev.macrofold.ApiClient;
   Model.JSON_PROPERTY_RATE_CARD_VERSION,
   Model.JSON_PROPERTY_NAME,
   Model.JSON_PROPERTY_INPUT_MICRO_USD_PER_MILLION,
-  Model.JSON_PROPERTY_OUTPUT_MICRO_USD_PER_MILLION
+  Model.JSON_PROPERTY_OUTPUT_MICRO_USD_PER_MILLION,
+  Model.JSON_PROPERTY_CONTEXT_TOKENS,
+  Model.JSON_PROPERTY_INPUT_TOKENS,
+  Model.JSON_PROPERTY_OUTPUT_TOKENS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class Model {
@@ -117,6 +120,18 @@ public class Model {
   public static final String JSON_PROPERTY_OUTPUT_MICRO_USD_PER_MILLION = "output_micro_usd_per_million";
   @javax.annotation.Nonnull
   private String outputMicroUsdPerMillion;
+
+  public static final String JSON_PROPERTY_CONTEXT_TOKENS = "context_tokens";
+  @javax.annotation.Nullable
+  private Integer contextTokens;
+
+  public static final String JSON_PROPERTY_INPUT_TOKENS = "input_tokens";
+  @javax.annotation.Nullable
+  private Integer inputTokens;
+
+  public static final String JSON_PROPERTY_OUTPUT_TOKENS = "output_tokens";
+  @javax.annotation.Nullable
+  private Integer outputTokens;
 
   public Model() { 
   }
@@ -353,6 +368,84 @@ public class Model {
   }
 
 
+  public Model contextTokens(@javax.annotation.Nullable Integer contextTokens) {
+    this.contextTokens = contextTokens;
+    return this;
+  }
+
+  /**
+   * Published total model context capacity. Present for enabled native models.
+   * minimum: 1
+   * maximum: 9007199254740991
+   * @return contextTokens
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_CONTEXT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getContextTokens() {
+    return contextTokens;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_CONTEXT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setContextTokens(@javax.annotation.Nullable Integer contextTokens) {
+    this.contextTokens = contextTokens;
+  }
+
+
+  public Model inputTokens(@javax.annotation.Nullable Integer inputTokens) {
+    this.inputTokens = inputTokens;
+    return this;
+  }
+
+  /**
+   * Separately published maximum input tokens, when available.
+   * minimum: 1
+   * maximum: 9007199254740991
+   * @return inputTokens
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_INPUT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getInputTokens() {
+    return inputTokens;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_INPUT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setInputTokens(@javax.annotation.Nullable Integer inputTokens) {
+    this.inputTokens = inputTokens;
+  }
+
+
+  public Model outputTokens(@javax.annotation.Nullable Integer outputTokens) {
+    this.outputTokens = outputTokens;
+    return this;
+  }
+
+  /**
+   * Published maximum generated tokens, including reasoning. Present for enabled native models.
+   * minimum: 1
+   * maximum: 9007199254740991
+   * @return outputTokens
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_OUTPUT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getOutputTokens() {
+    return outputTokens;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_OUTPUT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setOutputTokens(@javax.annotation.Nullable Integer outputTokens) {
+    this.outputTokens = outputTokens;
+  }
+
+
   /**
    * Return true if this Model object is equal to o.
    */
@@ -373,12 +466,15 @@ public class Model {
         Objects.equals(this.rateCardVersion, model.rateCardVersion) &&
         Objects.equals(this.name, model.name) &&
         Objects.equals(this.inputMicroUsdPerMillion, model.inputMicroUsdPerMillion) &&
-        Objects.equals(this.outputMicroUsdPerMillion, model.outputMicroUsdPerMillion);
+        Objects.equals(this.outputMicroUsdPerMillion, model.outputMicroUsdPerMillion) &&
+        Objects.equals(this.contextTokens, model.contextTokens) &&
+        Objects.equals(this.inputTokens, model.inputTokens) &&
+        Objects.equals(this.outputTokens, model.outputTokens);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, provider, harnesses, enabled, billingModes, rateCardVersion, name, inputMicroUsdPerMillion, outputMicroUsdPerMillion);
+    return Objects.hash(id, provider, harnesses, enabled, billingModes, rateCardVersion, name, inputMicroUsdPerMillion, outputMicroUsdPerMillion, contextTokens, inputTokens, outputTokens);
   }
 
   @Override
@@ -394,6 +490,9 @@ public class Model {
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    inputMicroUsdPerMillion: ").append(toIndentedString(inputMicroUsdPerMillion)).append("\n");
     sb.append("    outputMicroUsdPerMillion: ").append(toIndentedString(outputMicroUsdPerMillion)).append("\n");
+    sb.append("    contextTokens: ").append(toIndentedString(contextTokens)).append("\n");
+    sb.append("    inputTokens: ").append(toIndentedString(inputTokens)).append("\n");
+    sb.append("    outputTokens: ").append(toIndentedString(outputTokens)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -489,6 +588,21 @@ public class Model {
     // add `output_micro_usd_per_million` to the URL query string
     if (getOutputMicroUsdPerMillion() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%soutput_micro_usd_per_million%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getOutputMicroUsdPerMillion()))));
+    }
+
+    // add `context_tokens` to the URL query string
+    if (getContextTokens() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%scontext_tokens%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getContextTokens()))));
+    }
+
+    // add `input_tokens` to the URL query string
+    if (getInputTokens() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sinput_tokens%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getInputTokens()))));
+    }
+
+    // add `output_tokens` to the URL query string
+    if (getOutputTokens() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%soutput_tokens%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getOutputTokens()))));
     }
 
     return joiner.toString();

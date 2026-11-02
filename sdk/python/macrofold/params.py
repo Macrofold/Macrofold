@@ -39,7 +39,7 @@ ModelParametersReasoningParams = TypedDict('ModelParametersReasoningParams', {"e
 
 ModelParametersProviderParams = TypedDict('ModelParametersProviderParams', {"require_parameters": "bool"})
 
-LimitsParams = TypedDict('LimitsParams', {"timeout_seconds": "NotRequired[int]", "max_cost_micro_usd": "NotRequired[str]", "stop_on_model_error": "NotRequired[bool]"})
+LimitsParams = TypedDict('LimitsParams', {"timeout_seconds": "NotRequired[int]", "max_cost_micro_usd": "NotRequired[str]", "stop_on_model_error": "NotRequired[bool]", "max_output_tokens": "NotRequired[int]"})
 
 AgentPermissionsParams = TypedDict('AgentPermissionsParams', {"version": "Literal[1]", "files": "NotRequired[AgentPermissionsFilesParams]", "shell": "NotRequired[Literal[\"allow\", \"deny\"]]", "tools": "NotRequired[PermissionPatternsParams]", "questions": "NotRequired[Literal[\"allow\", \"deny\"]]"})
 
@@ -120,6 +120,8 @@ InspectModelDeploymentRuntimePreferencesParams = TypedDict('InspectModelDeployme
 ModelDeploymentServicePolicyChoice1Params = TypedDict('ModelDeploymentServicePolicyChoice1Params', {"min_replicas": "int", "max_replicas": "int", "max_concurrent_requests": "int", "max_hourly_cost_micro_usd": "str", "stop_at": "NotRequired[str | datetime | None]"})
 
 ModelDeploymentServicePolicyChoice2Params = TypedDict('ModelDeploymentServicePolicyChoice2Params', {"max_concurrent_requests": "int", "stop_at": "NotRequired[str | datetime | None]"})
+
+CreateAgentIntegrationServiceParams = TypedDict('CreateAgentIntegrationServiceParams', {"connection_id": "str | UUID", "namespace": "str", "external_cost_acknowledged": "Literal[True]", "namespace_is_dedicated": "Literal[True]", "required": "NotRequired[bool]"})
 
 DecisionQuestionParams = DecisionQuestionChoice1Params | DecisionQuestionChoice2Params | DecisionQuestionChoice3Params | DecisionQuestionChoice4Params
 

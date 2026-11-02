@@ -18,6 +18,7 @@ import { lock } from '../../db';
 import { assert } from './errors';
 import { id, canonical } from './crypto';
 import { validateModelParameters, type ModelParameters } from './model-parameters';
+import { resolveNativeOutputTokens } from './native-model-limits';
 import { config, isLocal, isSimulated, realExecutionEnabled } from './config';
 import { getExecutionPolicy, QUEUE_TIMEOUT_SECONDS } from './plans';
 import { queueObservations, type WaitingReason } from './scheduling';
@@ -30,9 +31,11 @@ import { requireWorkspace, requireScopes, type Principal } from './auth';
 import { admitConnections, type ConnectionAccessSnapshot } from './connection-access-resolution';
 import { isToolConnection } from './connection-access-policy';
 import { requireClaudeSubscriptionExecution, validateClaudeFallback } from './claude-connections';
+import { admitIntegrationContext, type IntegrationContextSnapshot } from './agent-integrations';
 
 type Schema = components['schemas'];
 export type RunConfig = Schema['SessionCreate'] & {
+  integration_context?: IntegrationContextSnapshot;
   permission_layers?: PermissionLayers;
   attachments?: RunAttachment[];
   agent_id: string | null;
@@ -423,6 +426,15 @@ export async function validateConfiguration(
     timeout_seconds: Math.min(900, policy.max_timeout_seconds),
     max_cost_micro_usd: defaultRunBudgetMicroUsd,
     ...configuration.limits,
+    ...(purpose === 'execution' || configuration.limits?.max_output_tokens !== undefined
+      ? {
+          max_output_tokens: resolveNativeOutputTokens(
+            model,
+            configuration.model_parameters,
+            configuration.limits?.max_output_tokens,
+          ),
+        }
+      : {}),
   };
   assert(
     Number.isInteger(limits.timeout_seconds) &&
@@ -636,6 +648,36 @@ export async function admitRun(
     input.permissions,
     configured.harness,
   );
+  const integrationContext = await admitIntegrationContext(
+    tx,
+    worktree.id,
+    permissionLayers,
+    (input.connection_grants ?? session.connection_grants)?.length === 0,
+  );
+  // Memory source provenance names the repository accepted for this Run, not
+  // mutable Workspace settings observed by a later background capture.
+  if (integrationContext && workspace.github)
+    integrationContext.repository = {
+      repository_id: workspace.github.repository_id,
+      target_branch: workspace.github.target_branch,
+      ...(worktree.branch ? { worktree_branch: worktree.branch } : {}),
+    };
+  const integrationFingerprint = canonical(
+    integrationContext ? { id: integrationContext.id, generation: integrationContext.generation } : null,
+  );
+  // Disabling or forgetting recall cannot erase a native conversation's past.
+  // A new Session is required rather than cold-restoring the same old history.
+  assert(
+    session.integration_fingerprint === undefined ||
+      session.integration_fingerprint === integrationFingerprint,
+    409,
+    'session_memory_changed',
+    'Start a new session after changing memory settings. Existing conversations retain their previous context.',
+  );
+  if (session.integration_fingerprint === undefined)
+    await resources.update(tx, 'sessions', session.id, {
+      integration_fingerprint: integrationFingerprint,
+    });
   if (input.attachments?.length) requireScopes(p, ['files:read']);
   const attachments = input.attachments?.length
     ? resolveRunAttachments(
@@ -698,7 +740,9 @@ export async function admitRun(
   const runConfig: RunConfig = {
     ...configured,
     worktree_id: worktree.id,
-    instructions: session.instructions,
+    instructions:
+      [session.instructions, integrationContext?.instructions].filter(Boolean).join('\n\n') || undefined,
+    ...(integrationContext ? { integration_context: integrationContext } : {}),
     ...(configured.harness === 'opencode'
       ? { harness_prompt_mode: input.harness_prompt_mode ?? 'replace' }
       : {}),

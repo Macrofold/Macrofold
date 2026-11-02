@@ -50,6 +50,8 @@ function available(model: Model, row?: Pick<CatalogVersion, 'provider' | 'fetche
 function simulationModel(): Model {
   return {
     id: 'fixture-model',
+    context_tokens: 128000,
+    output_tokens: 65536,
     name: 'Simulation · no model charges',
     provider: 'fixture',
     harnesses: [...harnessNames],

@@ -14,6 +14,8 @@ Use the existing SSRF-safe network layer for user-supplied URLs, including redir
 
 Read pinned SDK behavior for request/response shape, streaming frames, error types, pagination, cancellation, timeout, and retries. Reuse its supported mechanics; do not multiply SDK retries with an unbounded wrapper. A lookup error is not proof of absence, and a dropped response does not prove an operation failed.
 
+Keep transport termination, model completion, usage and persistence distinct. Inspect formal finish reasons; valid JSON or an SDK success wrapper does not prove completion. Withhold tool output from executing consumers until completion and required validation/accounting permit release; keep non-executable deltas incremental. Incomplete output retains incurred usage and diagnostic partial text, never a successful answer or automatic paid repair.
+
 For Stripe/GitHub/other webhooks, verify signatures against the required raw payload before trusting events. Durably accept/deduplicate through existing handlers, process safely across retries and ordering changes, and acknowledge according to the provider contract. Do not credit an account from a browser success redirect.
 
 Test the actual serialization and transport boundary with deterministic fixtures. Live acceptance is opt-in, bounded, synthetic, and separately documented; an API key in `.env` is not permission to spend or send messages. Retain the existing provider test safeguards and record unsupported endpoints honestly.

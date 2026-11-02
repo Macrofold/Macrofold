@@ -38,5 +38,8 @@ export type PreparedHandler<K extends ApiOperation = ApiOperation> = (context: R
   inferencePermit?: () => import('./direct-inference').InvocationPermit | undefined;
 }>;
 export type PreparationMap = { [K in ApiOperation]?: PreparedHandler<K> };
+/** Content-bearing receipts may need current resource/generation authority
+ * before decrypting a cached reply. Policy remains with the operation owner. */
+export type ReplayAuthorizerMap = { [K in ApiOperation]?: (context: Context) => Promise<void> };
 export const input = <K extends keyof components['schemas']>(context: Pick<Context, 'body'>) =>
   context.body as components['schemas'][K];

@@ -15,6 +15,7 @@ import {
   validateMcpURL,
   validatePublicURL,
   validateModelEndpointURL,
+  validateMemoryServiceURL,
 } from '../../providers/src/network';
 import type { components } from '../../contracts/api';
 import { withConnectionOAuth } from './mcp-oauth';
@@ -86,12 +87,37 @@ export async function saveConnection(
   }
   if (merged.url)
     await (
-      merged.kind === 'mcp_remote'
-        ? validateMcpURL
-        : merged.kind === 'external_model'
-          ? validateModelEndpointURL
-          : validatePublicURL
+      merged.kind === 'memory_service'
+        ? validateMemoryServiceURL
+        : merged.kind === 'mcp_remote'
+          ? validateMcpURL
+          : merged.kind === 'external_model'
+            ? validateModelEndpointURL
+            : validatePublicURL
     )(String(merged.url));
+  if (merged.kind === 'memory_service') {
+    assert(
+      ['hindsight', 'claude-mem'].includes(String(merged.provider)) &&
+        merged.url &&
+        merged.auth_method === 'bearer',
+      400,
+      'invalid_memory_service',
+      'Choose Hindsight or Claude-mem, an API base URL, and bearer authentication.',
+    );
+    assert(
+      !input.secret_headers && !input.secret_env && (input.secret || existing?.secret_ciphertext),
+      400,
+      'credentials_required',
+      'Provide the memory service bearer key; custom headers and process environment credentials are not supported.',
+    );
+    const endpoint = new URL(String(merged.url));
+    assert(
+      !endpoint.search && !endpoint.hash,
+      400,
+      'invalid_memory_service',
+      'Use an API base URL without query parameters or fragments.',
+    );
+  }
   if (['hugging_face', 'runpod', 'external_model'].includes(String(merged.kind))) {
     const external = merged.kind === 'external_model';
     assert(
@@ -335,6 +361,9 @@ export async function testConnection(tx: Tx, p: Principal, c: resources.Document
       status = 'unknown';
       message =
         'Named configuration saved. Native Claude subscription authentication is pending provider approval and runtime validation; no account was contacted.';
+    } else if (c.kind === 'memory_service') {
+      status = c.status === 'healthy' ? 'healthy' : 'unknown';
+      message = 'Service credentials are configured. Explicit memory installation checks the endpoint and namespace; no model request was made by this check.';
     } else if (['model', 'hugging_face', 'runpod', 'external_model'].includes(c.kind)) {
       status = 'unknown';
       message =

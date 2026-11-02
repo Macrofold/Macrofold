@@ -33,6 +33,12 @@ type Model struct {
 	InputMicroUsdPerMillion string `json:"input_micro_usd_per_million" validate:"regexp=^[0-9]+$"`
 	// Current retail micro-USD per million output tokens, including reported reasoning tokens.
 	OutputMicroUsdPerMillion string `json:"output_micro_usd_per_million" validate:"regexp=^[0-9]+$"`
+	// Published total model context capacity. Present for enabled native models.
+	ContextTokens *int32 `json:"context_tokens,omitempty"`
+	// Separately published maximum input tokens, when available.
+	InputTokens *int32 `json:"input_tokens,omitempty"`
+	// Published maximum generated tokens, including reasoning. Present for enabled native models.
+	OutputTokens *int32 `json:"output_tokens,omitempty"`
 }
 
 type _Model Model
@@ -279,6 +285,102 @@ func (o *Model) SetOutputMicroUsdPerMillion(v string) {
 	o.OutputMicroUsdPerMillion = v
 }
 
+// GetContextTokens returns the ContextTokens field value if set, zero value otherwise.
+func (o *Model) GetContextTokens() int32 {
+	if o == nil || IsNil(o.ContextTokens) {
+		var ret int32
+		return ret
+	}
+	return *o.ContextTokens
+}
+
+// GetContextTokensOk returns a tuple with the ContextTokens field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Model) GetContextTokensOk() (*int32, bool) {
+	if o == nil || IsNil(o.ContextTokens) {
+		return nil, false
+	}
+	return o.ContextTokens, true
+}
+
+// HasContextTokens returns a boolean if a field has been set.
+func (o *Model) HasContextTokens() bool {
+	if o != nil && !IsNil(o.ContextTokens) {
+		return true
+	}
+
+	return false
+}
+
+// SetContextTokens gets a reference to the given int32 and assigns it to the ContextTokens field.
+func (o *Model) SetContextTokens(v int32) {
+	o.ContextTokens = &v
+}
+
+// GetInputTokens returns the InputTokens field value if set, zero value otherwise.
+func (o *Model) GetInputTokens() int32 {
+	if o == nil || IsNil(o.InputTokens) {
+		var ret int32
+		return ret
+	}
+	return *o.InputTokens
+}
+
+// GetInputTokensOk returns a tuple with the InputTokens field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Model) GetInputTokensOk() (*int32, bool) {
+	if o == nil || IsNil(o.InputTokens) {
+		return nil, false
+	}
+	return o.InputTokens, true
+}
+
+// HasInputTokens returns a boolean if a field has been set.
+func (o *Model) HasInputTokens() bool {
+	if o != nil && !IsNil(o.InputTokens) {
+		return true
+	}
+
+	return false
+}
+
+// SetInputTokens gets a reference to the given int32 and assigns it to the InputTokens field.
+func (o *Model) SetInputTokens(v int32) {
+	o.InputTokens = &v
+}
+
+// GetOutputTokens returns the OutputTokens field value if set, zero value otherwise.
+func (o *Model) GetOutputTokens() int32 {
+	if o == nil || IsNil(o.OutputTokens) {
+		var ret int32
+		return ret
+	}
+	return *o.OutputTokens
+}
+
+// GetOutputTokensOk returns a tuple with the OutputTokens field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Model) GetOutputTokensOk() (*int32, bool) {
+	if o == nil || IsNil(o.OutputTokens) {
+		return nil, false
+	}
+	return o.OutputTokens, true
+}
+
+// HasOutputTokens returns a boolean if a field has been set.
+func (o *Model) HasOutputTokens() bool {
+	if o != nil && !IsNil(o.OutputTokens) {
+		return true
+	}
+
+	return false
+}
+
+// SetOutputTokens gets a reference to the given int32 and assigns it to the OutputTokens field.
+func (o *Model) SetOutputTokens(v int32) {
+	o.OutputTokens = &v
+}
+
 func (o Model) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -298,6 +400,15 @@ func (o Model) ToMap() (map[string]interface{}, error) {
 	toSerialize["name"] = o.Name
 	toSerialize["input_micro_usd_per_million"] = o.InputMicroUsdPerMillion
 	toSerialize["output_micro_usd_per_million"] = o.OutputMicroUsdPerMillion
+	if !IsNil(o.ContextTokens) {
+		toSerialize["context_tokens"] = o.ContextTokens
+	}
+	if !IsNil(o.InputTokens) {
+		toSerialize["input_tokens"] = o.InputTokens
+	}
+	if !IsNil(o.OutputTokens) {
+		toSerialize["output_tokens"] = o.OutputTokens
+	}
 	return toSerialize, nil
 }
 

@@ -1,3 +1,4 @@
+import { integrationCommands } from './agent-integrations';
 import { readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import type { Schema } from '../../../sdk/typescript/src/client';
@@ -61,6 +62,7 @@ function openBrowser(url: string) {
 
 export const handlers: Record<string, Handler> = {
   ...workerCommands,
+  ...integrationCommands,
   ...modelDeploymentCommands,
   version: async () =>
     result({ version: release.version, executable: release.executable, node: process.versions.node }),
@@ -205,7 +207,11 @@ export const handlers: Record<string, Handler> = {
           ...scheduling(flags),
           model: stringOption(flags, 'model'),
           connection_grants: connectionSelection(flags),
-          limits: limits(flags),
+          limits: {
+            ...limits(flags),
+            // An output/timeout override must not raise the Session's saved budget.
+            ...(!flags['max-cost'] ? { max_cost_micro_usd: session.limits?.max_cost_micro_usd } : {}),
+          },
         },
       });
     } else {
@@ -215,7 +221,7 @@ export const handlers: Record<string, Handler> = {
       if (!agentId && (!settings.harness || !settings.model))
         throw new CliError('Choose --agent, --harness and --model, or a --session.');
       const presetLimits =
-        agentId && flags.timeout && !flags['max-cost']
+        agentId && (flags.timeout || flags['max-output-tokens']) && !flags['max-cost']
           ? (await ctx.client.agents.get(agentId)).limits
           : undefined;
       run = await ctx.client.request('createRun', {
@@ -226,10 +232,13 @@ export const handlers: Record<string, Handler> = {
           ...(agentId
             ? {
                 agent_id: agentId,
-                ...(flags.timeout || flags['max-cost']
+                ...(flags.timeout || flags['max-cost'] || flags['max-output-tokens']
                   ? {
                       limits: {
                         ...(flags.timeout ? { timeout_seconds: settings.limits.timeout_seconds } : {}),
+                        ...(flags['max-output-tokens']
+                          ? { max_output_tokens: settings.limits.max_output_tokens }
+                          : {}),
                         max_cost_micro_usd:
                           presetLimits?.max_cost_micro_usd || settings.limits.max_cost_micro_usd,
                       },

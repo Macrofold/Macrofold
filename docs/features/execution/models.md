@@ -59,4 +59,14 @@ Provider references: [OpenAI model listing](https://developers.openai.com/api/re
 
 ### Runtime compatibility floor
 
-OpenRouter discoveries must publish at least a 128,000-token context and an 8,192-token maximum completion, in addition to text/tool capabilities and supported pricing. Missing limits leave the route disabled. These match the current OpenCode, Hermes, DeepSeek and Pi runtime configuration. This intentionally defers smaller-context models: admitting them requires carrying their limits into every runtime, including compaction, rather than advertising a model that cannot accept the runtime's requests. Larger models use this conservative common window. Routing-provider failures still surface as run failures; discovery is not account entitlement or a guarantee of provider availability.
+OpenRouter discoveries must publish at least a 128,000-token context and an 8,192-token maximum completion, alongside supported text/tools and pricing. This remains an eligibility floor, not a runtime ceiling. Native model metadata follows the selected model's verified `context_tokens`, optional `input_tokens`, and `output_tokens`. Missing or incoherent capabilities keep a route disabled. Discovery does not establish account entitlement.
+
+## Native output allowance
+
+Native admission resolves `limits.max_output_tokens` once per model call, including reasoning, text and tool-call output. The automatic allowance is 32,768 tokens, or 65,536 for explicitly selected high/xhigh/max reasoning and Muse Contributor's enabled default reasoning, capped to the model's published maximum. These are ceilings, not token-consumption targets or guarantees that every prompt will finish.
+
+Set an explicit positive integer up to the selected model's `output_tokens` when needed. Session creation saves the resolved allowance; a continued Run inherits it unless explicitly overridden for that Run. Preset limits use the same field. A changed model must support the inherited allowance or the caller must supply a smaller valid override. The Run returns its effective limits. Reasoning parameters retain their existing Session immutability; changing effort requires a new Session.
+
+The gateway and harnesses share that accepted allowance; OpenCode's upstream default is explicitly mapped rather than imposing a second ceiling. A larger allowance does not increase `max_cost_micro_usd` or the deadline. It can require a larger model-call reservation; insufficient remaining budget fails before dispatch. Only incurred usage is charged, with BYOK provider costs separate from Macrofold charges.
+
+An explicit output-limit completion fails the native Run with `model_output_limit_exceeded`, even when `stop_on_model_error` is false or omitted. Partial text, actual usage and independently verified checkpoints remain inspectable. No automatic paid retry or continuation repairs it. Inspect the result, then deliberately submit another Run with more output room or a simpler task; create a new Session to change reasoning effort. [Result/stream semantics](../api/streaming.md#native-output-limits) and [runtime ownership](runtime.md#native-output-and-completion).

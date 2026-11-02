@@ -1,5 +1,6 @@
 'use client';
 import { defaultRunBudgetMicroUsd } from '../../../packages/contracts/run-defaults';
+import { NativeOutputLimit, outputTokenLimit } from './native-output-limit';
 import { ConnectionSelection } from './run-tools';
 import { harnesses } from '../../../packages/contracts/harnesses';
 import { CopyButton } from './copy-button';
@@ -529,9 +530,11 @@ function AgentPresets({
     [billing, setBilling] = useState<Schema['AgentCreate']['billing_mode']>('managed'),
     [connection, setConnection] = useState(''),
     [budget, setBudget] = useState(String(Number(defaultRunBudgetMicroUsd) / 1000000)),
+    [outputTokens, setOutputTokens] = useState(''),
     [busy, setBusy] = useState(false);
   const client = useQueryClient();
-  const available = models.data?.data.filter((model) => model.enabled && model.harnesses.includes(harness)) || [];
+  const available =
+    models.data?.data.filter((model) => model.enabled && model.harnesses.includes(harness)) || [];
   const model = available.find((item) => item.id === requestedModel) || available[0];
   return (
     <div className="page">
@@ -584,7 +587,9 @@ function AgentPresets({
                     a.provider_connection_id}
                 </p>
               )}
-              <Link className="text-link" href={`/scheduled-tasks?agent=${a.id}`}>Schedule this preset →</Link>
+              <Link className="text-link" href={`/scheduled-tasks?agent=${a.id}`}>
+                Schedule this preset →
+              </Link>
               <div className="agent-model">
                 <span className="tiny-dot" />
                 {a.model === 'fixture-model' ? 'Local simulation' : a.model}
@@ -624,16 +629,21 @@ function AgentPresets({
             setBusy(true);
             try {
               if (!model) throw new Error('No compatible model is configured.');
-              const preset = await request('createAgent', { body: {
-                name,
-                harness: harness as Schema['AgentCreate']['harness'],
-                limits: { max_cost_micro_usd: String(Math.round(Number(budget) * 1000000)) },
-                model: model.id,
-                billing_mode: billing,
-                ...(billing !== 'managed' ? { provider_connection_id: connection } : {}),
-                instructions,
-                ...(toolDefaults !== undefined ? { connection_grants: toolDefaults } : {}),
-              } });
+              const preset = await request('createAgent', {
+                body: {
+                  name,
+                  harness: harness as Schema['AgentCreate']['harness'],
+                  limits: {
+                    ...outputTokenLimit(outputTokens),
+                    max_cost_micro_usd: String(Math.round(Number(budget) * 1000000)),
+                  },
+                  model: model.id,
+                  billing_mode: billing,
+                  ...(billing !== 'managed' ? { provider_connection_id: connection } : {}),
+                  instructions,
+                  ...(toolDefaults !== undefined ? { connection_grants: toolDefaults } : {}),
+                },
+              });
               setOpen(false);
               setToolDefaults(undefined);
               if (schedule) schedulePreset(preset.id);
@@ -746,10 +756,29 @@ function AgentPresets({
               not silently use an API key.
             </p>
           )}
-          <Field label="Budget per run (USD)" hint="Maximum total platform charge per run, including tools and compute. This is a limit, not a cost estimate.">
-            <input type="number" required min="0.01" max="999999" step="0.01" value={budget} onChange={(event) => setBudget(event.target.value)} />
+          <Field
+            label="Budget per run (USD)"
+            hint="Maximum total platform charge per run, including tools and compute. This is a limit, not a cost estimate."
+          >
+            <input
+              type="number"
+              required
+              min="0.01"
+              max="999999"
+              step="0.01"
+              value={budget}
+              onChange={(event) => setBudget(event.target.value)}
+            />
           </Field>
           <ConnectionSelection value={toolDefaults} onChange={setToolDefaults} label="Default tools" />
+          <details>
+            <summary>Advanced output settings</summary>
+            <NativeOutputLimit
+              value={outputTokens}
+              onChange={setOutputTokens}
+              maximum={model?.output_tokens}
+            />
+          </details>
           <Field label="Instructions">
             <textarea
               rows={5}

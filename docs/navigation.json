@@ -77,6 +77,13 @@
     "description": "Install an optional editable memory and task convention."
   },
   {
+    "slug": "customer-agents/agent-library",
+    "source": "docs/features/customer-agents/agent-library.md",
+    "title": "Agent library and memory",
+    "section": "Integration paths",
+    "description": "Install optional editable or service memory with scoped collections, explicit costs and lifecycle controls."
+  },
+  {
     "slug": "customer-agents/example",
     "source": "examples/personal-agent/README.md",
     "title": "Personal agent example",

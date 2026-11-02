@@ -9,12 +9,20 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import type { TraceObservation, TraceSink } from '../../core/src/trace';
 import { traceContent } from './trace-content';
 
-export function traceIdentity(organization: string, run: string, observation = 'run') {
+export function traceIdentity(
+  organization: string,
+  identity: string,
+  observation = 'run',
+  kind: 'run' | 'operation' = 'run',
+) {
   const hash = (value: string, size: number) =>
     createHash('sha256').update(value).digest('hex').slice(0, size);
   return {
-    traceId: hash(`run:${organization}:${run}`, 32),
-    spanId: hash(`observation:${organization}:${run}:${observation}`, 16),
+    traceId: hash(`${kind}:${organization}:${identity}`, 32),
+    spanId: hash(
+      `${kind === 'run' ? 'observation' : 'operation-observation'}:${organization}:${identity}:${observation}`,
+      16,
+    ),
   };
 }
 
@@ -88,8 +96,10 @@ export class LangfuseTraceSink implements TraceSink {
       return;
     }
     const { context: c, metadata = {}, usage } = observation;
-    this.identity = traceIdentity(c.organization_id, c.run_id, observation.id);
-    const root = traceIdentity(c.organization_id, c.run_id);
+    const kind = c.operation_id ? 'operation' : 'run';
+    const identity = c.run_id ?? c.operation_id;
+    this.identity = traceIdentity(c.organization_id, identity, observation.id, kind);
+    const root = traceIdentity(c.organization_id, identity, undefined, kind);
     const tags = [
       `kind:${c.run_kind}`,
       `billing:${c.billing_mode}`,
@@ -128,13 +138,13 @@ export class LangfuseTraceSink implements TraceSink {
       : c.user_id;
     if (c.session_id || c.task_id)
       attributes['langfuse.session.id'] = `${c.organization_id}:${c.session_id || c.task_id}`;
-    attributes['langfuse.trace.name'] = `run.${c.run_kind}`;
+    attributes['langfuse.trace.name'] = `${kind}.${c.run_kind}`;
     attributes['langfuse.trace.tags'] = tags;
     // Query dimensions must be present on EVERY observation for the v2 API.
     for (const [key, value] of Object.entries(c))
       if (value !== undefined && value !== null) attributes[`langfuse.trace.metadata.${key}`] = String(value);
     const parent =
-      observation.id === 'run'
+      c.operation_id || observation.id === 'run'
         ? ROOT_CONTEXT
         : setLangfuseTraceIdInBaggage(
             trace.setSpanContext(ROOT_CONTEXT, { ...root, traceFlags: TraceFlags.SAMPLED, isRemote: true }),

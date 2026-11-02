@@ -52,7 +52,9 @@ import dev.macrofold.ApiClient;
   RunResult.JSON_PROPERTY_ERROR,
   RunResult.JSON_PROPERTY_CONTENT_EXPIRED,
   RunResult.JSON_PROPERTY_CONTENT_EXPIRED_AT,
-  RunResult.JSON_PROPERTY_INFERENCE
+  RunResult.JSON_PROPERTY_INFERENCE,
+  RunResult.JSON_PROPERTY_FAILURE_CODE,
+  RunResult.JSON_PROPERTY_OUTPUT_TEXT_TRUNCATED
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunResult {
@@ -103,6 +105,14 @@ public class RunResult {
   public static final String JSON_PROPERTY_INFERENCE = "inference";
   @javax.annotation.Nullable
   private InferenceReceipt inference;
+
+  public static final String JSON_PROPERTY_FAILURE_CODE = "failure_code";
+  @javax.annotation.Nullable
+  private String failureCode;
+
+  public static final String JSON_PROPERTY_OUTPUT_TEXT_TRUNCATED = "output_text_truncated";
+  @javax.annotation.Nullable
+  private Boolean outputTextTruncated;
 
   public RunResult() { 
   }
@@ -411,6 +421,54 @@ public class RunResult {
   }
 
 
+  public RunResult failureCode(@javax.annotation.Nullable String failureCode) {
+    this.failureCode = failureCode;
+    return this;
+  }
+
+  /**
+   * Stable failure classification, including model_output_limit_exceeded for an incomplete native completion. Partial output and verified checkpoints may still be available.
+   * @return failureCode
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_FAILURE_CODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getFailureCode() {
+    return failureCode;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_FAILURE_CODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setFailureCode(@javax.annotation.Nullable String failureCode) {
+    this.failureCode = failureCode;
+  }
+
+
+  public RunResult outputTextTruncated(@javax.annotation.Nullable Boolean outputTextTruncated) {
+    this.outputTextTruncated = outputTextTruncated;
+    return this;
+  }
+
+  /**
+   * True when retained native failure answer text exceeded the 4 MiB diagnostic bound. Available text remains partial and must not be published as a complete answer.
+   * @return outputTextTruncated
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_OUTPUT_TEXT_TRUNCATED, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getOutputTextTruncated() {
+    return outputTextTruncated;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_OUTPUT_TEXT_TRUNCATED, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setOutputTextTruncated(@javax.annotation.Nullable Boolean outputTextTruncated) {
+    this.outputTextTruncated = outputTextTruncated;
+  }
+
+
   /**
    * Return true if this RunResult object is equal to o.
    */
@@ -434,12 +492,14 @@ public class RunResult {
         Objects.equals(this.error, runResult.error) &&
         Objects.equals(this.contentExpired, runResult.contentExpired) &&
         Objects.equals(this.contentExpiredAt, runResult.contentExpiredAt) &&
-        Objects.equals(this.inference, runResult.inference);
+        Objects.equals(this.inference, runResult.inference) &&
+        Objects.equals(this.failureCode, runResult.failureCode) &&
+        Objects.equals(this.outputTextTruncated, runResult.outputTextTruncated);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(runId, _final, outputText, structuredOutput, artifactIds, checkpointId, executionOutcome, persistenceStatus, error, contentExpired, contentExpiredAt, inference);
+    return Objects.hash(runId, _final, outputText, structuredOutput, artifactIds, checkpointId, executionOutcome, persistenceStatus, error, contentExpired, contentExpiredAt, inference, failureCode, outputTextTruncated);
   }
 
   @Override
@@ -458,6 +518,8 @@ public class RunResult {
     sb.append("    contentExpired: ").append(toIndentedString(contentExpired)).append("\n");
     sb.append("    contentExpiredAt: ").append(toIndentedString(contentExpiredAt)).append("\n");
     sb.append("    inference: ").append(toIndentedString(inference)).append("\n");
+    sb.append("    failureCode: ").append(toIndentedString(failureCode)).append("\n");
+    sb.append("    outputTextTruncated: ").append(toIndentedString(outputTextTruncated)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -570,6 +632,16 @@ public class RunResult {
     // add `inference` to the URL query string
     if (getInference() != null) {
       joiner.add(getInference().toUrlQueryString(prefix + "inference" + suffix));
+    }
+
+    // add `failure_code` to the URL query string
+    if (getFailureCode() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sfailure_code%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getFailureCode()))));
+    }
+
+    // add `output_text_truncated` to the URL query string
+    if (getOutputTextTruncated() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%soutput_text_truncated%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getOutputTextTruncated()))));
     }
 
     return joiner.toString();

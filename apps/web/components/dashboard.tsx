@@ -10,6 +10,7 @@ import { RunComposer } from './run-composer';
 import { Empty, Loading, PageHeading, SectionHeading } from './ui';
 // Each view loads its own client bundle; opening Overview does not load the editor or charts.
 const loading = () => <Loading />;
+const AgentLibrary = dynamic(() => import('./agent-library').then((m) => m.AgentLibrary), { loading });
 const TemplatesView = dynamic(() => import('./templates').then((m) => m.TemplatesView), { loading });
 const UsageView = dynamic(() => import('./usage').then((m) => m.UsageView), { loading });
 const WebhooksView = dynamic(() => import('./webhooks').then((m) => m.WebhooksView), { loading });
@@ -44,6 +45,7 @@ export function Dashboard({ segments }: { segments: string[] }) {
   const route = segments[0] || 'overview';
   let content: React.ReactNode;
   if (route === 'overview') content = <DashboardHome onRun={openRun} />;
+  else if (route === 'library') content = <AgentLibrary />;
   else if (route === 'templates') content = <TemplatesView />;
   else if (route === 'workspaces')
     content = segments[1] ? (

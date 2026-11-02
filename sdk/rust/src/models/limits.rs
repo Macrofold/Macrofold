@@ -19,9 +19,12 @@ pub struct Limits {
     /// Integer micro-USD as a decimal string.
     #[serde(rename = "max_cost_micro_usd", skip_serializing_if = "Option::is_none")]
     pub max_cost_micro_usd: Option<String>,
-    /// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
+    /// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. Output-limit completions always fail a native Run with model_output_limit_exceeded, regardless of this flag; no automatic paid repair is performed.
     #[serde(rename = "stop_on_model_error", skip_serializing_if = "Option::is_none")]
     pub stop_on_model_error: Option<bool>,
+    /// Maximum generated tokens per native model call, including reasoning and tool-call output. Does not raise the Run spending cap or deadline. Omission inherits the Session allowance or uses the model-aware native default (32768; 65536 for high/xhigh/max effort or Muse Contributor default reasoning), bounded by the model maximum.
+    #[serde(rename = "max_output_tokens", skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<i32>,
 }
 
 impl Limits {
@@ -30,6 +33,7 @@ impl Limits {
             timeout_seconds: None,
             max_cost_micro_usd: None,
             stop_on_model_error: None,
+            max_output_tokens: None,
         }
     }
 }

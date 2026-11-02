@@ -1,6 +1,6 @@
 # SDK resource reference
 
-Generated from the [OpenAPI contract](../../../api/openapi.json). All 179 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
+Generated from the [OpenAPI contract](../../../api/openapi.json). All 195 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
 
 Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as `client.workspaces().create(...)`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
 
@@ -343,3 +343,24 @@ Run text streams handle SSE, cursors and duplicate suppression internally, exclu
 | `createModelDeploymentGrant` | `modelDeployments.createGrant` | `model_deployments.create_grant` | `ModelDeployments.CreateGrant` |
 | `revokeModelDeploymentGrant` | `modelDeployments.revokeGrant` | `model_deployments.revoke_grant` | `ModelDeployments.RevokeGrant` |
 | `setModelDeploymentService` | `modelDeployments.setService` | `model_deployments.set_service` | `ModelDeployments.SetService` |
+
+## AgentIntegrations
+
+| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
+| --- | --- | --- | --- |
+| `listIntegrationPacks` | `agentIntegrations.listIntegrationPacks` | `agent_integrations.list_integration_packs` | `AgentIntegrations.ListIntegrationPacks` |
+| `listAgentIntegrations` | `agentIntegrations.list` | `agent_integrations.list` | `AgentIntegrations.List` |
+| `createAgentIntegration` | `agentIntegrations.create` | `agent_integrations.create` | `AgentIntegrations.Create` |
+| `getAgentIntegration` | `agentIntegrations.get` | `agent_integrations.get` | `AgentIntegrations.Get` |
+| `updateAgentIntegration` | `agentIntegrations.update` | `agent_integrations.update` | `AgentIntegrations.Update` |
+| `deleteAgentIntegration` | `agentIntegrations.delete` | `agent_integrations.delete` | `AgentIntegrations.Delete` |
+| `listAgentIntegrationMemories` | `agentIntegrations.listMemories` | `agent_integrations.list_memories` | `AgentIntegrations.ListMemories` |
+| `writeAgentIntegrationMemory` | `agentIntegrations.writeMemory` | `agent_integrations.write_memory` | `AgentIntegrations.WriteMemory` |
+| `deleteAgentIntegrationMemory` | `agentIntegrations.deleteMemory` | `agent_integrations.delete_memory` | `AgentIntegrations.DeleteMemory` |
+| `exportAgentIntegrationMemory` | `agentIntegrations.exportMemory` | `agent_integrations.export_memory` | `AgentIntegrations.ExportMemory` |
+| `forgetAgentIntegrationMemory` | `agentIntegrations.forgetMemory` | `agent_integrations.forget_memory` | `AgentIntegrations.ForgetMemory` |
+| `listAgentIntegrationActivity` | `agentIntegrations.listActivity` | `agent_integrations.list_activity` | `AgentIntegrations.ListActivity` |
+| `createAgentIntegrationNote` | `agentIntegrations.createNote` | `agent_integrations.create_note` | `AgentIntegrations.CreateNote` |
+| `searchAgentIntegrationMemory` | `agentIntegrations.searchMemory` | `agent_integrations.search_memory` | `AgentIntegrations.SearchMemory` |
+| `retryAgentIntegrationCheck` | `agentIntegrations.retryCheck` | `agent_integrations.retry_check` | `AgentIntegrations.RetryCheck` |
+| `getAgentIntegrationSource` | `agentIntegrations.getSource` | `agent_integrations.get_source` | `AgentIntegrations.GetSource` |

@@ -492,6 +492,7 @@
     "no-connections",
     "timeout",
     "max-cost",
+    "max-output-tokens",
     "detach",
     "prompt-file",
     "queue-timeout",

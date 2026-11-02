@@ -6,6 +6,7 @@ import { TurnInput } from './turn-input';
 import { createInterface } from 'node:readline';
 import type { NativeConfiguration } from './types';
 import { deepseekEvent } from './deepseek-events';
+import { isOutputLimitReason, modelOutputLimitExceeded } from '../../contracts/model-completion';
 
 export const name = 'platform-driver';
 export const inject = ['agents', 'sessions', 'llm', 'loader'];
@@ -26,19 +27,23 @@ export function apply(ctx: Context): void {
     let c = next.value;
     await ctx.get('loader')?.await();
     const sessionId = SessionId(process.env.PLATFORM_SESSION_ID!);
-    const agentOptions = { provider: 'platform', model: c.model, maxTokens: 8192 };
+    const agentOptions = { provider: 'platform', model: c.model, maxTokens: c.modelLimits.maxOutputTokens };
     const handle = c.resumeId
       ? await ctx.agents.resume({ resumeSessionId: sessionId, agentOptions })
       : await ctx.agents.create({ sessionId, meta: { cwd: c.workspace }, agentOptions });
     const agent = handle.agent;
     let output = '',
       success = false,
+      outputLimited = false,
       pending = Promise.resolve();
     const dispose = ctx.on('session/event', (session, event) => {
       if (session.id !== sessionId) return;
       const normalized = deepseekEvent(event);
       if (normalized?.type === 'output.delta') output = String(normalized.data.text);
-      if (event.type === 'turn/end') success = event.data.reason.kind === 'completed';
+      if (event.type === 'turn/end') {
+        outputLimited ||= isOutputLimitReason(event.data.reason.kind);
+        success = !outputLimited && event.data.reason.kind === 'completed';
+      }
       if (normalized) {
         pending = pending.then(() => send({ type: 'event', event: normalized }));
         void pending.catch(() => {
@@ -51,6 +56,7 @@ export function apply(ctx: Context): void {
       for (;;) {
         output = '';
         success = false;
+        outputLimited = false;
         await send({
           type: 'event',
           event: {
@@ -70,7 +76,7 @@ export function apply(ctx: Context): void {
             output,
             resumeId: sessionId,
             outcome: success ? 'success' : 'failure',
-            ...(success ? {} : { failureCode: 'harness_error' }),
+            ...(success ? {} : { failureCode: outputLimited ? modelOutputLimitExceeded : 'harness_error' }),
           },
         });
         if (!c.warm || !success) break;

@@ -77,6 +77,7 @@ async function authorize(
       run.lease_generation === cap.lease &&
         ['running', 'waiting_for_input'].includes(run.status) &&
         !run.cancel_requested &&
+        !run.model_error_request_id &&
         run.deadline!.getTime() > Date.now(),
       403,
       'run_unavailable',
@@ -197,7 +198,8 @@ async function executePreparedTool(
       current.lease_generation === cap.lease &&
         current.deadline!.getTime() > Date.now() &&
         ['running', 'waiting_for_input'].includes(current.status) &&
-        !current.cancel_requested,
+        !current.cancel_requested &&
+        !current.model_error_request_id,
       409,
       'run_unavailable',
       'The run stopped before tool admission.',
@@ -379,6 +381,7 @@ async function handleAuthorizedRuntimeMcp(request: Request, runId: string, reque
       assert(
         run.lease_generation === cap.lease &&
           !run.cancel_requested &&
+          !run.model_error_request_id &&
           ['running', 'waiting_for_input'].includes(run.status) &&
           run.deadline &&
           run.deadline.getTime() > Date.now(),

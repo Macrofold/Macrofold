@@ -1,6 +1,6 @@
 # Native memory diagnostics and startup efficiency
 
-Status: proposed; design only. No runtime behavior changes are implemented by this project record.
+Status: implemented and functionally qualified locally. M4 clean release-image, observer-budget and hosted qualification remain open.
 
 Parent: [project index](README.md). Implementation: [technical design](native-memory-startup-tech-design.md). Tracking: [native memory and startup work](../maintainers/TODO.md#native-memory-and-startup-efficiency).
 
@@ -8,7 +8,7 @@ Parent: [project index](README.md). Implementation: [technical design](native-me
 
 A native OpenCode Run ended with `memory_limit`, after its stream closed without a final answer. Its allocation was 1,024 MiB. The retained model input was 74,138 bytes (about 72 KiB), but no process-level memory samples survived. That input size does not explain the allocation's total memory use, and the evidence does not establish a leak or identify the largest process. The [technical evidence](native-memory-startup-tech-design.md#2-current-flow-and-known-evidence) records the retained timing and request facts.
 
-The current supervisor sums resident memory reported for the allocation's Linux user. This is a safety measurement, not a measurement of unique physical memory: separate processes can share pages. The current native worker also imports all six adapters, including unrelated SDKs, before selecting one harness. This is demonstrably unnecessary dependency loading; its share of the historical failure and startup delay remains unmeasured.
+The supervisor sums resident memory reported for the allocation's Linux user. This is a safety measurement, not a measurement of unique physical memory: separate processes can share pages. The baseline worker imported all six adapters, including unrelated SDKs, before selecting one harness. The implemented loader removes that unnecessary loading; matched local measurements show lower startup time and observed RSS. Its share of the historical failure remains unknown.
 
 The project makes the next failure explainable and removes that unnecessary loading. It does not raise limits to conceal the failure or promise that an OpenCode workload will fit in 1 GiB.
 
@@ -41,21 +41,21 @@ The operator disables the flag and restarts when finished. Expiry stops collecti
 
 ### Start and continue a harness
 
-A fresh OpenCode turn loads OpenCode's required SDKs, without first loading Claude or Pi. A warm compatible follow-up reuses that process and adapter. Permission changes, credential rotation, cancellation and the existing warm-session compatibility checks continue to behave as before.
+A fresh OpenCode turn loads OpenCode's required SDKs, without first loading Claude or Pi. A warm compatible follow-up reuses that process and adapter while rotating per-turn capabilities. Changed permissions force a cold resume from the verified checkpoint. Cancellation and the remaining warm-session compatibility checks keep their existing behavior.
 
 All supported harnesses remain installed in the reusable runtime image. The optimization changes when code loads, not which harnesses customers can select. An import failure produces the normal safe failure diagnostic, without a hidden prompt retry or a fallback harness.
 
 ## Scope
 
-| Area | Required behavior |
-| --- | --- |
-| Required failure facts | Allocation-only RSS measurement, configured limit, observed high-water mark, process count and bounded largest-process list. Survives ordinary trace truncation through the existing protected final-result path. |
-| Optional native profile | Existing operator flag, finite window and whole-turn sampling; bounded memory/stage observations; no periodic database writes. |
-| Memory interpretation | Label RSS, partial proportional set size (PSS) and worker-only JavaScript heap separately. Do not add overlapping fields together. |
-| Startup | Literal selected-adapter loading and deferred external SDK imports that remain deferred in the built runtime. |
-| Warm lifecycle | Fresh per-turn counters and capture settings; persistent adapter and native conversation; no profile state restored from checkpoints. |
-| Public clients | Existing Run/event APIs and tracing; document the additional diagnostic payload. No new resource, endpoint, API parameter, permission or SDK convenience layer. |
-| Verification | Real built-image fixtures, memory failure reproduction, all-six harness acceptance and matched cold/warm observer comparisons. |
+| Area                    | Required behavior                                                                                                                                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Required failure facts  | Allocation-only RSS measurement, configured limit, observed high-water mark, process count and bounded largest-process list. Survives ordinary trace truncation through the existing protected final-result path. |
+| Optional native profile | Existing operator flag, finite window and whole-turn sampling; bounded memory/stage observations; no periodic database writes.                                                                                    |
+| Memory interpretation   | Label RSS, partial proportional set size (PSS) and worker-only JavaScript heap separately. Do not add overlapping fields together.                                                                                |
+| Startup                 | Literal selected-adapter loading and deferred external SDK imports that remain deferred in the built runtime.                                                                                                     |
+| Warm lifecycle          | Fresh per-turn counters and capture settings; persistent adapter and native conversation; no profile state restored from checkpoints.                                                                             |
+| Public clients          | Existing Run/event APIs and tracing; document the additional diagnostic payload. No new resource, endpoint, API parameter, permission or SDK convenience layer.                                                   |
+| Verification            | Real built-image fixtures, memory failure reproduction, all-six harness acceptance and matched cold/warm observer comparisons.                                                                                    |
 
 ## Non-goals
 
@@ -69,17 +69,17 @@ All supported harnesses remain installed in the reusable runtime image. The opti
 
 ## Failure and lifecycle requirements
 
-| Condition | Required result |
-| --- | --- |
-| Profiling disabled or turn not sampled | No new process scans, PSS reads, heap snapshots, profile messages or profile-related SQL. Retain only cheap failure facts from the existing guard. |
-| RSS exceeds allocation limit | Signal execution promptly using the current shutdown policy, then retain the already-observed numeric summary. Never wait for PSS, profile export or tracing. |
-| Process disappears during sampling | Treat it as a vanished observation; never read or attribute a replacement PID from another allocation. |
-| PSS unavailable, slow or partial | Report coverage and age explicitly; continue RSS sampling and execution. Missing is not zero. |
-| Capture expires mid-turn | Finish one partial profile; stop optional observation. Accept its delivery during the bounded receive window, without extending collection or the Run's deadline. |
-| Worker dies or kernel kills the container | Retain whatever ordinary failure evidence exists; do not fabricate a memory summary or classify a kernel OOM solely from a closed stream. |
-| Native output/event log reaches its bound | Optional profile may drop. Required limit facts remain in the protected final result and are projected through normal event publication. |
-| Poll/recovery repeats an observation | No duplicate durable memory-limit event; optional output may repeat and carries a stable deduplication key. Never repeat the inference to obtain diagnostics. |
-| Warm turn changes profiling eligibility | Reset measurement state without restarting an otherwise compatible harness. |
+| Condition                                 | Required result                                                                                                                                                   |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Profiling disabled or turn not sampled    | No new process scans, PSS reads, heap snapshots, profile messages or profile-related SQL. Retain only cheap failure facts from the existing guard.                |
+| RSS exceeds allocation limit              | Signal execution promptly using the current shutdown policy, then retain the already-observed numeric summary. Never wait for PSS, profile export or tracing.     |
+| Process disappears during sampling        | Treat it as a vanished observation; never read or attribute a replacement PID from another allocation.                                                            |
+| PSS unavailable, slow or partial          | Report coverage and age explicitly; continue RSS sampling and execution. Missing is not zero.                                                                     |
+| Capture expires mid-turn                  | Finish one partial profile; stop optional observation. Accept its delivery during the bounded receive window, without extending collection or the Run's deadline. |
+| Worker dies or kernel kills the container | Retain whatever ordinary failure evidence exists; do not fabricate a memory summary or classify a kernel OOM solely from a closed stream.                         |
+| Native output/event log reaches its bound | Optional profile may drop. Required limit facts remain in the protected final result and are projected through normal event publication.                          |
+| Poll/recovery repeats an observation      | No duplicate durable memory-limit event; optional output may repeat and carries a stable deduplication key. Never repeat the inference to obtain diagnostics.     |
+| Warm turn changes profiling eligibility   | Reset measurement state without restarting an otherwise compatible harness.                                                                                       |
 
 ## Acceptance criteria
 
@@ -93,6 +93,8 @@ All supported harnesses remain installed in the reusable runtime image. The opti
 
 ## Delivery and decisions
 
-The [technical implementation stages](native-memory-startup-tech-design.md#7-implementation-order) are M0 baseline, M1 shared observations/failure summary, M2 optional capture/transport, M3 lazy loading and M4 qualification/documentation. Implement the entire agreed scope after implementation authorization; the stages are dependency order, not optional replacements for acceptance.
+The [technical implementation stages](native-memory-startup-tech-design.md#7-implementation-order) are M0 baseline, M1 shared observations/failure summary, M2 optional capture/transport, M3 lazy loading and M4 qualification/documentation. M0 and M1–M3 implementation/local functional checks are complete. M4 retains the complete local timing, RSS and CPU measurements; clean Linux AMD64 release-image verification, observer-budget qualification and hosted acceptance are separate remaining gates. The stages do not replace one another's acceptance.
 
-The proposed choices are settled here: reuse the current profiler and transport, keep safety/accounting unchanged, sample PSS sparingly, defer only necessary SDKs and preserve the current bundle layout. Measurements will determine whether memory defaults, deeper OpenCode retention work or native phase scheduling deserve a separate change. None is presumed necessary by this proposal.
+The [local qualification record](native-memory-startup-tech-design.md#diagnostic-and-lazy-loading-comparison) covers 54 focused runtime cases, all-six final-image native acceptance, 160 eager and 160 lazy timing turns, and 1,648 CPU-workload turns. No observer-budget claim follows from the noisy local results: the CPU confidence interval crosses the 2% target, and full-sampling latency bounds remain unqualified. PSS access was denied by the existing sandbox permissions; missing PSS is not zero.
+
+The implementation follows the accepted choices: reuse the current profiler and transport, keep safety/accounting unchanged, sample PSS sparingly, defer only necessary SDKs and preserve the current bundle layout. Further measurements determine whether memory defaults, deeper OpenCode retention work or native phase scheduling deserve a separate change. None is presumed necessary by this project.

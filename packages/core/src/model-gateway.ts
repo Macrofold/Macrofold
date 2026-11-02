@@ -1,4 +1,6 @@
 import { modelInputBound } from './model-content';
+import { nativeModelLimits } from './native-model-limits';
+import { modelOutputLimitExceeded } from '../../contracts/model-completion';
 import { modelTransport } from '../../contracts/model-transport';
 import { prepareModelUpload, readModelBody } from './model-request-upload';
 import { queryGroup, transaction, transactionIdentity, type Tx } from '../../db';
@@ -6,7 +8,11 @@ import type { QueryConfig, QueryResult } from 'pg';
 import type { components } from '../../contracts/api';
 import { runTraceContext } from './run-tracing';
 import { recordTrace, tracingContentEnabled } from './tracing';
-import { ModelOutputCapture, isModelOutputFrame } from '../../providers/src/model-output-capture';
+import {
+  ModelOutputCapture,
+  ModelAnswerCapture,
+  isModelOutputFrame,
+} from '../../providers/src/model-output-capture';
 import type { TraceObservation } from './trace';
 import {
   performanceEnabled,
@@ -36,6 +42,7 @@ import { emptyUsage, type ModelUsage as Usage } from './model-protocol';
 import { modelProtocol } from '../../providers/src/model-protocols';
 import {
   modelResponseFailed,
+  modelOutputLimitReason,
   modelResponseMaximumBytes,
   gateModelStream,
 } from '../../providers/src/model-stream';
@@ -87,11 +94,13 @@ type NativeModelControl = Pick<
   budget_used_micro_usd: string;
   model_reserved_micro_usd: string;
   pending_request_id: string | null;
+  model_failure_code: string | null;
 };
 // Never pull transcript, attachments or the full persisted config into each
 // native model request. These small accepted terms are checked again at reserve.
 const nativeModelProjection = `id,organization_id,workspace_id,worktree_id,session_id,kind,lease_generation,
   status,cancel_requested,model_error_request_id,deadline,budget_used_micro_usd,model_reserved_micro_usd,
+  result->>'failure_code' AS model_failure_code,
   CASE WHEN config->'limits'->>'stop_on_model_error'='true' THEN (
     SELECT g.id FROM gateway_requests g WHERE g.run_id=runs.id AND g.status='in_flight'
     ORDER BY g.created_at,g.id LIMIT 1
@@ -179,19 +188,34 @@ export function inferenceBilling(
 
 /** Commit the spending fence before settlement or returning an upstream failure.
  * Settlement may need recovery; that must never reopen model admission. */
-async function recordModelFailure(cap: RuntimeCapability, requestId: string) {
+async function recordModelFailure(
+  cap: RuntimeCapability,
+  requestId: string,
+  failureCode: 'model_request_failed' | typeof modelOutputLimitExceeded = 'model_request_failed',
+  answer?: ModelAnswerCapture,
+) {
+  const failure = JSON.stringify({
+    failure_code: failureCode,
+    ...(failureCode === modelOutputLimitExceeded && answer
+      ? {
+          output_text: answer.text,
+          ...(answer.truncated ? { output_text_truncated: true } : {}),
+        }
+      : {}),
+  });
   await transaction(cap.organization, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
     const stopped = await tx.query(
-      `UPDATE runs SET model_error_request_id=$2 WHERE id=$1
-       AND kind='native_agent' AND config->'limits'->>'stop_on_model_error'='true'
+      `UPDATE runs SET model_error_request_id=$2,
+       result=coalesce(result,'{}'::jsonb)||$4::jsonb WHERE id=$1
+       AND kind='native_agent' AND ($3='model_output_limit_exceeded' OR config->'limits'->>'stop_on_model_error'='true')
        AND model_error_request_id IS NULL AND completed_at IS NULL RETURNING id`,
-      [cap.run, requestId],
+      [cap.run, requestId, failureCode, failure],
     );
     if (stopped.rowCount)
       await emit(tx, cap.organization, cap.run, 'run.model_error', {
         request_id: requestId,
-        failure_code: 'model_request_failed',
+        failure_code: failureCode,
       });
   });
 }
@@ -231,14 +255,18 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     'endpoint_not_authorized',
     'This model endpoint is not authorized.',
   );
-  const maxOutput = Math.min(
-    8192,
-    Math.max(
-      1,
-      Number(payload.max_output_tokens || payload.max_completion_tokens || payload.max_tokens || 4096),
-    ),
+  const allowance = nativeModelLimits(model, prepared.config.limits?.max_output_tokens).maxOutputTokens;
+  const requested = [payload.max_output_tokens, payload.max_completion_tokens, payload.max_tokens].filter(
+    (value) => value !== undefined,
   );
-  assert(Number.isInteger(maxOutput), 400, 'invalid_request', 'Maximum output tokens must be an integer.');
+  assert(
+    requested.every((value) => typeof value === 'number' && Number.isSafeInteger(value) && value > 0) &&
+      requested.every((value) => value === requested[0]),
+    400,
+    'invalid_request',
+    'Maximum output tokens must be a positive integer; conflicting aliases are not supported.',
+  );
+  const maxOutput = Math.min(allowance, requested.length ? (requested[0] as number) : allowance);
   protocol.prepare(payload, path, {
     maxOutput,
     modelParameters: prepared.config.model_parameters,
@@ -267,7 +295,7 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     assert(
       !run.model_error_request_id,
       409,
-      'model_request_failed',
+      run.model_failure_code || 'model_request_failed',
       'An earlier model request failed. This Run does not allow further model requests.',
     );
     // Opt-in strict stopping serializes model admission. If a failure-fence
@@ -360,6 +388,9 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       secret,
       url: `${protocol.base}/${path}`,
       reserved,
+      outputAllowance: allowance,
+      maxOutputTokens: maxOutput,
+      reasoningEffort: prepared.config.model_parameters?.reasoning?.effort,
       metered: true,
       deadline: run.deadline,
     };
@@ -854,16 +885,30 @@ async function handleAuthorizedModelRequest(
     const startedAt = new Date();
     const captureContent = Boolean(admission.traceContext) && tracingContentEnabled();
     const capture = captureContent ? new ModelOutputCapture() : undefined;
+    const answer = new ModelAnswerCapture();
     let firstOutputAt: Date | undefined;
     let output: unknown;
     let billing: Awaited<ReturnType<typeof settleModelRequest>>;
     let level: TraceObservation['level'] = 'DEFAULT';
     let providerRequestId: string | null = null;
+    let finishReason: string | undefined;
+    let truncationFenced = false;
     const failRequest = async () => {
       level = 'ERROR';
-      if (admission.metered) await recordModelFailure(cap, admission.requestId);
+      if (admission.metered && !truncationFenced) {
+        await recordModelFailure(
+          cap,
+          admission.requestId,
+          finishReason ? modelOutputLimitExceeded : 'model_request_failed',
+          answer,
+        );
+        truncationFenced = Boolean(finishReason);
+      }
     };
     const settleRequest = async (upstreamRejected = false) => {
+      // Never release a semantic failure's terminal tail before its durable
+      // fence. Known usage still settles, including trailing stream usage.
+      if (finishReason && !truncationFenced) await failRequest();
       if (admission.metered)
         billing = await settleModelRequest(
           cap,
@@ -895,6 +940,10 @@ async function handleAuthorizedModelRequest(
           endpoint: path,
           streaming: Boolean(payload.stream),
           usage_complete: usage.complete,
+          admitted_max_output_tokens: admission.outputAllowance,
+          effective_max_output_tokens: admission.maxOutputTokens,
+          reasoning_effort: admission.reasoningEffort,
+          ...(finishReason ? { finish_reason: finishReason, failure_code: modelOutputLimitExceeded } : {}),
           ...billing,
         },
       });
@@ -944,6 +993,8 @@ async function handleAuthorizedModelRequest(
           (await boundedBody(upstream.body, modelResponseMaximumBytes)).toString(),
         ) as Record<string, unknown>;
         usage = admission.protocol.usage(data, usage);
+        answer.response(data);
+        finishReason ||= modelOutputLimitReason(path, data);
         if (captureContent) output = data;
         assert(
           !modelResponseFailed(data),
@@ -954,6 +1005,19 @@ async function handleAuthorizedModelRequest(
         if (typeof data.id === 'string') providerRequestId ||= data.id;
         stopProviderTiming();
         await settleRequest();
+        // Native file/shell tools do not consult the SQL connector fence. Never
+        // give an SDK executable calls from an explicitly incomplete response.
+        if (finishReason)
+          return Response.json(
+            {
+              error: {
+                type: modelOutputLimitExceeded,
+                code: modelOutputLimitExceeded,
+                message: 'The model reached its output limit. This response is incomplete.',
+              },
+            },
+            { status: 502 },
+          );
         return Response.json(data);
       }
       const reader = upstream.body!.getReader();
@@ -962,6 +1026,8 @@ async function handleAuthorizedModelRequest(
       const encoder = new TextEncoder();
       const observer = gateModelStream(path, (frame) => {
         usage = admission.protocol.usage(frame, usage);
+        answer.delta(frame);
+        finishReason ||= modelOutputLimitReason(path, frame);
         if (!firstOutputAt && admission.traceContext && isModelOutputFrame(frame)) firstOutputAt = new Date();
         capture?.add(frame);
         const responseId =
@@ -1017,6 +1083,11 @@ async function handleAuthorizedModelRequest(
               stopStreamTiming();
               await settleRequest();
               if (!closed) {
+                if (finishReason) {
+                  closed = true;
+                  downstream.error(new Error(modelOutputLimitExceeded));
+                  return;
+                }
                 for (const bytes of observer.release()) downstream.enqueue(encoder.encode(bytes));
                 closed = true;
                 downstream.close();

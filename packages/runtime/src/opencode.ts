@@ -1,11 +1,9 @@
 import { fileAccess, questionsAllowed } from '../../contracts/permissions';
-import { createOpencodeClient as createSessionClient } from '@opencode-ai/sdk/client';
-import { createOpencodeServer } from '@opencode-ai/sdk/v2/server';
-import { createOpencodeClient } from '@opencode-ai/sdk/v2/client';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { openCodePermissionSettings } from './permission-settings';
 import { modelRequestError } from './failure-diagnostic';
+import { isOutputLimitReason, modelOutputLimitExceeded } from '../../contracts/model-completion';
 
 function turnError(error: unknown) {
   const data =
@@ -21,8 +19,14 @@ function turnError(error: unknown) {
     ) ?? new Error('OpenCode turn failed')
   );
 }
-export class OpenCodeAdapter implements HarnessAdapter {
-  private server?: Awaited<ReturnType<typeof createOpencodeServer>>;
+type OpenCodeSDK = {
+  createSessionClient: (typeof import('@opencode-ai/sdk/client'))['createOpencodeClient'];
+  createOpencodeServer: (typeof import('@opencode-ai/sdk/v2/server'))['createOpencodeServer'];
+  createOpencodeClient: (typeof import('@opencode-ai/sdk/v2/client'))['createOpencodeClient'];
+};
+class OpenCodeAdapter implements HarnessAdapter {
+  constructor(private readonly sdk: OpenCodeSDK) {}
+  private server?: Awaited<ReturnType<OpenCodeSDK['createOpencodeServer']>>;
   private sessionId?: string;
   close() {
     this.server?.close();
@@ -37,6 +41,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
     fileTools,
     setStage,
   }: HarnessContext): Promise<NativeResult> {
+    const { createSessionClient, createOpencodeServer, createOpencodeClient } = this.sdk;
     const guarded = permissionAdapters.opencode.translate(c.permissions || []).mode === 'guarded';
     const allowQuestions = questionsAllowed(c.permissions || []);
     if (guarded && fileAccess(c.permissions || []).read && !fileTools)
@@ -45,6 +50,9 @@ export class OpenCodeAdapter implements HarnessAdapter {
     // The configuration is supplied by the supervisor; platform tools remain behind its broker.
     const reused = Boolean(this.server);
     setStage?.('server_start');
+    // The pinned upstream otherwise applies its own 32,000 default in addition
+    // to model.limit.output. This worker is isolated and its environment scrubbed.
+    process.env.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX = String(c.modelLimits.maxOutputTokens);
     const server =
       this.server ||
       (await createOpencodeServer({
@@ -74,7 +82,16 @@ export class OpenCodeAdapter implements HarnessAdapter {
                 baseURL: `${c.gatewayURL}/v1`,
                 apiKey: c.token,
               },
-              models: { [c.model]: { name: c.model, limit: { context: 128000, output: 8192 } } },
+              models: {
+                [c.model]: {
+                  name: c.model,
+                  limit: {
+                    context: c.modelLimits.contextTokens,
+                    input: c.modelLimits.inputTokens,
+                    output: c.modelLimits.maxOutputTokens,
+                  },
+                },
+              },
             },
           },
           ...(guarded
@@ -117,6 +134,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
       }));
     this.server = server;
     let successful = false;
+    let outputLimited = false;
     const client = createSessionClient({ baseUrl: server.url });
     let sessionId = this.sessionId || c.resumeId,
       output = '';
@@ -168,11 +186,13 @@ export class OpenCodeAdapter implements HarnessAdapter {
               role: string;
               parentID?: string;
               error?: unknown;
+              finish?: string;
             };
             if (info.sessionID === sessionId) {
               if (info.role === 'user') promptId = info.id;
               if (info.role === 'assistant' && promptId && info.parentID === promptId) {
                 assistantId = info.id;
+                outputLimited ||= isOutputLimitReason(info.finish);
                 if (info.error) throw turnError(info.error);
               }
             }
@@ -316,17 +336,39 @@ export class OpenCodeAdapter implements HarnessAdapter {
         });
         if (response.error || !response.data || response.data.info.role !== 'assistant')
           throw new Error('OpenCode final message unavailable');
-        if (response.data.info.error) throw turnError(response.data.info.error);
+        outputLimited ||= isOutputLimitReason(response.data.info.finish);
         const full = response.data?.parts
           .filter((p) => p.type === 'text')
           .map((p) => (p.type === 'text' ? p.text : ''))
           .join('\n');
         if (full) output = full;
-        successful = !signal.aborted;
-        return { output, resumeId: sessionId, outcome: signal.aborted ? 'cancelled' : 'success' };
+        if (response.data.info.error) throw turnError(response.data.info.error);
+        const unfinished = ['tool-calls', 'tool_calls', 'content-filter', 'content_filter', 'error'].includes(
+          response.data.info.finish || '',
+        );
+        const outcome: NativeResult['outcome'] = outputLimited
+          ? 'failure'
+          : signal.aborted
+            ? 'cancelled'
+            : unfinished
+              ? 'failure'
+              : 'success';
+        successful = outcome === 'success';
+        return {
+          output,
+          resumeId: sessionId,
+          outcome,
+          ...(outcome === 'failure'
+            ? { failureCode: outputLimited ? modelOutputLimitExceeded : 'harness_error' }
+            : {}),
+        };
       } finally {
         signal.removeEventListener('abort', abort);
       }
+    } catch (error) {
+      if (outputLimited)
+        return { output, resumeId: sessionId, outcome: 'failure', failureCode: modelOutputLimitExceeded };
+      throw error;
     } finally {
       done = true;
       controller.abort();
@@ -335,4 +377,17 @@ export class OpenCodeAdapter implements HarnessAdapter {
       if (!c.warm || !successful) this.close();
     }
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  const [session, server, client] = await Promise.all([
+    import('@opencode-ai/sdk/client'),
+    import('@opencode-ai/sdk/v2/server'),
+    import('@opencode-ai/sdk/v2/client'),
+  ]);
+  return new OpenCodeAdapter({
+    createSessionClient: session.createOpencodeClient,
+    createOpencodeServer: server.createOpencodeServer,
+    createOpencodeClient: client.createOpencodeClient,
+  });
 }

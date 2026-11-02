@@ -89,7 +89,9 @@ def main():
     # The only credential is the run capability; vendor keys stay at the gateway.
     route = {"provider": "custom", "model": c["model"],
              "base_url": c["gatewayURL"] + "/v1", "api_key": c["token"]}
-    config = {"model": {**route, "default": c["model"], "context_length": 128000},
+    limits = c["modelLimits"]
+    context = min(limits["contextTokens"], limits.get("inputTokens", limits["contextTokens"]))
+    config = {"model": {**route, "default": c["model"], "context_length": context},
               "fallback_providers": [], "streaming": True,
               "auxiliary": {"compression": route, "background_review": {"enabled": False}},
               "terminal": {"backend": "local", "cwd": c["workspace"]},
@@ -151,7 +153,7 @@ def main():
         emit("tool.started", tool_call_id=ident, name=name, arguments=args)
 
     agent = AIAgent(
-        **route, api_mode="chat_completions", max_tokens=8192,
+        **route, api_mode="chat_completions", max_tokens=limits["maxOutputTokens"],
         session_id=session_id, session_db=db, enabled_toolsets=toolsets,
         quiet_mode=True, skip_background_review=True, fallback_model=[],
         ephemeral_system_prompt=c.get("instructions"),

@@ -1,6 +1,4 @@
 import { PaginationCursor } from '../../contracts/pagination';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import type { NativeConfiguration } from './types';
 
@@ -8,6 +6,10 @@ import type { NativeConfiguration } from './types';
 export async function piBrokerTools(c: NativeConfiguration, signal: AbortSignal) {
   const tools: ToolDefinition[] = [];
   if (!c.toolGrants) return { tools, close: async () => {} };
+  const [{ Client }, { StreamableHTTPClientTransport }] = await Promise.all([
+    import('@modelcontextprotocol/sdk/client/index.js'),
+    import('@modelcontextprotocol/sdk/client/streamableHttp.js'),
+  ]);
   const client = new Client({ name: 'native-runtime', version: '0.1.0' });
   try {
     await client.connect(

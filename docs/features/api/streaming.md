@@ -174,3 +174,11 @@ Both JSON and streaming inference require immediate capacity. HTTP 429 `inferenc
 An active JSON replay returns HTTP 202 with `recovery_reason`; an active stream replay returns HTTP 409 as described above. A purged same-key POST returns HTTP 410 `content_expired`; GET result preserves its content-expiry tombstone without reconstructing output. See the [recovery matrix](../decisions/README.md#immediate-delivery-and-recovery).
 
 Direct responses retain the existing 512 KiB assembly bound. Streams send heartbeat comments while idle and request no proxy buffering. Custom hosts must supply a background lifecycle that retains the producer after disconnect; unsupported transports reject streaming before admission. Self-hosted proxies must permit a 300-second request and flush SSE promptly.
+
+## Native output limits
+
+Deltas are tentative until the final Run confirms successful execution and acceptable persistence. A complete SSE stream can still contain a length-truncated model response. In that case the Run emits `run.failed`, and the final result reports `model_output_limit_exceeded`; never publish its partial text as a finished answer. `streamText`/equivalent helpers yield available text, then raise the existing Run-failure exception when finalization establishes failure. Raw result retrieval retains partial output and checkpoint details.
+
+Reasoning counts toward native `limits.max_output_tokens`. The gateway consumes trailing usage even after observing a length finish, settles actual usage once and blocks further model calls. Unknown metering remains provisional; truncation alone does not mean usage is unknown. Raising output room does not raise the spending cap or deadline. [Allowance and deliberate recovery](../execution/models.md#native-output-allowance).
+
+Native failure results may include `output_text_truncated: true` when retained answer text exceeds the 4 MiB diagnostic bound. Available text is a bounded partial prefix; an absent flag never establishes a successful or complete answer.

@@ -4,6 +4,15 @@ const secretField =
   /^(authorization|cookie|set-cookie|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|.*ciphertext|encrypted_content)$/i;
 const sensitiveText = /\b(?:Bearer\s+\S+|(?:sk|pk)-(?:lf-|proj-|ant-)?[\w-]{16,}|rt_[\w.-]{20,})/g;
 
+/** Shared text-only redaction also applies before optional memory-service I/O. */
+export function redactText(value: string) {
+  return value
+    .replace(sensitiveText, '[redacted]')
+    .replace(/https?:\/\/[^\s"<>]+/g, (url) =>
+      /[?&](?:token|sig|signature|x-amz-signature)=/i.test(url) ? url.split('?')[0] + '?[redacted]' : url,
+    );
+}
+
 /** Preserve useful text/JSON, but never export known credential fields, opaque
  * reasoning, signed URL queries or inline binary data. This is not a PII detector. */
 export function traceContent(value: unknown, maxBytes: number, capture = true): unknown {
@@ -18,11 +27,7 @@ export function traceContent(value: unknown, maxBytes: number, capture = true): 
           sha256: createHash('sha256').update(item).digest('hex'),
           bytes: Buffer.byteLength(item),
         };
-      return item
-        .replace(sensitiveText, '[redacted]')
-        .replace(/https?:\/\/[^\s"<>]+/g, (url) =>
-          /[?&](?:token|sig|signature|x-amz-signature)=/i.test(url) ? url.split('?')[0] + '?[redacted]' : url,
-        );
+      return redactText(item);
     }
     return typeof item === 'bigint' ? item.toString() : item;
   });

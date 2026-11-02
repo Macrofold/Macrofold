@@ -30,8 +30,9 @@ class Limits(BaseModel):
     """ # noqa: E501
     timeout_seconds: Optional[Annotated[int, Field(le=7200, strict=True, ge=1)]] = Field(default=None, description="Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap.")
     max_cost_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default='2000000', description="Integer micro-USD as a decimal string.")
-    stop_on_model_error: Optional[StrictBool] = Field(default=None, description="Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.")
-    __properties: ClassVar[List[str]] = ["timeout_seconds", "max_cost_micro_usd", "stop_on_model_error"]
+    stop_on_model_error: Optional[StrictBool] = Field(default=None, description="Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. Output-limit completions always fail a native Run with model_output_limit_exceeded, regardless of this flag; no automatic paid repair is performed.")
+    max_output_tokens: Optional[Annotated[int, Field(le=9007199254740991, strict=True, ge=1)]] = Field(default=None, description="Maximum generated tokens per native model call, including reasoning and tool-call output. Does not raise the Run spending cap or deadline. Omission inherits the Session allowance or uses the model-aware native default (32768; 65536 for high/xhigh/max effort or Muse Contributor default reasoning), bounded by the model maximum.")
+    __properties: ClassVar[List[str]] = ["timeout_seconds", "max_cost_micro_usd", "stop_on_model_error", "max_output_tokens"]
 
     @field_validator('max_cost_micro_usd', mode="before")
     def max_cost_micro_usd_validate_regular_expression(cls, value):
@@ -96,7 +97,8 @@ class Limits(BaseModel):
         _obj = cls.model_validate({
             "timeout_seconds": obj.get("timeout_seconds"),
             "max_cost_micro_usd": obj.get("max_cost_micro_usd") if obj.get("max_cost_micro_usd") is not None else '2000000',
-            "stop_on_model_error": obj.get("stop_on_model_error")
+            "stop_on_model_error": obj.get("stop_on_model_error"),
+            "max_output_tokens": obj.get("max_output_tokens")
         })
         return _obj
 

@@ -3,6 +3,7 @@ import type { RunRow, NativeRunRow, InferenceRunRow, RunConfig } from './runs';
 import type { RunEventRow } from './events';
 import type { TraceContext, TraceObservation } from './trace';
 import { recordTrace, tracingEnabled, tracingContentEnabled } from './tracing';
+import { memoryFailureSchema } from '../../contracts/native-diagnostics';
 
 /** Tenant-scoped lookup; external customer IDs are labels, never authority. */
 type TraceSource =
@@ -95,6 +96,8 @@ export function tracedRunEvent(type: string) {
     type.startsWith('tool.') ||
     type === 'input.requested' ||
     type === 'input.received' ||
+    type === 'memory.omitted' ||
+    type === 'memory.capture_omitted' ||
     type === 'metering.review_required'
   );
 }
@@ -207,16 +210,27 @@ export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow, pre
   }
   // Deltas remain in the existing replay stream. Generations contain complete
   // model responses; sending each token as an observation would obscure them.
+  const memory =
+    event.type === 'runtime.failed' && event.data.code === 'memory_limit'
+      ? memoryFailureSchema.safeParse(event.data.memory).data
+      : undefined;
   const observation: TraceObservation = {
     context,
     id: event.id,
     name: event.type,
-    level: event.type === 'runtime.failed' ? 'ERROR' : 'DEFAULT',
+    level:
+      event.type === 'runtime.failed' ? 'ERROR' : event.type.startsWith('memory.') ? 'WARNING' : 'DEFAULT',
     type: 'event',
     startedAt: event.occurred_at,
     endedAt: event.occurred_at,
     output: content ? event.data : undefined,
-    metadata: { event_sequence: event.sequence },
+    metadata: {
+      event_sequence: event.sequence,
+      ...(memory ? { memory } : {}),
+      ...(event.type.startsWith('memory.')
+        ? { memory_integration_id: event.data.integration_id, memory_omission_reason: event.data.reason }
+        : {}),
+    },
   };
   afterCommit(tx, () => recordTrace(observation));
 }

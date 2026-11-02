@@ -49,8 +49,8 @@ class ConnectionPatch(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription', 'hugging_face', 'runpod', 'external_model']):
-            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription', 'hugging_face', 'runpod', 'external_model')")
+        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription', 'hugging_face', 'runpod', 'external_model', 'memory_service']):
+            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription', 'hugging_face', 'runpod', 'external_model', 'memory_service')")
         return value
 
     @field_validator('auth_method')

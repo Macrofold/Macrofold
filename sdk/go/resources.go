@@ -2,8 +2,8 @@
 package macrofold
 import ("context"; "os"; "time")
 const DefaultOrigin = "https://app.macrofold.ai"
-type Client struct { *APIClient; Tasks *TasksResource;WebhookDeliveries *WebhookDeliveriesResource;Runs *RunsResource;Organizations *OrganizationsResource;Checkpoints *CheckpointsResource;Connections *ConnectionsResource;Triggers *TriggersResource;CustomerAgents *CustomerAgentsResource;Worktrees *WorktreesResource;SlackConnections *SlackConnectionsResource;Workspaces *WorkspacesResource;Workers *WorkersResource;Operator *OperatorResource;Integrations *IntegrationsResource;Billing *BillingResource;ApiKeys *ApiKeysResource;Sessions *SessionsResource;Inferences *InferencesResource;WebhookEndpoints *WebhookEndpointsResource;Artifacts *ArtifactsResource;Transfers *TransfersResource;Usage *UsageResource;Operations *OperationsResource;Models *ModelsResource;Agents *AgentsResource;Me *MeResource;Requests *RequestsResource;Harnesses *HarnessesResource;ModelDeployments *ModelDeploymentsResource }
-func resources(api *APIClient) *Client { return &Client{APIClient:api, Tasks:&TasksResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Runs:&RunsResource{api},Organizations:&OrganizationsResource{api},Checkpoints:&CheckpointsResource{api},Connections:&ConnectionsResource{api},Triggers:&TriggersResource{api},CustomerAgents:&CustomerAgentsResource{api},Worktrees:&WorktreesResource{api},SlackConnections:&SlackConnectionsResource{api},Workspaces:&WorkspacesResource{api},Workers:&WorkersResource{api},Operator:&OperatorResource{api},Integrations:&IntegrationsResource{api},Billing:&BillingResource{api},ApiKeys:&ApiKeysResource{api},Sessions:&SessionsResource{api},Inferences:&InferencesResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},Artifacts:&ArtifactsResource{api},Transfers:&TransfersResource{api},Usage:&UsageResource{api},Operations:&OperationsResource{api},Models:&ModelsResource{api},Agents:&AgentsResource{api},Me:&MeResource{api},Requests:&RequestsResource{api},Harnesses:&HarnessesResource{api},ModelDeployments:&ModelDeploymentsResource{api},} }
+type Client struct { *APIClient; Tasks *TasksResource;WebhookDeliveries *WebhookDeliveriesResource;Runs *RunsResource;Organizations *OrganizationsResource;Checkpoints *CheckpointsResource;Connections *ConnectionsResource;Triggers *TriggersResource;CustomerAgents *CustomerAgentsResource;Worktrees *WorktreesResource;SlackConnections *SlackConnectionsResource;Workspaces *WorkspacesResource;Workers *WorkersResource;Operator *OperatorResource;Integrations *IntegrationsResource;Billing *BillingResource;ApiKeys *ApiKeysResource;Sessions *SessionsResource;Inferences *InferencesResource;WebhookEndpoints *WebhookEndpointsResource;Artifacts *ArtifactsResource;Transfers *TransfersResource;Usage *UsageResource;Operations *OperationsResource;Models *ModelsResource;Agents *AgentsResource;Me *MeResource;Requests *RequestsResource;Harnesses *HarnessesResource;ModelDeployments *ModelDeploymentsResource;AgentIntegrations *AgentIntegrationsResource }
+func resources(api *APIClient) *Client { return &Client{APIClient:api, Tasks:&TasksResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Runs:&RunsResource{api},Organizations:&OrganizationsResource{api},Checkpoints:&CheckpointsResource{api},Connections:&ConnectionsResource{api},Triggers:&TriggersResource{api},CustomerAgents:&CustomerAgentsResource{api},Worktrees:&WorktreesResource{api},SlackConnections:&SlackConnectionsResource{api},Workspaces:&WorkspacesResource{api},Workers:&WorkersResource{api},Operator:&OperatorResource{api},Integrations:&IntegrationsResource{api},Billing:&BillingResource{api},ApiKeys:&ApiKeysResource{api},Sessions:&SessionsResource{api},Inferences:&InferencesResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},Artifacts:&ArtifactsResource{api},Transfers:&TransfersResource{api},Usage:&UsageResource{api},Operations:&OperationsResource{api},Models:&ModelsResource{api},Agents:&AgentsResource{api},Me:&MeResource{api},Requests:&RequestsResource{api},Harnesses:&HarnessesResource{api},ModelDeployments:&ModelDeploymentsResource{api},AgentIntegrations:&AgentIntegrationsResource{api},} }
 
 type TasksResource struct {client *APIClient}
 func (r *TasksResource) CloseDecision(ctx context.Context, taskId string, options ...RequestOption) (*DecisionTask, error) {
@@ -2508,6 +2508,228 @@ func (r *ModelDeploymentsResource) SetService(ctx context.Context, deploymentId 
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
 
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type AgentIntegrationsResource struct {client *APIClient}
+func (r *AgentIntegrationsResource) Create(ctx context.Context, input *AgentIntegrationCreate, options ...RequestOption) (*AgentIntegration, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.AgentIntegrationsAPI.CreateAgentIntegration(ctx)
+        if input != nil {call = call.AgentIntegrationCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *AgentIntegrationsResource) CreateNote(ctx context.Context, integrationId string, input *AgentMemoryEdit, options ...RequestOption) (*AgentMemoryQueued, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.AgentIntegrationsAPI.CreateAgentIntegrationNote(ctx, integrationId)
+        if input != nil {call = call.AgentMemoryEdit(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *AgentIntegrationsResource) Delete(ctx context.Context, integrationId string, options ...RequestOption) (*AgentIntegrationDelete, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.AgentIntegrationsAPI.DeleteAgentIntegration(ctx, integrationId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type DeleteAgentIntegrationMemoryParams struct {Path string;IfMatch string}
+func (r *AgentIntegrationsResource) DeleteMemory(ctx context.Context, integrationId string, params *DeleteAgentIntegrationMemoryParams, options ...RequestOption) (*Operation, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.AgentIntegrationsAPI.DeleteAgentIntegrationMemory(ctx, integrationId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.Path(params.Path)
+call = call.IfMatch(params.IfMatch)
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *AgentIntegrationsResource) ExportMemory(ctx context.Context, integrationId string, options ...RequestOption) (*AgentMemoryExport, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.AgentIntegrationsAPI.ExportAgentIntegrationMemory(ctx, integrationId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ForgetAgentIntegrationMemoryParams struct {IfMatch string}
+func (r *AgentIntegrationsResource) ForgetMemory(ctx context.Context, integrationId string, input *AgentMemoryForget, params *ForgetAgentIntegrationMemoryParams, options ...RequestOption) (*AgentMemoryForgetReceipt, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.AgentIntegrationsAPI.ForgetAgentIntegrationMemory(ctx, integrationId)
+        if input != nil {call = call.AgentMemoryForget(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.IfMatch(params.IfMatch)
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *AgentIntegrationsResource) Get(ctx context.Context, integrationId string, options ...RequestOption) (*AgentIntegration, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.AgentIntegrationsAPI.GetAgentIntegration(ctx, integrationId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *AgentIntegrationsResource) GetSource(ctx context.Context, integrationId string, sourceId string, options ...RequestOption) (*AgentMemorySource, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.AgentIntegrationsAPI.GetAgentIntegrationSource(ctx, integrationId, sourceId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListAgentIntegrationActivityParams struct {Cursor *string;Limit *int32}
+func (r *AgentIntegrationsResource) ListActivity(ctx context.Context, integrationId string, params *ListAgentIntegrationActivityParams, options ...RequestOption) (*AgentMemoryActivityPage, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListAgentIntegrationActivityParams{}}
+        call := r.client.AgentIntegrationsAPI.ListAgentIntegrationActivity(ctx, integrationId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListAgentIntegrationMemoriesParams struct {Cursor *string;Limit *int32}
+func (r *AgentIntegrationsResource) ListMemories(ctx context.Context, integrationId string, params *ListAgentIntegrationMemoriesParams, options ...RequestOption) (*AgentMemoryPage, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListAgentIntegrationMemoriesParams{}}
+        call := r.client.AgentIntegrationsAPI.ListAgentIntegrationMemories(ctx, integrationId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListAgentIntegrationsParams struct {Cursor *string;Limit *int32;WorkspaceId *string}
+func (r *AgentIntegrationsResource) List(ctx context.Context, params *ListAgentIntegrationsParams, options ...RequestOption) (*AgentIntegrationPage, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListAgentIntegrationsParams{}}
+        call := r.client.AgentIntegrationsAPI.ListAgentIntegrations(ctx)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *AgentIntegrationsResource) ListIntegrationPacks(ctx context.Context, options ...RequestOption) (*IntegrationPackPage, error) {
+
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.AgentIntegrationsAPI.ListIntegrationPacks(ctx)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *AgentIntegrationsResource) RetryCheck(ctx context.Context, integrationId string, sourceId string, options ...RequestOption) (*AgentMemoryQueued, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.AgentIntegrationsAPI.RetryAgentIntegrationCheck(ctx, integrationId, sourceId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *AgentIntegrationsResource) SearchMemory(ctx context.Context, integrationId string, input *AgentMemorySearch, options ...RequestOption) (*AgentMemorySearchResult, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.AgentIntegrationsAPI.SearchAgentIntegrationMemory(ctx, integrationId)
+        if input != nil {call = call.AgentMemorySearch(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type UpdateAgentIntegrationParams struct {IfMatch string}
+func (r *AgentIntegrationsResource) Update(ctx context.Context, integrationId string, input *AgentIntegrationPatch, params *UpdateAgentIntegrationParams, options ...RequestOption) (*AgentIntegration, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.AgentIntegrationsAPI.UpdateAgentIntegration(ctx, integrationId)
+        if input != nil {call = call.AgentIntegrationPatch(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.IfMatch(params.IfMatch)
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type WriteAgentIntegrationMemoryParams struct {IfMatch string;Path string}
+func (r *AgentIntegrationsResource) WriteMemory(ctx context.Context, integrationId string, input *AgentMemoryEdit, params *WriteAgentIntegrationMemoryParams, options ...RequestOption) (*Operation, error) {
+
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.AgentIntegrationsAPI.WriteAgentIntegrationMemory(ctx, integrationId)
+        if input != nil {call = call.AgentMemoryEdit(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.IfMatch(params.IfMatch)
+call = call.Path(params.Path)
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }

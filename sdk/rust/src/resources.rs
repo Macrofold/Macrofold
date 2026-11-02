@@ -29,7 +29,8 @@ pub fn agents(&self) -> AgentsResource<'_> {AgentsResource {client:self, options
 pub fn me(&self) -> MeResource<'_> {MeResource {client:self, options:RequestOptions::default()}}
 pub fn requests(&self) -> RequestsResource<'_> {RequestsResource {client:self, options:RequestOptions::default()}}
 pub fn harnesses(&self) -> HarnessesResource<'_> {HarnessesResource {client:self, options:RequestOptions::default()}}
-pub fn model_deployments(&self) -> ModelDeploymentsResource<'_> {ModelDeploymentsResource {client:self, options:RequestOptions::default()}} }
+pub fn model_deployments(&self) -> ModelDeploymentsResource<'_> {ModelDeploymentsResource {client:self, options:RequestOptions::default()}}
+pub fn agent_integrations(&self) -> AgentIntegrationsResource<'_> {AgentIntegrationsResource {client:self, options:RequestOptions::default()}} }
 
 pub struct TasksResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> TasksResource<'a> {
@@ -1268,6 +1269,113 @@ pub async fn set_service(&self, deployment_id: &str, input: models::ModelDeploym
 
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
         crate::apis::model_deployments_api::set_model_deployment_service(self.client.configuration(), deployment_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+    }
+#[derive(Debug,Clone)] pub struct DeleteAgentIntegrationMemoryParams {pub path: String,pub if_match: String}
+#[derive(Debug,Clone)] pub struct ForgetAgentIntegrationMemoryParams {pub if_match: String}
+#[derive(Debug,Clone,Default)] pub struct ListAgentIntegrationActivityParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListAgentIntegrationMemoriesParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListAgentIntegrationsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub workspace_id: Option<String>}
+#[derive(Debug,Clone)] pub struct UpdateAgentIntegrationParams {pub if_match: String}
+#[derive(Debug,Clone)] pub struct WriteAgentIntegrationMemoryParams {pub if_match: String,pub path: String}
+pub struct AgentIntegrationsResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> AgentIntegrationsResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn create(&self, input: models::AgentIntegrationCreate) -> Result<models::AgentIntegration,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::create_agent_integration(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_note(&self, integration_id: &str, input: models::AgentMemoryEdit) -> Result<models::AgentMemoryQueued,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::create_agent_integration_note(self.client.configuration(), integration_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn delete(&self, integration_id: &str) -> Result<models::AgentIntegrationDelete,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::delete_agent_integration(self.client.configuration(), integration_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn delete_memory(&self, integration_id: &str, params: DeleteAgentIntegrationMemoryParams) -> Result<models::Operation,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::delete_agent_integration_memory(self.client.configuration(), integration_id, &key, &params.path, &params.if_match, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn export_memory(&self, integration_id: &str) -> Result<models::AgentMemoryExport,ClientError> {
+
+
+        crate::apis::agent_integrations_api::export_agent_integration_memory(self.client.configuration(), integration_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn forget_memory(&self, integration_id: &str, input: models::AgentMemoryForget, params: ForgetAgentIntegrationMemoryParams) -> Result<models::AgentMemoryForgetReceipt,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::forget_agent_integration_memory(self.client.configuration(), integration_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn get(&self, integration_id: &str) -> Result<models::AgentIntegration,ClientError> {
+
+
+        crate::apis::agent_integrations_api::get_agent_integration(self.client.configuration(), integration_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_source(&self, integration_id: &str, source_id: &str) -> Result<models::AgentMemorySource,ClientError> {
+
+
+        crate::apis::agent_integrations_api::get_agent_integration_source(self.client.configuration(), integration_id, source_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_activity(&self, integration_id: &str, params: ListAgentIntegrationActivityParams) -> Result<models::AgentMemoryActivityPage,ClientError> {
+
+
+        crate::apis::agent_integrations_api::list_agent_integration_activity(self.client.configuration(), integration_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_memories(&self, integration_id: &str, params: ListAgentIntegrationMemoriesParams) -> Result<models::AgentMemoryPage,ClientError> {
+
+
+        crate::apis::agent_integrations_api::list_agent_integration_memories(self.client.configuration(), integration_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list(&self, params: ListAgentIntegrationsParams) -> Result<models::AgentIntegrationPage,ClientError> {
+
+
+        crate::apis::agent_integrations_api::list_agent_integrations(self.client.configuration(), self.options.organization.as_deref(), params.cursor.as_deref(), params.limit, params.workspace_id.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_integration_packs(&self) -> Result<models::IntegrationPackPage,ClientError> {
+
+
+        crate::apis::agent_integrations_api::list_integration_packs(self.client.configuration(), self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn retry_check(&self, integration_id: &str, source_id: &str) -> Result<models::AgentMemoryQueued,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::retry_agent_integration_check(self.client.configuration(), integration_id, &key, source_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn search_memory(&self, integration_id: &str, input: models::AgentMemorySearch) -> Result<models::AgentMemorySearchResult,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::search_agent_integration_memory(self.client.configuration(), integration_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn update(&self, integration_id: &str, input: models::AgentIntegrationPatch, params: UpdateAgentIntegrationParams) -> Result<models::AgentIntegration,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::update_agent_integration(self.client.configuration(), integration_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn write_memory(&self, integration_id: &str, input: models::AgentMemoryEdit, params: WriteAgentIntegrationMemoryParams) -> Result<models::Operation,ClientError> {
+
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::agent_integrations_api::write_agent_integration_memory(self.client.configuration(), integration_id, &params.if_match, &key, &params.path, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
     }

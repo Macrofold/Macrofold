@@ -46,6 +46,7 @@ export type PerformanceRecord = {
   version: 1;
   capture_id: string;
   instance_id: string;
+  receiver_instance_id?: string;
   type: 'operation' | 'capture';
   operation?: PerformanceOperation;
   phase?: PerformancePhase;
@@ -98,6 +99,10 @@ export type PerformanceRecord = {
   sampling?: { seen: number; sampled: number; skipped: number };
   state?: 'started' | 'completed';
   duration_seconds?: number;
+  native_memory?: Omit<
+    import('./native-diagnostics').NativeMemoryProfile,
+    'capture_id' | 'origin_instance_id' | 'run_id' | 'sample_rate' | 'started_at' | 'duration_ms'
+  >;
 };
 export interface PerformanceSink {
   enqueue(record: PerformanceRecord): void;

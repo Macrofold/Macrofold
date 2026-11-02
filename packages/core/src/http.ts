@@ -27,7 +27,7 @@ import {
   initializeHttpValidation,
 } from './http-contract';
 import { initializeContextValidation } from './explicit-context';
-import { handlers, preparations } from './api-handlers';
+import { handlers, preparations, replayAuthorizers } from './api-handlers';
 import { getRunSummary } from './runs';
 import { streamEvents } from './events';
 import { adminReport } from './reports';
@@ -321,7 +321,7 @@ async function handleApiRequest(
         )
       : '';
     stopFingerprint();
-    const cachedResponse = async (tx: import('../../db').Tx, writing = true) => {
+    const cachedResponse = async (tx: import('../../db').Tx, writing = true, principal = p) => {
       if (idempotencyKey) {
         type CachedMutation = { fingerprint: string; response_ciphertext: string; status: number };
         const lookup = {
@@ -353,6 +353,10 @@ async function handleApiRequest(
             'idempotency_conflict',
             'This idempotency key was used for a different request.',
           );
+          // Ordinary receipts need no new lookup. Owners returning retained
+          // private content can veto stale access before any decryption.
+          const authorizeReplay = replayAuthorizers[matched.operation.operationId];
+          if (authorizeReplay) await authorizeReplay({ ...context, tx, p: principal });
           headers.set('Idempotency-Replayed', 'true');
           return { status: cached.status, body: unseal(cached.response_ciphertext) };
         }
@@ -437,7 +441,7 @@ async function handleApiRequest(
           (await transaction(
             p.organizationId,
             async (tx) => {
-              const cached = await cachedResponse(tx);
+              const cached = await cachedResponse(tx, true, current);
               if (cached) return cached;
               let value: unknown;
               if (prepared) value = await prepared.commit(tx, current);

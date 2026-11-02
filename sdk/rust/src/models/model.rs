@@ -34,6 +34,15 @@ pub struct Model {
     /// Current retail micro-USD per million output tokens, including reported reasoning tokens.
     #[serde(rename = "output_micro_usd_per_million")]
     pub output_micro_usd_per_million: String,
+    /// Published total model context capacity. Present for enabled native models.
+    #[serde(rename = "context_tokens", skip_serializing_if = "Option::is_none")]
+    pub context_tokens: Option<i32>,
+    /// Separately published maximum input tokens, when available.
+    #[serde(rename = "input_tokens", skip_serializing_if = "Option::is_none")]
+    pub input_tokens: Option<i32>,
+    /// Published maximum generated tokens, including reasoning. Present for enabled native models.
+    #[serde(rename = "output_tokens", skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<i32>,
 }
 
 impl Model {
@@ -48,6 +57,9 @@ impl Model {
             name,
             input_micro_usd_per_million,
             output_micro_usd_per_million,
+            context_tokens: None,
+            input_tokens: None,
+            output_tokens: None,
         }
     }
 }

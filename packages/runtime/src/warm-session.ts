@@ -11,6 +11,7 @@ export function warmSessionKey(c: NativeConfiguration): string | undefined {
         session: c.warm.sessionId,
         harness: c.harness,
         model: c.model,
+        modelLimits: c.modelLimits,
         provider: c.provider,
         instructions: c.instructions,
         permissions: c.permissions,

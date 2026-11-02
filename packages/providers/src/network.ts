@@ -20,7 +20,16 @@ export function validateModelEndpointURL(value: string) {
   return validateURL(value, 'model');
 }
 
-function localOrigins(setting: 'LOCAL_MCP_ALLOWED_ORIGINS' | 'LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS') {
+export function validateMemoryServiceURL(value: string) {
+  return validateURL(value, 'memory');
+}
+
+function localOrigins(
+  setting:
+    | 'LOCAL_MCP_ALLOWED_ORIGINS'
+    | 'LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS'
+    | 'LOCAL_MEMORY_SERVICE_ALLOWED_ORIGINS',
+) {
   if (!isLocal()) return [];
   return (process.env[setting] || '')
     .split(',')
@@ -38,16 +47,25 @@ function localOrigins(setting: 'LOCAL_MCP_ALLOWED_ORIGINS' | 'LOCAL_MODEL_ENDPOI
           !url.search &&
           !url.hash,
         503,
-        setting === 'LOCAL_MCP_ALLOWED_ORIGINS' ? 'invalid_local_mcp_origins' : 'invalid_local_model_origins',
+        setting === 'LOCAL_MCP_ALLOWED_ORIGINS'
+          ? 'invalid_local_mcp_origins'
+          : setting === 'LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS'
+            ? 'invalid_local_model_origins'
+            : 'invalid_local_memory_origins',
         `Set ${setting} to comma-separated HTTP(S) origins without credentials, paths, queries or fragments.`,
       );
       return url.origin;
     });
 }
 
-async function validateURL(value: string, policy: 'public' | 'mcp' | 'model') {
+async function validateURL(value: string, policy: 'public' | 'mcp' | 'model' | 'memory') {
   const url = new URL(value);
-  const setting = policy === 'model' ? 'LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS' : 'LOCAL_MCP_ALLOWED_ORIGINS';
+  const setting =
+    policy === 'model'
+      ? 'LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS'
+      : policy === 'memory'
+        ? 'LOCAL_MEMORY_SERVICE_ALLOWED_ORIGINS'
+        : 'LOCAL_MCP_ALLOWED_ORIGINS';
   const local = policy !== 'public' && localOrigins(setting).includes(url.origin);
   assert(
     !url.username &&
@@ -83,6 +101,13 @@ export function safeFetch(input: string | URL | Request, init: RequestInit = {})
 }
 export function mcpFetch(input: string | URL | Request, init: RequestInit = {}) {
   return fetchValidated(input, init, validateMcpURL);
+}
+
+export function memoryServiceFetch(input: string | URL | Request, init: RequestInit = {}) {
+  return fetchValidated(input, init, validateMemoryServiceURL, {
+    timeoutMs: 15000,
+    maximumResponseBytes: 1024 * 1024,
+  });
 }
 /** The source adapter inspects these fixed-origin redirects before making any
  * next request. Ordinary consumers retain redirect rejection. */

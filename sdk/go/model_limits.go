@@ -23,8 +23,10 @@ type Limits struct {
 	TimeoutSeconds *int32 `json:"timeout_seconds,omitempty"`
 	// Integer micro-USD as a decimal string.
 	MaxCostMicroUsd *string `json:"max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
-	// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
+	// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. Output-limit completions always fail a native Run with model_output_limit_exceeded, regardless of this flag; no automatic paid repair is performed.
 	StopOnModelError *bool `json:"stop_on_model_error,omitempty"`
+	// Maximum generated tokens per native model call, including reasoning and tool-call output. Does not raise the Run spending cap or deadline. Omission inherits the Session allowance or uses the model-aware native default (32768; 65536 for high/xhigh/max effort or Muse Contributor default reasoning), bounded by the model maximum.
+	MaxOutputTokens *int32 `json:"max_output_tokens,omitempty"`
 }
 
 // NewLimits instantiates a new Limits object
@@ -144,6 +146,38 @@ func (o *Limits) SetStopOnModelError(v bool) {
 	o.StopOnModelError = &v
 }
 
+// GetMaxOutputTokens returns the MaxOutputTokens field value if set, zero value otherwise.
+func (o *Limits) GetMaxOutputTokens() int32 {
+	if o == nil || IsNil(o.MaxOutputTokens) {
+		var ret int32
+		return ret
+	}
+	return *o.MaxOutputTokens
+}
+
+// GetMaxOutputTokensOk returns a tuple with the MaxOutputTokens field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Limits) GetMaxOutputTokensOk() (*int32, bool) {
+	if o == nil || IsNil(o.MaxOutputTokens) {
+		return nil, false
+	}
+	return o.MaxOutputTokens, true
+}
+
+// HasMaxOutputTokens returns a boolean if a field has been set.
+func (o *Limits) HasMaxOutputTokens() bool {
+	if o != nil && !IsNil(o.MaxOutputTokens) {
+		return true
+	}
+
+	return false
+}
+
+// SetMaxOutputTokens gets a reference to the given int32 and assigns it to the MaxOutputTokens field.
+func (o *Limits) SetMaxOutputTokens(v int32) {
+	o.MaxOutputTokens = &v
+}
+
 func (o Limits) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -162,6 +196,9 @@ func (o Limits) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.StopOnModelError) {
 		toSerialize["stop_on_model_error"] = o.StopOnModelError
+	}
+	if !IsNil(o.MaxOutputTokens) {
+		toSerialize["max_output_tokens"] = o.MaxOutputTokens
 	}
 	return toSerialize, nil
 }

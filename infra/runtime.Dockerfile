@@ -13,7 +13,9 @@ COPY scripts/build-runtime.ts packages/runtime/build.ts
 COPY packages/runtime/src packages/runtime/src
 COPY packages/contracts/harnesses.ts packages/contracts/media.ts packages/contracts/image-input.ts packages/contracts/pagination.ts packages/contracts/
 COPY packages/contracts/model-transport.ts packages/contracts/host-control.ts packages/contracts/
+COPY packages/contracts/model-completion.ts packages/contracts/native-model.ts packages/contracts/
 COPY packages/contracts/permissions.ts packages/contracts/permission-adapters.ts packages/contracts/
+COPY packages/contracts/native-diagnostics.ts packages/contracts/
 RUN --mount=type=cache,id=runtime-pnpm,target=/pnpm/store \
     node packages/runtime/build.ts && pnpm --config.inject-workspace-packages=true --filter @platform/runtime deploy --prod /runtime-package --store-dir=/pnpm/store
 

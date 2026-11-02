@@ -80,3 +80,7 @@ Disabled profiling installs no collection timers, inspector, subscribers or data
 Self-service tenant tracing destinations, external deletion synchronization, a durable exporter, automatic native-harness-internal subagent ancestry, image/media upload, trace sampling controls and provider invoice reconciliation are deferred. These require product/security or accounting decisions. The present integration covers platform-mediated model calls and surfaced harness/tool events; it cannot report calls that bypass the platform gateway.
 
 Official references: [trace quality](https://langfuse.com/docs/observability/best-practices), [SDK](https://langfuse.com/docs/observability/sdk/overview), [usage/cost](https://langfuse.com/docs/observability/features/token-and-cost-tracking), and [OpenTelemetry](https://langfuse.com/integrations/native/opentelemetry).
+
+## Native output-limit diagnostics
+
+Native gateway observations retain `admitted_max_output_tokens`, `effective_max_output_tokens`, optional requested `reasoning_effort`, and explicit `finish_reason` / `failure_code` on an output-limit failure. These are bounded control metadata, not additional full-content logs. A fully metered length-ended call has error severity and known usage; it is not a free rejection. Macrofold charges, BYOK provider cost and unknown metering keep their existing separate fields. Exports remain off the response path. [Completion owner](../execution/runtime.md#native-output-and-completion).

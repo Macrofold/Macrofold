@@ -58,7 +58,15 @@ Profiles contain fixed operation/stage names, generated request/Run correlation 
 - Stream response readiness and retained producer completion are separate lifetimes. Returning response headers is not completion of a streamed answer.
 - Capture summaries expose sampling, unattributed statement/checkout totals and drops. Missing profiles are not evidence of zero traffic. Reports may be incomplete after overload, expiry, a slow sink or process death.
 
-Collection admits at most 256 active scopes, eight simultaneous stage spans per scope and bounded group examples. Output admits at most 256 records and 1 MiB including writes in flight, with an 8-KiB record ceiling and one writer. Expiry detaches instrumentation and drains for at most two seconds. Overflow loses diagnostics rather than delaying or rejecting customer work. Stdout itself may block depending on its destination; use the asynchronous private-file sink for a slow local terminal.
+Collection admits at most 256 active scopes, eight simultaneous stage spans per scope and bounded group examples. Output admits at most 256 records and 1 MiB including writes in flight, with an 8-KiB record ceiling and one writer. Expiry detaches ordinary instrumentation immediately, then allows ten seconds for protected native reports to arrive through normal probes before the sink's bounded drain. Explicit process shutdown closes immediately. Overflow loses diagnostics rather than delaying or rejecting customer work. Stdout itself may block depending on its destination; use the asynchronous private-file sink for a slow local terminal.
+
+### Native turns
+
+The same settings optionally select whole native turns. Selection is stable for a Run within its capture, independent of the surrounding request's sampling. Settings expire at the earlier of the capture window and Run deadline; replay cannot renew them. A polling process can receive another instance's report, preserving the originating capture/instance IDs and adding its own receiver ID.
+
+An operation record's `native_memory` contains bounded stage durations, sampled process RSS, up to five largest processes, worker heap marks and optional PSS coverage. The safety guard's existing process inventory supplies RSS; optional PSS reads never delay the guard. Missing, partial or denied PSS is explicitly reported. Summed process RSS double-counts shared pages and is not whole-container physical memory. A short turn may finish before any memory sample; that is unobserved, not zero.
+
+Native profiles are private diagnostic output: they are consumed before public Run events, never included in checkpoints or stored as per-sample SQL rows, and do not change billing. Compatible warm continuations keep the loaded adapter while resetting measurements and Run credentials. Profiling neither warms a model nor keeps a Session alive. See the [native design and qualification](../../projects/native-memory-startup-tech-design.md#8-verification-matrix-and-commands) for bounds and evidence limitations.
 
 ## Separate startup, HTTP and application latency
 

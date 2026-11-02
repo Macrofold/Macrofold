@@ -1,5 +1,5 @@
 import { it, expect, vi } from 'vitest';
-import { CodexAdapter } from '../../packages/runtime/src/codex';
+import { createAdapter } from '../../packages/runtime/src/codex';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -57,7 +57,7 @@ it('reports native initialization failure without an unhandled completion reject
   vi.stubEnv('CODEX_BINARY', path.join(directory, 'missing-native-binary'));
   try {
     await expect(
-      new CodexAdapter().run({
+      (await createAdapter()).run({
         configuration: {
           runId: 'fixture',
           harness: 'codex',
@@ -66,6 +66,7 @@ it('reports native initialization failure without an unhandled completion reject
           prompt: 'fixture',
           workspace: directory,
           stateHome: directory,
+          modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
           gatewayURL: 'http://127.0.0.1:1',
           toolURL: '',
           token: 'fixture',

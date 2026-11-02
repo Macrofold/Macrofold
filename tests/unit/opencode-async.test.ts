@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createServer, type ServerResponse } from 'node:http';
 import { createOpencodeServer } from '@opencode-ai/sdk/v2/server';
-import { OpenCodeAdapter } from '../../packages/runtime/src/opencode';
+import { createAdapter } from '../../packages/runtime/src/opencode';
 import { failureDiagnostic } from '../../packages/runtime/src/failure-diagnostic';
 import type { NativeConfiguration } from '../../packages/runtime/src/types';
 vi.mock('@opencode-ai/sdk/v2/server', () => ({ createOpencodeServer: vi.fn() }));
@@ -138,6 +138,7 @@ it.each(scenarios)(
       resumeId: 's',
       workspace: '/workspace',
       stateHome: '/home',
+      modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
       gatewayURL: 'http://127.0.0.1:1',
       toolURL: 'http://127.0.0.1:1',
       token: 'fixture',
@@ -147,7 +148,8 @@ it.each(scenarios)(
     };
     const emit = vi.fn();
     try {
-      const result = new OpenCodeAdapter().run({ configuration, signal: abort.signal, emit, ask: vi.fn() });
+      const adapter = await createAdapter();
+      const result = adapter.run({ configuration, signal: abort.signal, emit, ask: vi.fn() });
       if (mode === 'success') {
         await expect(result).resolves.toMatchObject({
           outcome: 'success',

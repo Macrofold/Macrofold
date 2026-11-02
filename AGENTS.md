@@ -39,7 +39,7 @@ After the mandatory baseline, route by intent and impact, not keywords: new file
 - Feature-spec/tech-design or architecture requests, changed cross-layer contracts, or chat approval/start/continuation of a project plan: [Design](.agents/skills/macrofold-design/SKILL.md).
 - Requested or substantial implementation review: [Review](.agents/skills/macrofold-review/SKILL.md).
 - New or changed request/execution I/O, database queries, queues, concurrency, capacity or latency: [Performance](.agents/skills/macrofold-performance/SKILL.md), including feature work rather than only optimization tasks.
-- Jev/TypeSafe, LLM prompts, model context, embeddings or provider execution: [AI](.agents/skills/macrofold-ai/SKILL.md).
+- Jev/TypeSafe, LLM prompts/context/outputs, embeddings, token limits, streaming, native harness or model-provider execution: [AI](.agents/skills/macrofold-ai/SKILL.md).
 - Development startup off the current base, or any rebase/merge conflict: [Rebase](.agents/skills/macrofold-rebase/SKILL.md).
 - Instructions, skills, adapters or their checker: [Guidance maintenance](.agents/skills/macrofold-guidance/SKILL.md).
 - Composio integration/setup: [existing Composio skill](.agents/skills/composio/SKILL.md); Neon setup/operations: [existing Neon skill](.agents/skills/neon/SKILL.md), [Postgres](.agents/skills/neon-postgres/SKILL.md) and [branching](.agents/skills/neon-postgres-branches/SKILL.md) as applicable. These do not replace Macrofold's provider, identity, spending or local-environment rules.

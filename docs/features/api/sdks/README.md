@@ -45,3 +45,11 @@ All resource methods create idempotency keys for mutations. TypeScript and Pytho
 All clients preserve monetary values as decimal strings. Constructors require HTTPS except on loopback development hosts and refuse redirects. Keep API keys in server-side code. For expiring OAuth credentials, TypeScript and Python accept token suppliers; recreate the Go, Rust, or Java client with a renewed token before new requests.
 
 See [API conventions](../conventions.md) for errors, pagination, asynchronous operations, and organization selection. Contributors can read [SDK architecture and verification](implementation.md).
+
+## Native output limits
+
+Set native `limits.max_output_tokens` on the ordinary Session/preset/Run request to override the model-aware default. It includes reasoning and does not raise the spending cap or deadline. Use the model catalog's `output_tokens` to find the published maximum. All five clients expose these fields.
+
+Waiting/text-collection helpers reject a finalized native `model_output_limit_exceeded` using their existing Run-failure error. Inspect the retained result/partial output, usage and checkpoint before deliberately submitting another Run; the SDK does not retry paid inference to repair it. [Detailed behavior](../../execution/models.md#native-output-allowance).
+
+Native failure results may include `output_text_truncated: true` when retained answer text exceeds the 4 MiB diagnostic bound. Available text is a bounded partial prefix; an absent flag never establishes a successful or complete answer.

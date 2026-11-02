@@ -68,6 +68,13 @@ Connection access uses an approved tool ceiling, organization toggle and additiv
 
 Result retrieval always returns the current run outcome and available partial output, with final=true only after terminalization. Artifacts require authorization at access time and use short-lived download URLs. Cancellation is idempotent and returns current state, not a claim that external effects were undone.
 
+Operations returning retained private content can register a typed replay
+authorizer beside their handler/preparation. HTTP invokes that owner in the
+current tenant transaction before decrypting a cached idempotency response.
+Memory search uses it to recheck actor/resource authority and installation
+generation after disable, forgetting or credential changes. Ordinary receipts
+add no lookup, and their financial/execution identities remain unchanged.
+
 ## Events and webhooks
 
 GET events uses an after sequence cursor. SSE supports Last-Event-ID and sends durable event IDs; reconnect is safe. Connections rotate after 55 seconds to fit bounded hosting; refresh credentials between connections and preserve the last delivered sequence. Read indexed event batches with released database connections (150 ms after events, 750 ms while quiet), not a pinned connection per idle stream. Measure database and stream concurrency at the hosting edge. Raw tool output can be large and referenced as an artifact. The final result is independently retrievable even if the client misses an event.

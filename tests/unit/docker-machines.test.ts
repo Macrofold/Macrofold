@@ -285,6 +285,7 @@ describe('local Docker execution boundary', () => {
       token: 'scoped-capability',
       deadline: '2026-09-07T00:02:00Z',
       toolGrants: false,
+      modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
       gatewayURL: `${config.origin}/runtime/runs/${f.name.slice(4)}/model`,
       toolURL: `${config.origin}/runtime/runs/${f.name.slice(4)}/mcp`,
     };

@@ -88,6 +88,7 @@ for (const mode of ['none', 'read-only', 'questions-denied']) {
     prompt: 'Reply briefly.',
     workspace: '/workspace',
     stateHome: '/agent-home',
+    modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
     gatewayURL: 'http://127.0.0.1:8787',
     toolURL: 'http://127.0.0.1:8787/mcp',
     token: 'fixture',

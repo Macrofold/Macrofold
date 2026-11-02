@@ -4,20 +4,19 @@ import { permissionAdapters } from '../../contracts/permission-adapters';
 import { permissionFileTools, fileToolName, permissionFileDefinition } from './permission-files';
 import path from 'node:path';
 import { access } from 'node:fs/promises';
-import { InMemoryCredentialStore } from '@earendil-works/pi-ai';
-import {
-  createAgentSession,
-  DefaultResourceLoader,
-  ModelRuntime,
-  SessionManager,
-  SettingsManager,
-} from '@earendil-works/pi-coding-agent';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { piBrokerTools } from './pi-tools';
+import { isOutputLimitReason, modelOutputLimitExceeded } from '../../contracts/model-completion';
 
-export class PiAdapter implements HarnessAdapter {
+type PiSDK = typeof import('@earendil-works/pi-coding-agent');
+type PiAI = typeof import('@earendil-works/pi-ai');
+class PiAdapter implements HarnessAdapter {
+  constructor(
+    private readonly sdk: PiSDK,
+    private readonly ai: PiAI,
+  ) {}
   private resident?: {
-    session: Awaited<ReturnType<typeof createAgentSession>>['session'];
+    session: Awaited<ReturnType<PiSDK['createAgentSession']>>['session'];
     resumeId: string;
     broker: Awaited<ReturnType<typeof piBrokerTools>>;
     lifetime: AbortController;
@@ -46,10 +45,10 @@ export class PiAdapter implements HarnessAdapter {
       // Pi opens a new session for a missing file. A requested continuation must fail instead.
       if (c.resumeId) await access(path.join(sessions, c.resumeId));
       const sessionManager = c.resumeId
-        ? SessionManager.open(path.join(sessions, c.resumeId), sessions, c.workspace)
-        : SessionManager.create(c.workspace, sessions);
-      const modelRuntime = await ModelRuntime.create({
-        credentials: new InMemoryCredentialStore(),
+        ? this.sdk.SessionManager.open(path.join(sessions, c.resumeId), sessions, c.workspace)
+        : this.sdk.SessionManager.create(c.workspace, sessions);
+      const modelRuntime = await this.sdk.ModelRuntime.create({
+        credentials: new this.ai.InMemoryCredentialStore(),
         modelsPath: null,
         allowModelNetwork: false,
         signal: lifetime.signal,
@@ -64,8 +63,11 @@ export class PiAdapter implements HarnessAdapter {
             reasoning: false,
             input: ['text'],
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-            contextWindow: 128000,
-            maxTokens: 8192,
+            contextWindow: Math.min(
+              c.modelLimits.contextTokens,
+              c.modelLimits.inputTokens ?? c.modelLimits.contextTokens,
+            ),
+            maxTokens: c.modelLimits.maxOutputTokens,
             compat: { supportsStore: false, maxTokensField: 'max_completion_tokens' },
           },
         ],
@@ -73,8 +75,8 @@ export class PiAdapter implements HarnessAdapter {
       await modelRuntime.setRuntimeApiKey('platform', c.token, { signal: lifetime.signal });
       const model = modelRuntime.getModel('platform', c.model);
       if (!model) throw new Error('Pi gateway model unavailable');
-      const settingsManager = SettingsManager.inMemory({ retry: { enabled: false } });
-      const resourceLoader = new DefaultResourceLoader({
+      const settingsManager = this.sdk.SettingsManager.inMemory({ retry: { enabled: false } });
+      const resourceLoader = new this.sdk.DefaultResourceLoader({
         cwd: c.workspace,
         agentDir,
         settingsManager,
@@ -85,45 +87,47 @@ export class PiAdapter implements HarnessAdapter {
       });
       await resourceLoader.reload();
       const broker = await piBrokerTools(c, lifetime.signal);
-      const { session } = await createAgentSession({
-        cwd: c.workspace,
-        agentDir,
-        modelRuntime,
-        model,
-        thinkingLevel: 'off',
-        sessionManager,
-        settingsManager,
-        resourceLoader,
-        ...(guarded
-          ? {
-              noTools: 'builtin' as const,
-              tools: [...broker.tools.map((tool) => tool.name), ...(definition ? [fileToolName] : [])],
-            }
-          : {}),
-        customTools: [
-          ...broker.tools,
-          ...(guarded && definition
-            ? [
-                {
-                  name: fileToolName,
-                  label: 'Worktree files',
-                  description: definition.description,
-                  parameters: z.toJSONSchema(
-                    definition.schema,
-                  ) as import('@earendil-works/pi-coding-agent').ToolDefinition['parameters'],
-                  execute: async (_id: string, args: unknown) => ({
-                    content: [{ type: 'text' as const, text: await files(args) }],
-                    details: {},
-                  }),
-                },
-              ]
-            : []),
-        ],
-      }).catch(async (error) => {
-        lifetime.abort();
-        await broker.close();
-        throw error;
-      });
+      const { session } = await this.sdk
+        .createAgentSession({
+          cwd: c.workspace,
+          agentDir,
+          modelRuntime,
+          model,
+          thinkingLevel: 'off',
+          sessionManager,
+          settingsManager,
+          resourceLoader,
+          ...(guarded
+            ? {
+                noTools: 'builtin' as const,
+                tools: [...broker.tools.map((tool) => tool.name), ...(definition ? [fileToolName] : [])],
+              }
+            : {}),
+          customTools: [
+            ...broker.tools,
+            ...(guarded && definition
+              ? [
+                  {
+                    name: fileToolName,
+                    label: 'Worktree files',
+                    description: definition.description,
+                    parameters: z.toJSONSchema(
+                      definition.schema,
+                    ) as import('@earendil-works/pi-coding-agent').ToolDefinition['parameters'],
+                    execute: async (_id: string, args: unknown) => ({
+                      content: [{ type: 'text' as const, text: await files(args) }],
+                      details: {},
+                    }),
+                  },
+                ]
+              : []),
+          ],
+        })
+        .catch(async (error) => {
+          lifetime.abort();
+          await broker.close();
+          throw error;
+        });
       this.resident = {
         session,
         resumeId: path.basename(sessionManager.getSessionFile()!),
@@ -135,6 +139,8 @@ export class PiAdapter implements HarnessAdapter {
     let output = '',
       failed = false,
       successful = false;
+    let outputLimited = false;
+    let finalStopReason: string | undefined;
     let pending = Promise.resolve();
     let messageId = randomUUID();
     const reasoningBlocks = new Set<string>();
@@ -174,8 +180,9 @@ export class PiAdapter implements HarnessAdapter {
               await emit({ type: 'output.delta', data: { text } });
             }
             if (event.type === 'message_end' && event.message.role === 'assistant') {
-              const interrupted =
-                event.message.stopReason === 'error' || event.message.stopReason === 'aborted';
+              finalStopReason = event.message.stopReason;
+              outputLimited ||= isOutputLimitReason(event.message.stopReason);
+              const interrupted = outputLimited || ['error', 'aborted'].includes(event.message.stopReason);
               failed ||= interrupted;
               for (const id of reasoningBlocks)
                 await emit({
@@ -208,14 +215,28 @@ export class PiAdapter implements HarnessAdapter {
           void pending.catch(abort);
         });
         try {
-          await session.prompt(c.prompt);
+          try {
+            await session.prompt(c.prompt);
+          } catch (error) {
+            await pending;
+            if (!outputLimited) throw error;
+          }
           await pending;
+          // These are valid intermediate boundaries, not a completed prompt.
+          // Inspect only the final one so ordinary tool cycles still work.
+          failed ||= ['pending', 'deferred', 'toolUse'].includes(finalStopReason || '');
           successful = !signal.aborted && !failed;
           return {
             output,
             resumeId,
-            outcome: signal.aborted ? 'cancelled' : failed ? 'failure' : 'success',
-            ...(failed ? { failureCode: 'harness_error' } : {}),
+            outcome: outputLimited
+              ? 'failure'
+              : signal.aborted
+                ? 'cancelled'
+                : failed
+                  ? 'failure'
+                  : 'success',
+            ...(failed ? { failureCode: outputLimited ? modelOutputLimitExceeded : 'harness_error' } : {}),
           };
         } finally {
           unsubscribe();
@@ -227,4 +248,12 @@ export class PiAdapter implements HarnessAdapter {
       if (!c.warm || !successful) await this.close();
     }
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  const [sdk, ai] = await Promise.all([
+    import('@earendil-works/pi-coding-agent'),
+    import('@earendil-works/pi-ai'),
+  ]);
+  return new PiAdapter(sdk, ai);
 }

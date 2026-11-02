@@ -35,6 +35,7 @@ export type ResourceModels = {
     instructions?: string;
     config?: Schema['SessionCreate'];
     permission_fingerprint?: string;
+    integration_fingerprint?: string;
     run_permissions?: Schema['AgentPermissions'];
     resume_state?: string;
     native_session_id?: string;
@@ -58,7 +59,15 @@ export type ResourceModels = {
   };
   checkpoints: Fields<'Checkpoint'> &
     SavedFiles & { workspace_id: string; label?: string; created_by?: string };
-  artifacts: Fields<'Artifact'> & { key: string; workspace_id: string; worktree_id?: string; kind?: 'context' | 'proposal'; retention?: 'published'; application_namespace?: string; audience?: Schema['ContextAudience'] };
+  artifacts: Fields<'Artifact'> & {
+    key: string;
+    workspace_id: string;
+    worktree_id?: string;
+    kind?: 'context' | 'proposal';
+    retention?: 'published';
+    application_namespace?: string;
+    audience?: Schema['ContextAudience'];
+  };
   webhooks: Fields<'Webhook'> & {
     secret_ciphertext: string;
     previous_secret_ciphertext?: string;
@@ -73,6 +82,15 @@ export type ResourceModels = {
     error_code?: string | null;
   };
   operations: Omit<Fields<'Operation'>, 'kind' | 'result' | 'error'> & {
+    memory_request_hash?: string;
+    memory_request_key?: string;
+    memory_principal_id?: string;
+    memory_integration_id?: string;
+    memory_generation?: string;
+    memory_context_ciphertext?: string;
+    memory_receipt?: Schema['AgentMemoryReceipt'];
+    memory_started_at?: string;
+    memory_duration_ms?: number;
     kind: OperationKind;
     result: OperationResults[OperationKind];
     required_scopes: string[];

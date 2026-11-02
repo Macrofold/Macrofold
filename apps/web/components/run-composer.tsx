@@ -1,7 +1,9 @@
 'use client';
 import { RunAttachments, type PendingAttachment } from './run-attachments';
+import { NativeOutputLimit, outputTokenLimit } from './native-output-limit';
 import { WorkerSelection, type WorkerPlacement } from './worker-selection';
 import { attachmentIssue } from '../../../packages/contracts/media';
+import { defaultRunBudgetMicroUsd } from '../../../packages/contracts/run-defaults';
 import { uploadWorktreeFiles } from '../lib/upload-workspace-files';
 import { request, useData, useDataPages } from '../lib/dashboard-data';
 import { PermissionEditor } from './permission-editor';
@@ -45,8 +47,9 @@ export function RunComposer({
     [pendingAccessContext, setPendingAccessContext] = useState<string>(),
     [advanced, setAdvanced] = useState(false),
     [placement, setPlacement] = useState<WorkerPlacement>({}),
-    [budget, setBudget] = useState('2.00'),
-    [timeout, setTimeoutValue] = useState('15'),
+    [budget, setBudget] = useState<string>(),
+    [outputTokens, setOutputTokens] = useState(''),
+    [timeout, setTimeoutValue] = useState<string>(),
     [queueHours, setQueueHours] = useState('24'),
     [schedulingClass, setSchedulingClass] = useState<'interactive' | 'background'>('interactive'),
     [busy, setBusy] = useState(false),
@@ -55,7 +58,6 @@ export function RunComposer({
     [uploadProgress, setUploadProgress] = useState('');
   const policy = useData(open ? { operation: 'getExecutionPolicy' } : undefined);
   const maxMinutes = (policy.data?.max_timeout_seconds || 1800) / 60;
-  const effectiveTimeout = Math.min(Number(timeout), maxMinutes);
   const workspaces = useDataPages(open ? { operation: 'listWorkspaces' } : undefined);
   const models = useDataPages(open ? { operation: 'listModels' } : undefined);
   const connections = useDataPages(open ? { operation: 'listConnections' } : undefined);
@@ -74,6 +76,15 @@ export function RunComposer({
     ? requestedModel
     : available[0]?.id || '';
   const selectedConfiguration = sessionId ? sessionQuery.data : preset ? selectedPreset : { harness, model };
+  const configurationQuery = sessionId ? sessionQuery : preset ? presetQuery : undefined;
+  const savedLimits = sessionId ? sessionQuery.data?.limits : preset ? selectedPreset?.limits : undefined;
+  // An output-only override must not raise inherited spending or execution time.
+  const effectiveBudget =
+    budget ?? String(Number(savedLimits?.max_cost_micro_usd ?? defaultRunBudgetMicroUsd) / 1000000);
+  const effectiveTimeout = Math.min(
+    Number(timeout ?? (savedLimits?.timeout_seconds ?? 900) / 60),
+    maxMinutes,
+  );
   const attachmentConfigurationPending =
     attachments.length > 0 &&
     (models.isPending || (sessionId ? sessionQuery.isPending : !!preset && presetQuery.isPending));
@@ -120,14 +131,22 @@ export function RunComposer({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          if (accessPending || attachmentConfigurationPending || attachmentQueryFailure || attachmentError)
+          if (
+            accessPending ||
+            configurationQuery?.isPending ||
+            configurationQuery?.error ||
+            attachmentConfigurationPending ||
+            attachmentQueryFailure ||
+            attachmentError
+          )
             return;
           setBusy(true);
           setError('');
           try {
             const limits = {
+              ...outputTokenLimit(outputTokens),
               timeout_seconds: Math.round(effectiveTimeout * 60),
-              max_cost_micro_usd: String(Math.round(Number(budget) * 1000000)),
+              max_cost_micro_usd: String(Math.round(Number(effectiveBudget) * 1000000)),
             };
             const body: Schema['RunCreate'] = {
               ...placement,
@@ -153,8 +172,7 @@ export function RunComposer({
               const target =
                 worktreeId ||
                 (sessionId
-                  ? (await request('getSession', { params: { path: { session_id: sessionId } } }))
-                      .worktree_id
+                  ? (await request('getSession', { params: { path: { session_id: sessionId } } })).worktree_id
                   : (await request('getWorkspace', { params: { path: { workspace_id: workspace } } }))
                       .default_worktree_id);
               if (!target) throw new Error('Create a worktree in this workspace before attaching files.');
@@ -177,6 +195,10 @@ export function RunComposer({
             await client.invalidateQueries();
             onOpenChange(false);
             setPrompt('');
+            // Per-Run overrides are not the next continuation's saved defaults.
+            setOutputTokens('');
+            setBudget(undefined);
+            setTimeoutValue(undefined);
             setAttachments([]);
             setAccessChoice(undefined);
             router.push(`/runs/${result.run_id}`);
@@ -227,6 +249,9 @@ export function RunComposer({
             rows={6}
           />
         </Field>
+        {configurationQuery?.error && (
+          <ErrorState error={configurationQuery.error} retry={() => void configurationQuery.refetch()} />
+        )}
         <RunAttachments value={attachments} onChange={setAttachments} onError={setError} disabled={busy} />
         {attachmentConfigurationPending && <Loading label="Checking attachment compatibility…" />}
         {attachmentQueryFailure?.error && (
@@ -287,6 +312,16 @@ export function RunComposer({
         {advanced && (
           <div className="advanced-fields" id="run-settings">
             <WorkerSelection value={placement} onChange={setPlacement} />
+            <NativeOutputLimit
+              value={outputTokens}
+              onChange={setOutputTokens}
+              maximum={
+                models.data?.data.find((item) => item.id === selectedConfiguration?.model)?.output_tokens
+              }
+              inherited={
+                sessionQuery.data?.limits?.max_output_tokens ?? selectedPreset?.limits?.max_output_tokens
+              }
+            />
             <div className="form-grid">
               <Field label="Maximum budget (USD)">
                 <input
@@ -294,7 +329,7 @@ export function RunComposer({
                   min="0.01"
                   max="1000"
                   step="0.01"
-                  value={budget}
+                  value={effectiveBudget}
                   onChange={(e) => setBudget(e.target.value)}
                 />
               </Field>
@@ -406,13 +441,17 @@ export function RunComposer({
             <ShieldCheck size={15} />
             {(selectedPreset?.model || model) === 'fixture-model'
               ? 'Simulation makes no paid API calls'
-              : placement.worker_id ? 'Run budget excludes separately billed Worker compute' : 'Spending is capped by your budget'}
+              : placement.worker_id
+                ? 'Run budget excludes separately billed Worker compute'
+                : 'Spending is capped by your budget'}
           </span>
           <Button
             busy={busy}
             type="submit"
             disabled={
               accessPending ||
+              !!configurationQuery?.isPending ||
+              !!configurationQuery?.error ||
               attachmentConfigurationPending ||
               !!attachmentQueryFailure ||
               !!attachmentError ||

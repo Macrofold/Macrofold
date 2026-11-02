@@ -83,3 +83,7 @@ Package registry publication and hosted customer acceptance remain release check
 ## Access policy and selection presence
 
 The contract generates access summaries, exact rule unions, cursor filters, advisory resolve, optional parent expansions and run/message exceptions in all five SDKs. Quoted If-Match is required on access mutations and ETag is returned on replay/deletion. Python root oneOf bodies use a typed input argument. Go nullable arrays retain explicit presence through Set/Unset and JSON decoding; Java uses JsonNullable. This preserves AgentPatch omission versus [] versus null. [Connector access](../../identity-integrations/connection-access.md) documents examples; SDK acceptance covers the wire distinctions.
+
+## Native output contract
+
+OpenAPI owns native `Limits.max_output_tokens`, published model context/input/output fields and optional `RunResult.failure_code`. All five generated clients share these fields; maintained Run helpers retain their existing success/persistence checks and typed failure behavior. The native failure code is `model_output_limit_exceeded`, independent of a successful checkpoint. No new endpoint, outcome enum, retry wrapper or direct-inference limit is introduced. [Runtime owner](../../execution/runtime.md#native-output-and-completion).

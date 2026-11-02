@@ -1,17 +1,39 @@
 import { hostRunContextSchema, hostRunPaths } from './host-paths';
 import { controlDirectory } from './control-directory';
 import { permissionLayersSchema } from '../../contracts/permissions';
-import { agentProcesses, agentMemoryMiB, freezeAgent, stopAgent, signalAgents } from './agent-processes';
+import {
+  agentProcesses,
+  agentMemorySample,
+  largestMemoryProcesses,
+  agentPss,
+  freezeAgent,
+  stopAgent,
+  signalAgents,
+  type AgentMemorySample,
+} from './agent-processes';
 import { warmSessionKey } from './warm-session';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { Transform } from 'node:stream';
 import { appendFile, chmod, chown, lstat, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { harnessNames } from '../../contracts/harnesses';
 import { mediaLimits } from '../../contracts/media';
+import { nativeModelLimitsSchema, nativeResultMaximumBytes } from '../../contracts/native-model';
+import {
+  nativeProfileCaptureSchema,
+  nativeDiagnosticFrameSchema,
+  nativeMemoryProfileSchema,
+  type MemoryFailure,
+} from '../../contracts/native-diagnostics';
+import { MemoryProfileAccumulator } from './memory-profile';
 import { atomicJSON, captureSnapshot } from './manifest';
 import type { NativeConfiguration, NativeResult } from './types';
+
+// Optional observer limits are per Host process, independent of customer capacity.
+let activeProfiles = 0,
+  pssReads = 0;
 
 export const runtimeConfiguration = z.object({
   runId: z.uuid(),
@@ -21,6 +43,7 @@ export const runtimeConfiguration = z.object({
     .optional(),
   harness: z.enum(harnessNames),
   model: z.string().min(1),
+  modelLimits: nativeModelLimitsSchema,
   provider: z.enum(['openai', 'anthropic', 'openrouter']),
   prompt: z.string(),
   instructions: z.string().optional(),
@@ -45,6 +68,16 @@ export const runtimeConfiguration = z.object({
   resumeId: z.string().optional(),
   toolGrants: z.boolean(),
   permissions: permissionLayersSchema.optional(),
+  performance: z
+    .unknown()
+    .optional()
+    .transform((value) => {
+      if (value === undefined) return undefined;
+      const parsed = nativeProfileCaptureSchema.safeParse(value);
+      if (parsed.success) return parsed.data;
+      console.warn(JSON.stringify({ code: 'native_profile_configuration_invalid' }));
+      return undefined;
+    }),
 });
 export type LiveHarness = {
   uid?: number;
@@ -88,7 +121,10 @@ export async function supervise(configurationPath: string, workerPath: string, r
   let sequence = 0,
     written = 0,
     truncated = false;
-  const event = async (type: string, data: Record<string, unknown>) => {
+  let writer = Promise.resolve(),
+    pendingWrites = 0,
+    writerClosing = false;
+  const appendEvent = async (type: string, data: Record<string, unknown>) => {
     if (truncated) return;
     let safe = data;
     // Private transport timing only; public ingestion copies type/data and its
@@ -113,6 +149,19 @@ export async function supervise(configurationPath: string, workerPath: string, r
     }
     await appendFile(path.join(directory, 'events.jsonl'), `${line}\n`, { mode: 0o640 });
   };
+  const event = (type: string, data: Record<string, unknown>) => {
+    pendingWrites++;
+    const write = writer.then(() => appendEvent(type, data));
+    writer = write.catch(() => {});
+    return write.finally(() => {
+      pendingWrites--;
+    });
+  };
+  const tryAppendDiagnostic = (data: Record<string, unknown>) => {
+    if (pendingWrites || writerClosing || truncated) return;
+    // Reuse the one event writer; optional append failure cannot terminate a child.
+    void event('runtime.memory_profile', data).catch(() => {});
+  };
   for (const root of [c.workspace, c.stateHome]) {
     await mkdir(root, { recursive: true });
     await chown(root, UID, UID);
@@ -136,29 +185,129 @@ export async function supervise(configurationPath: string, workerPath: string, r
     state: 'running',
     startedAt: new Date().toISOString(),
   });
+  let resumeId = c.resumeId;
   let result: NativeResult | undefined,
     pendingInput: string | undefined,
     failure: 'cancelled' | 'timed_out' | undefined;
   let resourceFailure: string | undefined;
+  let memoryFailure: MemoryFailure | undefined,
+    peakObservedRss = 0;
+  // A resumed worker can emit output while SIGCONT is still being awaited.
+  let stopAt: number | undefined;
   const reused = Boolean(resident?.child);
-  const child =
-    resident?.child ||
-    spawn(process.execPath, [workerPath, workerConfig], {
-      cwd: c.workspace,
-      uid: UID,
-      gid: UID,
-      env: {
-        PATH: process.env.PATH,
-        NODE_ENV: 'production',
-        HOME: c.stateHome,
-        TMPDIR: temporary,
-        USER: `agent${UID}`,
-        LOGNAME: `agent${UID}`,
-        LANG: 'C.UTF-8',
-      },
-      detached: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+  const capture = c.performance;
+  const profile =
+    capture && capture.expires_at_ms > Date.now() && activeProfiles < 8
+      ? new MemoryProfileAccumulator({ configuration: c, capture, reused })
+      : undefined;
+  if (profile) activeProfiles++;
+  let profileReleased = false,
+    nextPssAt = -Infinity;
+  const finishProfile = (endedBy: 'turn_end' | 'capture_expired') => {
+    if (!profile || profileReleased) return;
+    profileReleased = true;
+    activeProfiles--;
+    try {
+      const result = profile.finish(endedBy);
+      const valid = nativeMemoryProfileSchema.safeParse(result);
+      if (valid.success) tryAppendDiagnostic(valid.data);
+    } catch {
+      /* Optional diagnostics never change execution. */
+    } finally {
+      profile.dispose();
+    }
+  };
+  const enrichPss = (sample: AgentMemorySample) => {
+    if (!profile?.active() || sample.observedAtMs < nextPssAt) return;
+    nextPssAt = sample.observedAtMs + 5000;
+    if (pssReads >= 2) {
+      profile.dropped.pss_reads++;
+      profile.pssUnavailable('busy');
+      return;
+    }
+    const candidates = largestMemoryProcesses(sample, 8);
+    const start = performance.now(),
+      deadline = start + 100,
+      offset = profile.offset();
+    let index = 0,
+      covered = 0,
+      rss = 0,
+      pss = 0;
+    const read = async () => {
+      while (index < candidates.length && profile.active()) {
+        if (performance.now() >= deadline) {
+          profile.pssUnavailable('deadline');
+          return;
+        }
+        if (pssReads >= 2) {
+          profile.dropped.pss_reads++;
+          profile.pssUnavailable('busy');
+          return;
+        }
+        const candidate = candidates[index++];
+        pssReads++;
+        let result;
+        try {
+          result = await agentPss(candidate.pid, UID);
+        } finally {
+          pssReads--;
+        }
+        // A read keeps its slot until it actually settles; late callbacks cannot
+        // mutate a finalized report or the next warm turn.
+        if (!profile.active()) return;
+        if (performance.now() >= deadline) {
+          profile.pssUnavailable('deadline');
+          return;
+        }
+        if ('reason' in result) {
+          profile.pssUnavailable(result.reason);
+          continue;
+        }
+        covered++;
+        rss += candidate.rss_bytes;
+        pss += result.pssBytes;
+        profile.pss({
+          offset_ms: offset,
+          age_ms: 0,
+          read_ms: performance.now() - start,
+          covered_processes: covered,
+          observed_processes: sample.processCount,
+          covered_rss_bytes: rss,
+          pss_bytes: pss,
+          complete: covered === sample.processCount,
+        });
+      }
+    };
+    // A fixed candidate walk, not a queue; two shared slots bound actual reads.
+    void read().catch(() => profile.pssUnavailable('read_failed'));
+    void read().catch(() => profile.pssUnavailable('read_failed'));
+  };
+  let child: ChildProcessWithoutNullStreams;
+  try {
+    child =
+      resident?.child ||
+      spawn(process.execPath, [workerPath, workerConfig], {
+        cwd: c.workspace,
+        uid: UID,
+        gid: UID,
+        env: {
+          PATH: process.env.PATH,
+          NODE_ENV: 'production',
+          HOME: c.stateHome,
+          TMPDIR: temporary,
+          USER: `agent${UID}`,
+          LOGNAME: `agent${UID}`,
+          LANG: 'C.UTF-8',
+        },
+        detached: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+  } catch (error) {
+    finishProfile('turn_end');
+    writerClosing = true;
+    await writer;
+    throw error;
+  }
   child.stderr.resume();
   if (resident && !reused) resident.processes = new Set([child.pid!]);
   let finish!: () => void;
@@ -168,9 +317,35 @@ export async function supervise(configurationPath: string, workerPath: string, r
   child.once('exit', finish);
   child.once('error', finish);
   let dispatch = Promise.resolve();
-  const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
+  let lineBytes = 0;
+  // Bound raw JSONL before readline buffers/decodes it. Checking only a completed
+  // line leaves an unterminated native record unbounded in supervisor memory.
+  const output = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      if (resourceFailure === 'native_result_too_large') return done();
+      let offset = 0;
+      while (offset < chunk.length) {
+        const newline = chunk.indexOf(10, offset);
+        lineBytes += (newline < 0 ? chunk.length : newline) - offset;
+        if (lineBytes > nativeResultMaximumBytes) {
+          resourceFailure = 'native_result_too_large';
+          failure = 'cancelled';
+          stopAt ||= Date.now();
+          result = { output: '', outcome: 'failure', failureCode: resourceFailure };
+          child.kill('SIGTERM');
+          finish();
+          return done();
+        }
+        if (newline < 0) break;
+        lineBytes = 0;
+        offset = newline + 1;
+      }
+      done(null, chunk);
+    },
+  });
+  child.stdout.pipe(output);
+  const lines = createInterface({ input: output, crlfDelay: Infinity });
   lines.on('line', (line) => {
-    if (Buffer.byteLength(line) > 4 * 1024 * 1024) return;
     dispatch = dispatch
       .then(async () => {
         let message;
@@ -180,13 +355,30 @@ export async function supervise(configurationPath: string, workerPath: string, r
           return;
         }
         if (message.type === 'event') {
+          if (message.event?.type === 'runtime.memory_profile') return;
+          if (
+            message.event.type === 'runtime.started' &&
+            typeof message.event.data?.native_session_id === 'string' &&
+            message.event.data.native_session_id
+          )
+            resumeId = message.event.data.native_session_id;
           if (resident && !reused && message.event.type === 'runtime.started')
             resident.processes = new Set((await agentProcesses(UID)).keys());
           await event(message.event.type, message.event.data);
         }
         if (message.type === 'result') {
-          result = message.result;
+          result = { ...message.result, memoryFailure: undefined };
           finish();
+        }
+        if (message.type === 'diagnostic' && profile?.active()) {
+          if (Buffer.byteLength(line) > 1024) {
+            profile.dropped.frames++;
+            return;
+          }
+          const frame = nativeDiagnosticFrameSchema.safeParse(message.data);
+          if (frame.success && frame.data.run_id === c.runId && frame.data.capture_id === capture?.capture_id)
+            profile.frame(frame.data);
+          else profile.dropped.frames++;
         }
         if (message.type === 'input') {
           pendingInput = message.id;
@@ -201,11 +393,6 @@ export async function supervise(configurationPath: string, workerPath: string, r
         child.kill('SIGTERM');
       });
   });
-  if (reused && resident) {
-    child.stdin.write(`${JSON.stringify({ type: 'turn', configuration: c })}\n`);
-    await signalAgents(resident.processes, 'SIGCONT', UID);
-  }
-  let stopAt: number | undefined;
   let checking: Promise<void> | undefined;
   const timer = setInterval(() => {
     if (checking) return;
@@ -218,15 +405,38 @@ export async function supervise(configurationPath: string, workerPath: string, r
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
         if (Date.now() >= Date.parse(c.deadline)) failure = 'timed_out';
-        if (!failure && c.hostRun && (await agentMemoryMiB(UID)) > c.hostRun.memoryMiB) {
-          resourceFailure = 'memory_limit';
-          failure = 'cancelled';
+        let sample: AgentMemorySample | undefined;
+        if (!failure && c.hostRun) {
+          sample = await agentMemorySample(UID);
+          peakObservedRss = Math.max(peakObservedRss, sample.rssBytes);
+          if (Math.ceil(sample.rssBytes / 1024 / 1024) > c.hostRun.memoryMiB) {
+            resourceFailure = 'memory_limit';
+            failure = 'cancelled';
+          }
         }
         if (failure) {
           stopAt = Date.now();
           child.kill('SIGTERM');
+          // Signal first. The projection uses the already-read guard inventory.
+          if (resourceFailure === 'memory_limit' && sample && c.hostRun)
+            memoryFailure = {
+              measurement: 'process_rss_sum',
+              limit_bytes: c.hostRun.memoryMiB * 1024 * 1024,
+              observed_rss_bytes: sample.rssBytes,
+              peak_observed_rss_bytes: peakObservedRss,
+              process_count: sample.processCount,
+              unavailable_process_count: sample.unavailableProcessCount,
+              largest_processes: largestMemoryProcesses(sample),
+            };
+        } else if (sample && profile?.active()) {
+          try {
+            if (profile.observe(sample)) enrichPss(sample);
+          } catch {
+            /* A failed observer cannot disable required enforcement. */
+          }
         }
       }
+      if (profile?.expired()) finishProfile('capture_expired');
       if (stopAt && Date.now() - stopAt > 4000) await stopAgent(UID);
       if (pendingInput && !failure) {
         try {
@@ -259,6 +469,10 @@ export async function supervise(configurationPath: string, workerPath: string, r
   };
   let retained = false;
   try {
+    if (reused && resident) {
+      child.stdin.write(`${JSON.stringify({ type: 'turn', configuration: c })}\n`);
+      await signalAgents(resident.processes, 'SIGCONT', UID);
+    }
     if (resident && c.warm) {
       await finished;
       await dispatch;
@@ -267,7 +481,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
         await freezeAgent(resident.processes, UID);
         resident.child = child;
         resident.key = warmSessionKey(c);
-        resident.resumeId = result.resumeId;
+        resident.resumeId = result.resumeId || resumeId;
         retained = true;
       }
     } else {
@@ -284,13 +498,19 @@ export async function supervise(configurationPath: string, workerPath: string, r
     }
   } finally {
     await stopChecking();
+    finishProfile(profile?.expired() ? 'capture_expired' : 'turn_end');
+    writerClosing = true;
     lines.close();
+    child.stdout.unpipe(output);
+    output.destroy();
     child.removeListener('exit', finish);
     child.removeListener('error', finish);
     if (!retained) {
       await stopAgent(UID);
       if (resident) await discardHarness(resident);
     }
+    await dispatch;
+    await writer;
   }
   await unlink(workerConfig).catch(() => {});
   await atomicJSON(path.join(directory, 'status.json'), {
@@ -319,9 +539,13 @@ export async function supervise(configurationPath: string, workerPath: string, r
   }
   const final = {
     ...(result || { output: '', outcome: 'failure', failureCode: 'native_process_exited' }),
+    // Cancellation can beat the SDK's final message after a gateway fence. The
+    // already-observed native identity still belongs to this captured Session.
+    ...(!result?.resumeId && resumeId ? { resumeId } : {}),
     ...(failure
       ? { outcome: resourceFailure ? 'failure' : failure, failureCode: resourceFailure || failure }
       : {}),
+    ...(memoryFailure ? { memoryFailure } : {}),
     snapshotBytes,
     persistence,
     persistenceError,

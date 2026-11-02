@@ -1,8 +1,9 @@
 /** Completed observations cross process boundaries by durable identity, never by
  * credentials or an in-memory active span. Exporters are diagnostics, not a ledger. */
-export type TraceContext = {
+export type TraceContext = (
+  { run_id: string; operation_id?: never } | { operation_id: string; run_id?: never }
+) & {
   organization_id: string;
-  run_id: string;
   workspace_id: string | null;
   worktree_id: string | null;
   session_id: string | null;
@@ -30,7 +31,7 @@ export type TraceContext = {
 };
 export type TraceObservation = {
   context: TraceContext;
-  /** Stable identity within the run, including on recovery/replayed delivery. */
+  /** Stable identity within the execution, including recovery/replayed delivery. */
   id: string;
   name: string;
   type: 'agent' | 'generation' | 'tool' | 'retriever' | 'event';

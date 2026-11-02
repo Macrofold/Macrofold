@@ -8,7 +8,14 @@ vi.mock('better-auth', () => ({ betterAuth: () => ({}) }));
 
 vi.mock('../../packages/core/src/model-catalog', () => ({
   selectedModel: () => ({
-    model: { id: 'test-model', provider: 'test-provider', enabled: true, harnesses: ['codex'] },
+    model: {
+      context_tokens: 128000,
+      output_tokens: 65536,
+      id: 'test-model',
+      provider: 'test-provider',
+      enabled: true,
+      harnesses: ['codex'],
+    },
     revision: null,
   }),
 }));

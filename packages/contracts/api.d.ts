@@ -2525,6 +2525,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/integration-packs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse optional agent capabilities
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        get: operations["listIntegrationPacks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List installed agent capabilities
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        get: operations["listAgentIntegrations"];
+        put?: never;
+        /**
+         * Install a capability in a worktree
+         * @description Optional capability installation. Requires runs:write plus files:write for editable memory, or connections:write and connection ownership for service memory. Existing resources, permissions and funding remain authoritative.
+         */
+        post: operations["createAgentIntegration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect an installed capability
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        get: operations["getAgentIntegration"];
+        put?: never;
+        post?: never;
+        /**
+         * Remove an installation and retain editable files
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        delete: operations["deleteAgentIntegration"];
+        options?: never;
+        head?: never;
+        /**
+         * Pause learning, disable or enable a capability
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        patch: operations["updateAgentIntegration"];
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List editable memory files
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        get: operations["listAgentIntegrationMemories"];
+        /**
+         * Correct an editable memory file
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        put: operations["writeAgentIntegrationMemory"];
+        post?: never;
+        /**
+         * Remove a current editable memory file
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        delete: operations["deleteAgentIntegrationMemory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/memory-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export current editable memory as bounded JSON
+         * @description Exports current text only, at most 1 MiB and 500 files. Retained checkpoints and conversations have separate retention. Uses no model calls.
+         */
+        get: operations["exportAgentIntegrationMemory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/forget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable recall and request complete dedicated service collection erasure
+         * @description Requires explicit confirmation. Disables recall before asynchronous remote cleanup; uncertain writes keep cleanup unconfirmed. Clears a whole dedicated service collection, not historical Run records. Does not claim selective observation deletion erases source events.
+         */
+        post: operations["forgetAgentIntegrationMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect background memory progress, uncertainty and external usage
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        get: operations["listAgentIntegrationActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an explicit confirmed note to a service memory collection
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        post: operations["createAgentIntegrationNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search service memory with explicit external funding
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        post: operations["searchAgentIntegrationMemory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/activity/{source_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check an acknowledged job without submitting generation again
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        post: operations["retryAgentIntegrationCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent-integrations/{integration_id}/activity/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one current captured memory source and its receipt
+         * @description Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.
+         */
+        get: operations["getAgentIntegrationSource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2607,7 +2847,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model" | "memory_service";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -2879,7 +3119,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name?: string;
             /** @enum {string} */
-            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
+            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model" | "memory_service";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -2904,7 +3144,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model" | "memory_service";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -3625,6 +3865,10 @@ export interface components {
             /** Format: date-time */
             content_expired_at?: string;
             inference?: components["schemas"]["InferenceReceipt"];
+            /** @description Stable failure classification, including model_output_limit_exceeded for an incomplete native completion. Partial output and verified checkpoints may still be available. */
+            failure_code?: string;
+            /** @description True when retained native failure answer text exceeded the 4 MiB diagnostic bound. Available text remains partial and must not be published as a complete answer. */
+            output_text_truncated?: boolean;
         };
         WorkerPrice: {
             /** @constant */
@@ -3990,6 +4234,12 @@ export interface components {
             input_micro_usd_per_million: string;
             /** @description Current retail micro-USD per million output tokens, including reported reasoning tokens. */
             output_micro_usd_per_million: string;
+            /** @description Published total model context capacity. Present for enabled native models. */
+            context_tokens?: number;
+            /** @description Separately published maximum input tokens, when available. */
+            input_tokens?: number;
+            /** @description Published maximum generated tokens, including reasoning. Present for enabled native models. */
+            output_tokens?: number;
         };
         /** @description Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the workspace. Source selects saved starting files and never uploads a local folder. */
         WorktreeCreate: {
@@ -4281,8 +4531,10 @@ export interface components {
              * @default 2000000
              */
             max_cost_micro_usd: string;
-            /** @description Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. */
+            /** @description Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. Output-limit completions always fail a native Run with model_output_limit_exceeded, regardless of this flag; no automatic paid repair is performed. */
             stop_on_model_error?: boolean;
+            /** @description Maximum generated tokens per native model call, including reasoning and tool-call output. Does not raise the Run spending cap or deadline. Omission inherits the Session allowance or uses the model-aware native default (32768; 65536 for high/xhigh/max effort or Muse Contributor default reasoning), bounded by the model maximum. */
+            max_output_tokens?: number;
         };
         Agent: {
             name: string;
@@ -5197,7 +5449,7 @@ export interface components {
             /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription" | "hugging_face" | "runpod" | "external_model" | "memory_service";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -5758,6 +6010,172 @@ export interface components {
             code?: string;
             /** @description True when the upstream message was shortened to its byte limit. */
             truncated?: boolean;
+        };
+        IntegrationPack: {
+            /** @enum {string} */
+            id: "file-memory" | "hindsight" | "claude-mem";
+            name: string;
+            /** @enum {string} */
+            category: "memory";
+            /** @enum {string} */
+            availability: "available" | "setup_required";
+            summary: string;
+            capture: string;
+            funding: string;
+        };
+        AgentIntegration: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            worktree_id: string;
+            /** @enum {string} */
+            pack_id: "file-memory" | "hindsight" | "claude-mem";
+            /** @enum {string} */
+            state: "active" | "paused" | "disabled";
+            revision: string;
+            /** Format: date-time */
+            created_at: string;
+            files: string[];
+            service?: {
+                /** Format: uuid */
+                connection_id: string;
+                namespace: string;
+                /** @default false */
+                required: boolean;
+                /** @enum {string} */
+                funding: "external";
+            };
+            last_error_code?: string | null;
+            /** @description Detached service installations remain owner-manageable for inspection, source export and explicit cleanup; they cannot be re-enabled. */
+            detached?: boolean;
+            /** @description This dedicated service collection was retired by forgetting or resource purge and cannot be recalled or enabled again. Owner inspection, export and explicit cleanup remain available. */
+            retired?: boolean;
+        };
+        AgentIntegrationCreate: {
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            worktree_id: string;
+            /** @enum {string} */
+            pack_id: "file-memory" | "hindsight" | "claude-mem";
+            service?: {
+                /** Format: uuid */
+                connection_id: string;
+                namespace: string;
+                /** @constant */
+                external_cost_acknowledged: true;
+                /** @constant */
+                namespace_is_dedicated: true;
+                /** @description Omitted or false: optional memory may be unavailable without blocking the Run. True: retrieval must be confirmed before native execution. */
+                required?: boolean;
+            };
+        };
+        AgentIntegrationPatch: {
+            /** @enum {string} */
+            state: "active" | "paused" | "disabled";
+        };
+        AgentIntegrationDelete: {
+            /** @constant */
+            deleted: true;
+            /** @constant */
+            files_retained: true;
+        };
+        IntegrationPackPage: {
+            data: components["schemas"]["IntegrationPack"][];
+            next_cursor: string | null;
+        };
+        AgentIntegrationPage: {
+            data: components["schemas"]["AgentIntegration"][];
+            next_cursor: string | null;
+        };
+        AgentMemoryEntry: {
+            path: string;
+            size_bytes: string | null;
+            revision: string;
+            state?: string;
+        };
+        AgentMemoryPage: {
+            data: components["schemas"]["AgentMemoryEntry"][];
+            next_cursor: string | null;
+        };
+        AgentMemoryEdit: {
+            content: string;
+        };
+        AgentMemoryExport: {
+            /** Format: uuid */
+            integration_id: string;
+            revision: string;
+            files: {
+                path: string;
+                content: string;
+                sha256: string;
+            }[];
+            /** @constant */
+            historical_data_included: false;
+            /** @enum {string} */
+            export_scope?: "captured_sources" | "current_files";
+            pending_sources?: number;
+        };
+        AgentMemoryForget: {
+            /** @constant */
+            confirm_delete_all: true;
+        };
+        AgentMemoryForgetReceipt: {
+            /** @constant */
+            accepted: true;
+            /** @constant */
+            recall_disabled: true;
+            /** Format: uuid */
+            cleanup_id: string;
+        };
+        AgentMemoryReceipt: {
+            /** @enum {string} */
+            state: "pending" | "complete" | "failed";
+            operation_id?: string;
+            external_cost_micro_usd: string | null;
+            input_tokens: string | null;
+            output_tokens: string | null;
+        };
+        AgentMemoryActivity: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            source_run_id: string | null;
+            /** @enum {string} */
+            kind: "capture" | "purge";
+            /** @enum {string} */
+            state: "queued" | "sending" | "waiting" | "complete" | "failed" | "unknown" | "cancelled";
+            generation: string;
+            error_code: string | null;
+            /** Format: date-time */
+            created_at: string;
+            receipt: components["schemas"]["AgentMemoryReceipt"] | null;
+        };
+        AgentMemoryActivityPage: {
+            data: components["schemas"]["AgentMemoryActivity"][];
+            next_cursor: string | null;
+        };
+        AgentMemorySearch: {
+            query: string;
+        };
+        AgentMemorySearchResult: {
+            context: string;
+            receipt: components["schemas"]["AgentMemoryReceipt"];
+        };
+        AgentMemoryQueued: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            state: "queued" | "waiting";
+        };
+        AgentMemorySource: {
+            /** Format: uuid */
+            id: string;
+            state: string;
+            content: string | null;
+            receipt: components["schemas"]["AgentMemoryReceipt"] | null;
         };
     };
     responses: never;
@@ -12503,6 +12921,597 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelDeployment"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listIntegrationPacks: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationPackPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAgentIntegrations: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                workspace_id?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentIntegrationPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createAgentIntegration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentIntegrationCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentIntegration"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAgentIntegration: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentIntegration"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteAgentIntegration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentIntegrationDelete"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateAgentIntegration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentIntegrationPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentIntegration"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAgentIntegrationMemories: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemoryPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    writeAgentIntegrationMemory: {
+        parameters: {
+            query: {
+                path: components["parameters"]["FilePath"];
+            };
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentMemoryEdit"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteAgentIntegrationMemory: {
+        parameters: {
+            query: {
+                path: components["parameters"]["FilePath"];
+            };
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    exportAgentIntegrationMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemoryExport"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    forgetAgentIntegrationMemory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentMemoryForget"];
+            };
+        };
+        responses: {
+            /** @description Recall disabled; inspect activity for actual cleanup confirmation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemoryForgetReceipt"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAgentIntegrationActivity: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemoryActivityPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createAgentIntegrationNote: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentMemoryEdit"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemoryQueued"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    searchAgentIntegrationMemory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentMemorySearch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemorySearchResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    retryAgentIntegrationCheck: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                integration_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemoryQueued"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAgentIntegrationSource: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                integration_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMemorySource"];
                 };
             };
             /** @description Error */

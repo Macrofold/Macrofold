@@ -12,6 +12,7 @@ function context(): HarnessContext {
       prompt: 'fixture prompt',
       workspace: '/workspace',
       stateHome: '/agent-home',
+      modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
       gatewayURL: 'http://127.0.0.1:1',
       toolURL: 'http://127.0.0.1:1',
       token: 'fixture-only',

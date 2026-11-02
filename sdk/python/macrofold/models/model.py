@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
@@ -37,7 +37,10 @@ class Model(BaseModel):
     name: StrictStr = Field(description="Display name of the reviewed model.")
     input_micro_usd_per_million: Annotated[str, Field(strict=True)] = Field(description="Current retail micro-USD per million input tokens. Each accepted run retains its own rate snapshot.")
     output_micro_usd_per_million: Annotated[str, Field(strict=True)] = Field(description="Current retail micro-USD per million output tokens, including reported reasoning tokens.")
-    __properties: ClassVar[List[str]] = ["id", "provider", "harnesses", "enabled", "billing_modes", "rate_card_version", "name", "input_micro_usd_per_million", "output_micro_usd_per_million"]
+    context_tokens: Optional[Annotated[int, Field(le=9007199254740991, strict=True, ge=1)]] = Field(default=None, description="Published total model context capacity. Present for enabled native models.")
+    input_tokens: Optional[Annotated[int, Field(le=9007199254740991, strict=True, ge=1)]] = Field(default=None, description="Separately published maximum input tokens, when available.")
+    output_tokens: Optional[Annotated[int, Field(le=9007199254740991, strict=True, ge=1)]] = Field(default=None, description="Published maximum generated tokens, including reasoning. Present for enabled native models.")
+    __properties: ClassVar[List[str]] = ["id", "provider", "harnesses", "enabled", "billing_modes", "rate_card_version", "name", "input_micro_usd_per_million", "output_micro_usd_per_million", "context_tokens", "input_tokens", "output_tokens"]
 
     @field_validator('billing_modes')
     def billing_modes_validate_enum(cls, value):
@@ -120,7 +123,10 @@ class Model(BaseModel):
             "rate_card_version": obj.get("rate_card_version"),
             "name": obj.get("name"),
             "input_micro_usd_per_million": obj.get("input_micro_usd_per_million"),
-            "output_micro_usd_per_million": obj.get("output_micro_usd_per_million")
+            "output_micro_usd_per_million": obj.get("output_micro_usd_per_million"),
+            "context_tokens": obj.get("context_tokens"),
+            "input_tokens": obj.get("input_tokens"),
+            "output_tokens": obj.get("output_tokens")
         })
         return _obj
 

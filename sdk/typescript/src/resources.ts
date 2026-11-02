@@ -2519,6 +2519,219 @@ export class ModelDeploymentsResource {
     });
   }
 }
+export type ListAgentIntegrationsOptions = {
+  cursor?: NonNullable<operations['listAgentIntegrations']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listAgentIntegrations']['parameters']['query']>['limit'];
+  workspace_id?: NonNullable<operations['listAgentIntegrations']['parameters']['query']>['workspace_id'];
+};
+export type CreateAgentIntegrationOptions = NonNullable<
+  operations['createAgentIntegration']['requestBody']
+>['content']['application/json'];
+export type UpdateAgentIntegrationOptions = NonNullable<
+  operations['updateAgentIntegration']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['updateAgentIntegration']['parameters']['header']>['If-Match'];
+};
+export type ListAgentIntegrationMemoriesOptions = {
+  cursor?: NonNullable<operations['listAgentIntegrationMemories']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listAgentIntegrationMemories']['parameters']['query']>['limit'];
+};
+export type WriteAgentIntegrationMemoryOptions = NonNullable<
+  operations['writeAgentIntegrationMemory']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['writeAgentIntegrationMemory']['parameters']['header']>['If-Match'];
+  path: NonNullable<operations['writeAgentIntegrationMemory']['parameters']['query']>['path'];
+};
+export type DeleteAgentIntegrationMemoryOptions = {
+  path: NonNullable<operations['deleteAgentIntegrationMemory']['parameters']['query']>['path'];
+  ifMatch: NonNullable<operations['deleteAgentIntegrationMemory']['parameters']['header']>['If-Match'];
+};
+export type ForgetAgentIntegrationMemoryOptions = NonNullable<
+  operations['forgetAgentIntegrationMemory']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['forgetAgentIntegrationMemory']['parameters']['header']>['If-Match'];
+};
+export type ListAgentIntegrationActivityOptions = {
+  cursor?: NonNullable<operations['listAgentIntegrationActivity']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listAgentIntegrationActivity']['parameters']['query']>['limit'];
+};
+export type CreateAgentIntegrationNoteOptions = NonNullable<
+  operations['createAgentIntegrationNote']['requestBody']
+>['content']['application/json'];
+export type SearchAgentIntegrationMemoryOptions = NonNullable<
+  operations['searchAgentIntegrationMemory']['requestBody']
+>['content']['application/json'];
+export class AgentIntegrationsResource {
+  constructor(private client: Transport) {}
+  listIntegrationPacks(requestOptions: RequestSettings = {}): Promise<Result<'listIntegrationPacks'>> {
+    return this.client.request('listIntegrationPacks', { ...requestOptions });
+  }
+  list(
+    options: ListAgentIntegrationsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listAgentIntegrations'>> {
+    return this.client.request('listAgentIntegrations', {
+      ...requestOptions,
+      params: { query: { cursor: options.cursor, limit: options.limit, workspace_id: options.workspace_id } },
+    });
+  }
+  create(
+    options: CreateAgentIntegrationOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createAgentIntegration'>> {
+    return this.client.request('createAgentIntegration', {
+      ...requestOptions,
+
+      body: options,
+    });
+  }
+  get(integrationId: string, requestOptions: RequestSettings = {}): Promise<Result<'getAgentIntegration'>> {
+    return this.client.request('getAgentIntegration', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId } },
+    });
+  }
+  update(
+    integrationId: string,
+    options: UpdateAgentIntegrationOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'updateAgentIntegration'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('updateAgentIntegration', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId }, header: { 'If-Match': ifMatch } },
+      body: body,
+    });
+  }
+  delete(
+    integrationId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'deleteAgentIntegration'>> {
+    return this.client.request('deleteAgentIntegration', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId } },
+    });
+  }
+  listMemories(
+    integrationId: string,
+    options: ListAgentIntegrationMemoriesOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listAgentIntegrationMemories'>> {
+    return this.client.request('listAgentIntegrationMemories', {
+      ...requestOptions,
+      params: {
+        path: { integration_id: integrationId },
+        query: { cursor: options.cursor, limit: options.limit },
+      },
+    });
+  }
+  writeMemory(
+    integrationId: string,
+    options: WriteAgentIntegrationMemoryOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'writeAgentIntegrationMemory'>> {
+    const { ifMatch, path, ...body } = options;
+    return this.client.request('writeAgentIntegrationMemory', {
+      ...requestOptions,
+      params: {
+        path: { integration_id: integrationId },
+        query: { path: path },
+        header: { 'If-Match': ifMatch },
+      },
+      body: body,
+    });
+  }
+  deleteMemory(
+    integrationId: string,
+    options: DeleteAgentIntegrationMemoryOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'deleteAgentIntegrationMemory'>> {
+    return this.client.request('deleteAgentIntegrationMemory', {
+      ...requestOptions,
+      params: {
+        path: { integration_id: integrationId },
+        query: { path: options.path },
+        header: { 'If-Match': options.ifMatch },
+      },
+    });
+  }
+  exportMemory(
+    integrationId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'exportAgentIntegrationMemory'>> {
+    return this.client.request('exportAgentIntegrationMemory', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId } },
+    });
+  }
+  forgetMemory(
+    integrationId: string,
+    options: ForgetAgentIntegrationMemoryOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'forgetAgentIntegrationMemory'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('forgetAgentIntegrationMemory', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId }, header: { 'If-Match': ifMatch } },
+      body: body,
+    });
+  }
+  listActivity(
+    integrationId: string,
+    options: ListAgentIntegrationActivityOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listAgentIntegrationActivity'>> {
+    return this.client.request('listAgentIntegrationActivity', {
+      ...requestOptions,
+      params: {
+        path: { integration_id: integrationId },
+        query: { cursor: options.cursor, limit: options.limit },
+      },
+    });
+  }
+  createNote(
+    integrationId: string,
+    options: CreateAgentIntegrationNoteOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createAgentIntegrationNote'>> {
+    return this.client.request('createAgentIntegrationNote', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId } },
+      body: options,
+    });
+  }
+  searchMemory(
+    integrationId: string,
+    options: SearchAgentIntegrationMemoryOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'searchAgentIntegrationMemory'>> {
+    return this.client.request('searchAgentIntegrationMemory', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId } },
+      body: options,
+    });
+  }
+  retryCheck(
+    integrationId: string,
+    sourceId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'retryAgentIntegrationCheck'>> {
+    return this.client.request('retryAgentIntegrationCheck', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId, source_id: sourceId } },
+    });
+  }
+  getSource(
+    integrationId: string,
+    sourceId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getAgentIntegrationSource'>> {
+    return this.client.request('getAgentIntegrationSource', {
+      ...requestOptions,
+      params: { path: { integration_id: integrationId, source_id: sourceId } },
+    });
+  }
+}
 export abstract class Resources {
   abstract request<O extends Operation>(operation: O, options?: RequestOptions<O>): Promise<Result<O>>;
   abstract streamInference(
@@ -2564,4 +2777,5 @@ export abstract class Resources {
   readonly requests = new RequestsResource(this);
   readonly harnesses = new HarnessesResource(this);
   readonly modelDeployments = new ModelDeploymentsResource(this);
+  readonly agentIntegrations = new AgentIntegrationsResource(this);
 }

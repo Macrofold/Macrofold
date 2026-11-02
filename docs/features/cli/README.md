@@ -113,3 +113,13 @@ For the full command table, selectors, exit codes, security boundaries, and inpu
 The CLI uses the same [connector access rules](../identity-integrations/connection-access.md) as dashboard and SDK runs. Provider authorization alone grants no tool access. Inherited selection resolves the linked workspace and saved preset; an explicit connection selection only narrows approved access. Manage access rules in Connections or through the generated SDKs. Connection changes require connections:write consent.
 
 Connector selection inherits by default. Use `--connection CONNECTION_ID:TOOL1,TOOL2` to narrow tools or `--no-connections` to select none; both work with `--agent` and `--session`. Selection never grants access.
+
+## Set native output room
+
+For an already linked worktree and configured model/funding:
+
+```sh
+macrofold run "Explain the next implementation step" --harness codex --model gpt-5.4-mini --max-output-tokens 65536 --max-cost 2.00
+```
+
+`--max-output-tokens` applies per native model call and includes reasoning. Omit it to inherit Session/preset defaults or use automatic admission policy. It does not increase `--max-cost` or the deadline. An output-limited Run exits as failure and preserves inspectable partial output/checkpoints; review before starting another Run. [Model allowance](../execution/models.md#native-output-allowance).

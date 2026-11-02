@@ -1,3 +1,9 @@
+import {
+  agentIntegrationHandlers,
+  agentIntegrationPreparations,
+  agentIntegrationReplayAuthorizers,
+} from './agent-integration-handlers';
+import { disableResourceIntegrations } from './agent-integrations';
 import { cancelApiKeyRuns } from './actor-authorization';
 import { lock } from '../../db';
 import * as workers from './workers';
@@ -47,6 +53,7 @@ import {
   type HandlerMap,
   type Context,
   type PreparationMap,
+  type ReplayAuthorizerMap,
   type RequestContext,
 } from './api-types';
 import { createTwoFilesPatch } from 'diff';
@@ -324,6 +331,7 @@ const primitiveHandlers = {
       'default_worktree',
       'Keep the default worktree or archive the workspace.',
     );
+    await disableResourceIntegrations(c.tx, { worktree_id: ws.id });
     await r.update(c.tx, 'worktrees', ws.id, { deleted: true, status: 'deleting' });
     // Bind authorization before hiding the worktree. Resolving the deleted resource
     // again would turn a successful deletion into a 404 and roll back the transaction.
@@ -852,7 +860,12 @@ const primitiveHandlers = {
     };
   },
 } satisfies HandlerMap;
-export const handlers: HandlerMap = { ...primitiveHandlers, ...customerAgentHandlers(primitiveHandlers) };
+export const handlers: HandlerMap = {
+  ...primitiveHandlers,
+  ...customerAgentHandlers(primitiveHandlers),
+  ...agentIntegrationHandlers,
+};
+export const replayAuthorizers: ReplayAuthorizerMap = { ...agentIntegrationReplayAuthorizers };
 
 const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
   files.prepareFileMutation(
@@ -863,6 +876,7 @@ const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
   );
 /** Expensive immutable preparation is separate from the final idempotent SQL commit. */
 export const preparations: PreparationMap = {
+  ...agentIntegrationPreparations,
   createConnection: (c) => prepareConnectionSave(c),
   updateConnection: (c) => prepareConnectionSave(c),
   inspectModelDeployment: modelDeploymentService.prepareInspect,

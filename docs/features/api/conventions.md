@@ -82,3 +82,11 @@ Do not automatically repeat an external side effect whose outcome is uncertain. 
 Read [streaming and webhooks](events.md) and the [SDK guides](sdks/README.md) for TypeScript, Python, Go, Rust, and Java.
 
 [Protocol details](implementation.md) cover transfer preconditions, OAuth discovery, event delivery, and endpoint inventory. Customer REST, authentication protocols, provider webhooks, and [operator MCP](../operations/README.md) are separate authorization surfaces.
+
+## Native output limits
+
+Native Session/preset/Run `limits.max_output_tokens` sets a per-model-call allowance, including reasoning and tool-call output. Omission inherits Session limits or uses the [model-aware native defaults](../execution/models.md#native-output-allowance). Published model capabilities bound an explicit value; spending and time limits remain unchanged. Direct inference retains its distinct `InferenceLimits` contract.
+
+A native output-limit finish produces a failed Run, not an admission error or a successful partial answer. `GET /v1/runs/{id}/result` still returns HTTP 200 with `final: true`, `execution_outcome: failure`, and `failure_code: model_output_limit_exceeded`. Available `output_text`, usage and verified checkpoint metadata remain valid diagnostic/recovery data. The same code appears on the Run and failure event. There is no automatic paid retry.
+
+Native failure results may include `output_text_truncated: true` when retained answer text exceeds the 4 MiB diagnostic bound. Available text is a bounded partial prefix; an absent flag never establishes a successful or complete answer.

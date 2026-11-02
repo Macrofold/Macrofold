@@ -51,6 +51,7 @@ const navigation = [
   { href: '/model-deployments', label: 'Model deployments', icon: Box },
   { href: '/agents', label: 'Agent presets', icon: Bot },
   { href: '/templates', label: 'Templates', icon: LayoutGrid },
+  { href: '/library', label: 'Agent library', icon: BookOpen },
   { href: '/connections', label: 'Connections', icon: PlugZap },
   { href: '/triggers', label: 'Triggers', icon: Webhook },
   { href: '/scheduled-tasks', label: 'Scheduled tasks', icon: CalendarClock },

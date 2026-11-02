@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { nativeMemoryProfileSchema, type NativeProfileCapture } from '../../contracts/native-diagnostics';
+import type { HarnessName } from '../../contracts/harnesses';
 import type {
   PerformanceCounter,
   PerformanceIdentity,
@@ -101,6 +103,17 @@ export function shutdownPerformance() {
   return current?.close() ?? Promise.resolve();
 }
 
+/** Whole-turn sampling is independent from the enclosing poller's scope. */
+export function nativeProfileCapture(runId: string, deadlineMs: number): NativeProfileCapture | undefined {
+  return current?.nativeCapture(runId, deadlineMs);
+}
+export function importNativeMemoryProfile(
+  payload: unknown,
+  expected: { organizationId: string; runId: string; harness: HarnessName },
+) {
+  return current?.importNative(payload, expected) ?? false;
+}
+
 /** Factory is for isolated fixtures. Serving uses exactly one composition instance. */
 export function createPerformanceCollector(options: Options) {
   // Keep one negative sampling decision through nested/deferred work without
@@ -117,7 +130,11 @@ export function createPerformanceCollector(options: Options) {
   const dropped: Record<string, number> = {};
   const cleanups: (() => void)[] = [];
   let enabled = true,
+    closed = false,
+    collectionEnded: number | undefined,
+    receiveExpiry: NodeJS.Timeout | undefined,
     closing: Promise<void> | undefined;
+  const expiresAt = Date.now() + options.durationSeconds * 1000;
   let exemplars = 0;
   const unattributed = { statements: 0, checkouts: 0 };
   const sampling = { seen: 0, sampled: 0, skipped: 0 };
@@ -358,10 +375,10 @@ export function createPerformanceCollector(options: Options) {
       },
     };
   }
-  async function close() {
-    if (closing) return closing;
+  function stopCollection() {
+    if (!enabled) return;
     enabled = false;
-    clearInterval(timer);
+    collectionEnded = Math.min(clock(), began + options.durationSeconds * 1000);
     clearTimeout(expiry);
     for (const cleanup of cleanups.splice(0)) {
       try {
@@ -371,6 +388,13 @@ export function createPerformanceCollector(options: Options) {
       }
     }
     for (const state of states) finish(state, true);
+  }
+  async function close() {
+    if (closing) return closing;
+    stopCollection();
+    closed = true;
+    clearInterval(timer);
+    clearTimeout(receiveExpiry);
     let sinkDrops = 0;
     try {
       sinkDrops = options.sink.stats?.().dropped ?? 0;
@@ -384,7 +408,7 @@ export function createPerformanceCollector(options: Options) {
       capture_id: captureId,
       instance_id: instanceId,
       started_at: beganAt,
-      duration_ms: Math.max(0, clock() - began),
+      duration_ms: Math.max(0, (collectionEnded ?? clock()) - began),
       sample_rate: options.sampleRate,
       counters: {},
       stages: {},
@@ -415,7 +439,16 @@ export function createPerformanceCollector(options: Options) {
   }, 1000);
   timer.unref();
   const expiry = setTimeout(() => {
-    void close();
+    stopCollection();
+    // Native expiry reports can arrive on a different normal probe. Keep only
+    // import/flush alive; scopes and instrumentation have already detached.
+    receiveExpiry = setTimeout(
+      () => {
+        void close();
+      },
+      Math.max(0, began + options.durationSeconds * 1000 + 10_000 - clock()),
+    );
+    receiveExpiry.unref();
   }, options.durationSeconds * 1000);
   expiry.unref();
   enqueue({
@@ -433,7 +466,87 @@ export function createPerformanceCollector(options: Options) {
     stages: {},
   });
   return {
-    active: () => enabled,
+    active: () => enabled && clock() < began + options.durationSeconds * 1000,
+    nativeCapture(runId: string, deadlineMs: number): NativeProfileCapture | undefined {
+      if (
+        !enabled ||
+        clock() >= began + options.durationSeconds * 1000 ||
+        options.sampleRate === 0 ||
+        !uuid.test(runId) ||
+        !Number.isFinite(deadlineMs)
+      )
+        return;
+      const expires = Math.min(expiresAt, deadlineMs);
+      if (expires <= Date.now()) return;
+      const draw =
+        createHash('sha256')
+          .update(captureId + ':' + runId)
+          .digest()
+          .readUInt32BE(0) /
+        2 ** 32;
+      if (draw >= options.sampleRate) return;
+      return {
+        capture_id: captureId,
+        origin_instance_id: instanceId,
+        sample_rate: options.sampleRate,
+        expires_at_ms: expires,
+      };
+    },
+    importNative(
+      payload: unknown,
+      expected: { organizationId: string; runId: string; harness: HarnessName },
+    ) {
+      if (
+        closed ||
+        clock() >= began + options.durationSeconds * 1000 + 10_000 ||
+        !uuid.test(expected.organizationId) ||
+        !uuid.test(expected.runId)
+      )
+        return false;
+      try {
+        const parsed = nativeMemoryProfileSchema.safeParse(payload);
+        if (
+          !parsed.success ||
+          parsed.data.run_id !== expected.runId ||
+          parsed.data.harness !== expected.harness
+        ) {
+          countDrop('native_invalid');
+          return false;
+        }
+        const {
+          capture_id,
+          origin_instance_id,
+          run_id,
+          sample_rate,
+          started_at,
+          duration_ms,
+          ...measurements
+        } = parsed.data;
+        enqueue({
+          component: 'performance',
+          version: 1,
+          type: 'operation',
+          operation: 'run',
+          phase: 'job',
+          capture_id,
+          instance_id: origin_instance_id,
+          receiver_instance_id: instanceId,
+          organization_id: expected.organizationId,
+          run_id,
+          operation_id: run_id,
+          sample_rate,
+          started_at,
+          duration_ms,
+          counters: {},
+          stages: {},
+          native_memory: measurements,
+        });
+        return true;
+      } catch {
+        countDrop('native_invalid');
+        return false;
+      }
+    },
     run,
     child,
     background,

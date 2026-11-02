@@ -83,3 +83,7 @@ Apply migration 028 and verify the existing maintenance worker/cron. Use the [Sl
 ## Model catalog acceptance
 
 Apply migration 029 and run `pnpm models:status` in the intended environment. Verify hourly maintenance refresh across instances, provider-list entitlements, sanitized discovery failures, cache recovery after a cold start, and OpenRouter pricing/capability eligibility. Direct-provider price changes require a reviewed policy release; compare policy prices with vendor invoices before launch. Native execution acceptance still requires separately approved inference and sandbox budgets. No catalog refresh proves a complete agent journey.
+
+## Native output allowance release
+
+Ship the application, all generated clients and the matching runtime image together for the [native output change](../projects/native-output-budget-tech-design.md). The private native configuration now requires frozen `modelLimits`; drain old native writers and use fresh acceptance Runs rather than adding a fallback or rewriting fixture history. The implementation uses existing JSON/fence columns and needs no database migration. Recheck model catalog capabilities, managed/BYOK reservations, sufficient-output completion and deliberate length failure on the actual deployed image/provider. Preserve the currently running preview until a coordinated release is authorized. Local pinned-binary/SQL evidence and exact remaining limits are in the [verification record](../projects/native-output-budget-verification.md).

@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { harnesses, harnessNames, harnessLabel } from '../../packages/contracts/harnesses';
 import { deepseekEvent } from '../../packages/runtime/src/deepseek-events';
-import { DeepSeekAdapter } from '../../packages/runtime/src/deepseek';
-import { PiAdapter } from '../../packages/runtime/src/pi';
+import { createAdapter as createDeepSeekAdapter } from '../../packages/runtime/src/deepseek';
+import { createAdapter as createPiAdapter } from '../../packages/runtime/src/pi';
 import type { HarnessContext } from '../../packages/runtime/src/types';
 const temporary: string[] = [];
 afterEach(async () => {
@@ -66,11 +66,12 @@ it('preserves DeepSeek tool identity and failure independently of text streaming
   });
 });
 it.each([
-  ['pi', new PiAdapter()],
-  ['deepseek', new DeepSeekAdapter()],
+  ['pi', createPiAdapter],
+  ['deepseek', createDeepSeekAdapter],
 ] as const)(
   '%s refuses a missing continuation instead of executing a fresh prompt',
-  async (harness, adapter) => {
+  async (harness, createAdapter) => {
+    const adapter = await createAdapter();
     const home = await mkdtemp(path.join(tmpdir(), 'harness-fixture-'));
     temporary.push(home);
     const context: HarnessContext = {
@@ -82,6 +83,7 @@ it.each([
         prompt: 'Must not run',
         workspace: '/workspace',
         stateHome: home,
+        modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
         gatewayURL: 'http://127.0.0.1:1',
         toolURL: 'http://127.0.0.1:1',
         token: 'synthetic',

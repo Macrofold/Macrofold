@@ -61,6 +61,11 @@ const executionFlags = {
     description: 'Interactive for attached terminal work, background for detached runs',
   }),
   'max-cost': Flags.string({ description: 'Maximum USD charge, e.g. 2.00' }),
+  'max-output-tokens': Flags.integer({
+    min: 1,
+    max: Number.MAX_SAFE_INTEGER,
+    description: 'Maximum tokens per native model call, including reasoning; does not raise the spending cap',
+  }),
   detach: Flags.boolean(),
   'prompt-file': Flags.string(),
 };
@@ -135,6 +140,13 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
     'policy-file': Flags.string(),
     'idempotency-key': Flags.string(),
   },
+  'integration add': { 'config-file': Flags.string() },
+  'integration note': { file: Flags.string() },
+  'integration check': { source: Flags.string() },
+  'integration forget': { yes: Flags.boolean() },
+  'integration state': {},
+  'integration write': { file: Flags.string(), revision: Flags.string() },
+  'integration remove': { yes: Flags.boolean() },
   'model-deployment stop': { 'idempotency-key': Flags.string() },
   'model-deployment delete': { yes: Flags.boolean(), 'idempotency-key': Flags.string() },
   'worker create': workerFlags,
@@ -175,6 +187,9 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
   usage: { from: Flags.string(), to: Flags.string() },
 };
 const listCommands = new Set([
+  'integration list',
+  'integration memories',
+  'integration activity',
   'model-deployment list',
   'model-deployment revisions',
   'model-deployment grants',
@@ -189,8 +204,19 @@ const listCommands = new Set([
   'connection list',
   'connection tools',
 ]);
-const unlimitedArgs = new Set(['run', 'workspace create', 'files push', 'files pull', 'files diff']);
+const unlimitedArgs = new Set([
+  'integration search',
+  'integration state',
+  'integration write',
+  'run',
+  'workspace create',
+  'files push',
+  'files pull',
+  'files diff',
+]);
 const noArgs = new Set([
+  'integration catalog',
+  'integration list',
   'model-deployment list',
   'model-deployment create',
   'worker list',
@@ -216,6 +242,9 @@ const noArgs = new Set([
   'version',
 ]);
 const examples: Record<string, string> = {
+  'integration add': 'macrofold integration add file-memory --workspace WORKSPACE_ID --worktree WORKTREE_ID',
+  'integration state': 'macrofold integration state INSTALLATION_ID paused',
+  'integration export': 'macrofold integration export INSTALLATION_ID --json > memory.json',
   'model-deployment inspect':
     'macrofold model-deployment inspect jaredpalmer/kev-4b --task decision\nmacrofold model-deployment inspect Qwen/Qwen3-0.6B\nmacrofold model-deployment inspect --config-file inspection.json --json',
   'model-deployment create': 'macrofold model-deployment create --config-file deployment.json --json',

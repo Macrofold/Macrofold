@@ -56,7 +56,7 @@ A named customer agent is an application record linking existing workspaces, wor
 
 Connector enablement is persisted separately from per-customer account consent and grants. An operator holds a session advisory lock on a dedicated autocommit connection during setup, records uncertain non-idempotent creation before the provider call, and never retries that POST blindly. Serving roles can only read the configured exact toolkit pin. Saved-trigger quotas use a deployment default plus an organization override, with serialized creation and no deletion or disabling when limits are lowered.
 
-OpenRouter discovery can admit new text/tool models under verified pricing and protocol rules; account credentials remain independent. Admission currently requires at least 128,000 context tokens and 8,192 completion tokens to match the native runtime configuration. Smaller native models require a coordinated runtime-limit change, not merely a catalog flag. Decision-only models instead use the separate typed decision capability policy.
+OpenRouter discovery can admit new text/tool models under verified pricing and protocol rules; account credentials remain independent. Admission retains the reviewed eligibility floor of 128,000 context tokens and 8,192 completion tokens. Runtime metadata follows the exact selected model; native admission resolves one output allowance including reasoning. The gateway and adapters consume that allowance, and explicit output-limit completions fail without paid repair. [Capability/output policy](../features/execution/models.md#native-output-allowance). Decision-only models instead use the separate typed decision capability policy.
 
 ## Explicit context uses a separate executor
 

@@ -671,6 +671,7 @@ describe('fenced Host assignments through the Worker machine port', () => {
       prompt: 'fixture',
       workspace: '/workspace',
       stateHome: '/agent-home',
+      modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
       gatewayURL: 'http://127.0.0.1:9/',
       toolURL: 'http://127.0.0.1:9/',
       token: 'fixture-token',

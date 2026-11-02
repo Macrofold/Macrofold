@@ -1,14 +1,7 @@
 /** Only allowlisted facts leave the native process: SDK messages can embed
  * credentials, prompts, config files or complete HTTP responses. */
-export type RuntimeStage =
-  | 'transport_start'
-  | 'permissions_prepare'
-  | 'attachments_prepare'
-  | 'harness_initialize'
-  | 'server_start'
-  | 'session_create'
-  | 'event_subscribe'
-  | 'turn_execute';
+export type { RuntimeStage } from '../../contracts/native-diagnostics';
+import type { RuntimeStage } from '../../contracts/native-diagnostics';
 
 const codes = new Set([
   'ENOENT',

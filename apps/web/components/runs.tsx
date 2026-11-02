@@ -128,11 +128,13 @@ export function RunDetail({ runId }: { runId: string }) {
   const live = !isFinal(run.status) && !recovering;
   const output = result.data?.content_expired
     ? ''
-    : result.data?.output_text ||
-      events
-        .filter((e) => e.type === 'output.delta')
-        .map((e) => String(e.data.text || ''))
-        .join('');
+    : result.data?.final
+      ? result.data.output_text || ''
+      : result.data?.output_text ||
+        events
+          .filter((e) => e.type === 'output.delta')
+          .map((e) => String(e.data.text || ''))
+          .join('');
   const waiting = [...events].reverse().find((e) => e.type === 'input.requested');
   const visibleEvents = result.data?.content_expired
     ? events.filter((e) => e.type.startsWith('run.'))
@@ -251,6 +253,10 @@ export function RunDetail({ runId }: { runId: string }) {
             'The queue deadline expired before execution could start. Reserved funds were released; this history is saved.'
           ) : run.failure_code === 'execution_limit_changed' ? (
             'The account execution cap changed before this job started. Reserved funds were released. Submit a new run within the current limit.'
+          ) : run.failure_code === 'model_output_limit_exceeded' ? (
+            'Output limit reached. This response is incomplete. Usage and verified saved files are retained. Review the result before deliberately starting another run with more output room or a simpler request. To change reasoning effort, start a new session.'
+          ) : run.failure_code === 'native_result_too_large' ? (
+            'The native result exceeded its 4 MiB transport limit. Execution failed explicitly; inspect saved events and verified files before starting another run.'
           ) : (
             `Run ended: ${run.failure_code.replaceAll('_', ' ')}.`
           )}
@@ -307,6 +313,11 @@ export function RunDetail({ runId }: { runId: string }) {
               {isFinal(run.status) && run.kind === 'native_agent' && !result.data?.content_expired && (
                 <RunArtifacts runId={runId} />
               )}
+              {result.data?.output_text_truncated && (
+                <p className="form-help" role="status">
+                  Only the first 4 MiB of this incomplete answer were retained for inspection.
+                </p>
+              )}
               <ReasoningOutput events={visibleEvents} live={live} />
               {result.data?.inference ? (
                 <InferenceResult receipt={result.data.inference} />
@@ -321,16 +332,18 @@ export function RunDetail({ runId }: { runId: string }) {
                         ? 'Detailed history has expired'
                         : recovery
                           ? 'Automatic processing stopped'
-                          : run.status === 'queued'
-                            ? 'Queued · waiting to start'
-                            : 'Waiting for the first update'}
+                          : !live
+                            ? 'No answer text was returned'
+                            : run.status === 'queued'
+                              ? 'Queued · waiting to start'
+                              : 'Waiting for the first update'}
                     </WaitingText>
                   </h3>
                   <p>
                     {result.data?.content_expired
                       ? 'Prompts, outputs and tool details were removed under the retention policy. Usage and completion records remain.'
-                      : recovering
-                        ? 'Inspect the failure details above. Recorded output and events remain available.'
+                      : recovering || !live
+                        ? 'Inspect the outcome above. Recorded output and events remain available.'
                         : 'Your run is saved. You can leave this page and come back later.'}
                   </p>
                 </div>
@@ -407,6 +420,12 @@ export function RunDetail({ runId }: { runId: string }) {
               <dd>{run.harness || run.kind.replaceAll('_', ' ')}</dd>
               <dt>Model</dt>
               <dd>{run.model}</dd>
+              {run.kind === 'native_agent' && run.limits?.max_output_tokens && (
+                <>
+                  <dt>Output allowance per model call</dt>
+                  <dd>{run.limits.max_output_tokens.toLocaleString()} tokens, including reasoning</dd>
+                </>
+              )}
               <dt>Persistence</dt>
               <dd>
                 <Badge status={run.persistence_status || 'pending'} />

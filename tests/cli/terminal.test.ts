@@ -58,6 +58,39 @@ afterAll(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 describe('packaged CLI against the local API and worker', () => {
+  it('installs and manages editable memory through the shared public contract', async () => {
+    const workspace = await client.workspaces.create({ name: 'CLI memory library' });
+    const worktree = workspace.default_worktree_id!;
+    const catalog = await json(['integration', 'catalog']);
+    expect(catalog.data.map((pack: { id: string }) => pack.id)).toEqual([
+      'file-memory',
+      'hindsight',
+      'claude-mem',
+    ]);
+    const installed = await json([
+      'integration',
+      'add',
+      'file-memory',
+      '--workspace',
+      workspace.id,
+      '--worktree',
+      worktree,
+    ]);
+    expect(installed.pack_id).toBe('file-memory');
+    const listed = await json(['integration', 'list', '--workspace', workspace.id]);
+    expect(listed.data.map((entry: { id: string }) => entry.id)).toContain(installed.id);
+    const exported = await json(['integration', 'export', installed.id]);
+    expect(exported.files.map((file: { path: string }) => file.path)).toContain('profile.md');
+    expect((await json(['integration', 'state', installed.id, 'paused'])).state).toBe('paused');
+    expect((await json(['integration', 'state', installed.id, 'disabled'])).state).toBe('disabled');
+    await json(['integration', 'remove', installed.id, '--yes']);
+    expect((await json(['integration', 'list', '--workspace', workspace.id])).data).toEqual([]);
+    // Removing the recipe must not remove the user's checkpointed notes.
+    expect(
+      new TextDecoder().decode(await client.worktrees.readFile(worktree, { path: 'profile.md' })),
+    ).toContain('customer-confirmed');
+  });
+
   it('inherits tools by omission and narrows preset and continued runs without saving the selection', async () => {
     const workspace = await client.workspaces.create({ name: 'CLI access selection' });
     const connection = await client.connections.create({
@@ -212,6 +245,7 @@ describe('packaged CLI against the local API and worker', () => {
       '--detach',
     ]);
     expect((await client.sessions.get(shorter.session_id)).limits).toEqual({
+      max_output_tokens: 32768,
       timeout_seconds: 30,
       max_cost_micro_usd: '1230000',
     });

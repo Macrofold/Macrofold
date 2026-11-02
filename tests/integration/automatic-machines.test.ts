@@ -67,6 +67,7 @@ const configuration = (): NativeConfiguration => ({
   prompt: 'synthetic fixture',
   workspace: '/workspace',
   stateHome: '/agent-home',
+  modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
   gatewayURL: 'https://fixture.example.test/gateway',
   toolURL: 'https://fixture.example.test/tools',
   token: 'synthetic-token',

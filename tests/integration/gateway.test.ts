@@ -33,6 +33,8 @@ const envNames = [
 const originalEnv = Object.fromEntries(envNames.map((k) => [k, process.env[k]]));
 const model = {
   id: 'fixture-metered',
+  context_tokens: 128000,
+  output_tokens: 65536,
   name: 'Fixture metered',
   provider: 'openai',
   harnesses: ['codex'],

@@ -42,6 +42,16 @@ This register tracks accepted decisions likely to change, not unresolved choices
 
 **Decision authority:** Maintainer through an explicit scheduling-policy change. [Central TODO](TODO.md#direct-inference-latency-follow-up) owns remaining acceptance; keep the canonical scheduling owner synchronized with policy changes.
 
+## RP05 — Native output defaults and incomplete answers
+
+**Current policy:** [Native model allowance](../features/execution/models.md#native-output-allowance) uses one admitted per-call allowance, automatic 32,768/65,536 defaults capped by published capabilities, and unconditional failure on an explicit output-limit finish. Spending and deadlines remain independent; no automatic paid repair is performed.
+
+**Why revisit:** These bounded defaults provide reasoning/answer room beyond the reproduced 8,192 ceiling, but do not guarantee every effort/prompt completes. Higher allowances reserve more budget and can reduce available input room.
+
+**Review trigger:** Representative authorized workload measurements show repeated truncation, unnecessary budget refusals, or publisher/SDK capability changes. Review the single admission policy and actual request captures; do not introduce an adapter-specific competing ceiling or weaken failure/accounting semantics.
+
+**Decision authority:** Maintainer through an explicit allowance-policy change, with model, API and runtime documentation updated together. [Qualification](../projects/native-output-budget-verification.md) records the present evidence and limits.
+
 ## Maintaining this register
 
 Keep stable IDs, a canonical policy link, the reason to revisit, a concrete trigger and decision authority. Add only known revisitable decisions, not every constant or hypothetical concern. When a trigger is relevant, raise it in the task/PR; put resulting work or unresolved choices in their existing owners. An accepted change updates the policy, affected summaries and this entry together; significant decisions go in the owning document's bottom Changelog. Retire superseded entries with a link to their replacement or recorded decision, not another copy of the contract.

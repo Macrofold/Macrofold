@@ -14652,6 +14652,1241 @@
           }
         }
       }
+    },
+    "/v1/integration-packs": {
+      "get": {
+        "operationId": "listIntegrationPacks",
+        "summary": "Browse optional agent capabilities",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationPackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations": {
+      "get": {
+        "operationId": "listAgentIntegrations",
+        "summary": "List installed agent capabilities",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentIntegrationPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAgentIntegration",
+        "summary": "Install a capability in a worktree",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation. Requires runs:write plus files:write for editable memory, or connections:write and connection ownership for service memory. Existing resources, permissions and funding remain authoritative.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentIntegration"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentIntegrationCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}": {
+      "get": {
+        "operationId": "getAgentIntegration",
+        "summary": "Inspect an installed capability",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentIntegration"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateAgentIntegration",
+        "summary": "Pause learning, disable or enable a capability",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentIntegration"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentIntegrationPatch"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAgentIntegration",
+        "summary": "Remove an installation and retain editable files",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentIntegrationDelete"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/memories": {
+      "get": {
+        "operationId": "listAgentIntegrationMemories",
+        "summary": "List editable memory files",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read",
+              "files:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read",
+          "files:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 4096
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "writeAgentIntegrationMemory",
+        "summary": "Correct an editable memory file",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write",
+              "files:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write",
+          "files:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "$ref": "#/components/parameters/FilePath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryEdit"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAgentIntegrationMemory",
+        "summary": "Remove a current editable memory file",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write",
+              "files:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write",
+          "files:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "$ref": "#/components/parameters/FilePath"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/memory-export": {
+      "get": {
+        "operationId": "exportAgentIntegrationMemory",
+        "summary": "Export current editable memory as bounded JSON",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Exports current text only, at most 1 MiB and 500 files. Retained checkpoints and conversations have separate retention. Uses no model calls.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read",
+              "files:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read",
+          "files:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryExport"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/forget": {
+      "post": {
+        "operationId": "forgetAgentIntegrationMemory",
+        "summary": "Disable recall and request complete dedicated service collection erasure",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Requires explicit confirmation. Disables recall before asynchronous remote cleanup; uncertain writes keep cleanup unconfirmed. Clears a whole dedicated service collection, not historical Run records. Does not claim selective observation deletion erases source events.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Recall disabled; inspect activity for actual cleanup confirmation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryForgetReceipt"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryForget"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/activity": {
+      "get": {
+        "operationId": "listAgentIntegrationActivity",
+        "summary": "Inspect background memory progress, uncertainty and external usage",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryActivityPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/notes": {
+      "post": {
+        "operationId": "createAgentIntegrationNote",
+        "summary": "Add an explicit confirmed note to a service memory collection",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write",
+              "files:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write",
+          "files:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryQueued"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryEdit"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/search": {
+      "post": {
+        "operationId": "searchAgentIntegrationMemory",
+        "summary": "Search service memory with explicit external funding",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read",
+              "files:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read",
+          "files:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemorySearchResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemorySearch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/activity/{source_id}/check": {
+      "post": {
+        "operationId": "retryAgentIntegrationCheck",
+        "summary": "Check an acknowledged job without submitting generation again",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryQueued"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-integrations/{integration_id}/activity/{source_id}": {
+      "get": {
+        "operationId": "getAgentIntegrationSource",
+        "summary": "Read one current captured memory source and its receipt",
+        "tags": [
+          "Agent integrations"
+        ],
+        "description": "Optional capability installation path; core Runs, Worktrees and permissions remain authoritative. Memory files remain editable through the existing file API.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read",
+              "files:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read",
+          "files:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemorySource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -14984,7 +16219,8 @@
               "claude_subscription",
               "hugging_face",
               "runpod",
-              "external_model"
+              "external_model",
+              "memory_service"
             ]
           },
           "provider": {
@@ -15923,7 +17159,8 @@
               "claude_subscription",
               "hugging_face",
               "runpod",
-              "external_model"
+              "external_model",
+              "memory_service"
             ]
           },
           "provider": {
@@ -16005,7 +17242,8 @@
               "claude_subscription",
               "hugging_face",
               "runpod",
-              "external_model"
+              "external_model",
+              "memory_service"
             ]
           },
           "provider": {
@@ -18640,6 +19878,14 @@
           },
           "inference": {
             "$ref": "#/components/schemas/InferenceReceipt"
+          },
+          "failure_code": {
+            "type": "string",
+            "description": "Stable failure classification, including model_output_limit_exceeded for an incomplete native completion. Partial output and verified checkpoints may still be available."
+          },
+          "output_text_truncated": {
+            "type": "boolean",
+            "description": "True when retained native failure answer text exceeded the 4 MiB diagnostic bound. Available text remains partial and must not be published as a complete answer."
           }
         },
         "required": [
@@ -19822,6 +21068,24 @@
             "type": "string",
             "pattern": "^[0-9]+$",
             "description": "Current retail micro-USD per million output tokens, including reported reasoning tokens."
+          },
+          "context_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Published total model context capacity. Present for enabled native models."
+          },
+          "input_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Separately published maximum input tokens, when available."
+          },
+          "output_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Published maximum generated tokens, including reasoning. Present for enabled native models."
           }
         },
         "required": [
@@ -20900,7 +22164,13 @@
           },
           "stop_on_model_error": {
             "type": "boolean",
-            "description": "Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior."
+            "description": "Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. Output-limit completions always fail a native Run with model_output_limit_exceeded, regardless of this flag; no automatic paid repair is performed."
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Maximum generated tokens per native model call, including reasoning and tool-call output. Does not raise the Run spending cap or deadline. Omission inherits the Session allowance or uses the model-aware native default (32768; 65536 for high/xhigh/max effort or Muse Contributor default reasoning), bounded by the model maximum."
           }
         },
         "required": [],
@@ -24395,7 +25665,8 @@
               "claude_subscription",
               "hugging_face",
               "runpod",
-              "external_model"
+              "external_model",
+              "memory_service"
             ]
           },
           "provider": {
@@ -26924,6 +28195,669 @@
         "required": [
           "http_status",
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "IntegrationPack": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "file-memory",
+              "hindsight",
+              "claude-mem"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "memory"
+            ]
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "setup_required"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "capture": {
+            "type": "string"
+          },
+          "funding": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "availability",
+          "summary",
+          "capture",
+          "funding"
+        ],
+        "additionalProperties": false
+      },
+      "AgentIntegration": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pack_id": {
+            "type": "string",
+            "enum": [
+              "file-memory",
+              "hindsight",
+              "claude-mem"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "disabled"
+            ]
+          },
+          "revision": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "service": {
+            "type": "object",
+            "properties": {
+              "connection_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "namespace": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "funding": {
+                "type": "string",
+                "enum": [
+                  "external"
+                ]
+              }
+            },
+            "required": [
+              "connection_id",
+              "namespace",
+              "required",
+              "funding"
+            ],
+            "additionalProperties": false
+          },
+          "last_error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detached": {
+            "type": "boolean",
+            "description": "Detached service installations remain owner-manageable for inspection, source export and explicit cleanup; they cannot be re-enabled."
+          },
+          "retired": {
+            "type": "boolean",
+            "description": "This dedicated service collection was retired by forgetting or resource purge and cannot be recalled or enabled again. Owner inspection, export and explicit cleanup remain available."
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "worktree_id",
+          "pack_id",
+          "state",
+          "revision",
+          "created_at",
+          "files"
+        ],
+        "additionalProperties": false
+      },
+      "AgentIntegrationCreate": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pack_id": {
+            "type": "string",
+            "enum": [
+              "file-memory",
+              "hindsight",
+              "claude-mem"
+            ]
+          },
+          "service": {
+            "type": "object",
+            "properties": {
+              "connection_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "namespace": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "external_cost_acknowledged": {
+                "type": "boolean",
+                "const": true
+              },
+              "namespace_is_dedicated": {
+                "type": "boolean",
+                "const": true
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Omitted or false: optional memory may be unavailable without blocking the Run. True: retrieval must be confirmed before native execution."
+              }
+            },
+            "required": [
+              "connection_id",
+              "namespace",
+              "external_cost_acknowledged",
+              "namespace_is_dedicated"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "workspace_id",
+          "worktree_id",
+          "pack_id"
+        ],
+        "additionalProperties": false
+      },
+      "AgentIntegrationPatch": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "disabled"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "AgentIntegrationDelete": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean",
+            "const": true
+          },
+          "files_retained": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "deleted",
+          "files_retained"
+        ],
+        "additionalProperties": false
+      },
+      "IntegrationPackPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntegrationPack"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AgentIntegrationPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentIntegration"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryEntry": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "size_bytes",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentMemoryEntry"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryEdit": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 1048576
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryExport": {
+        "type": "object",
+        "properties": {
+          "integration_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "content",
+                "sha256"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "historical_data_included": {
+            "type": "boolean",
+            "const": false
+          },
+          "export_scope": {
+            "type": "string",
+            "enum": [
+              "captured_sources",
+              "current_files"
+            ]
+          },
+          "pending_sources": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "integration_id",
+          "revision",
+          "files",
+          "historical_data_included"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryForget": {
+        "type": "object",
+        "properties": {
+          "confirm_delete_all": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "confirm_delete_all"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryForgetReceipt": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          },
+          "recall_disabled": {
+            "type": "boolean",
+            "const": true
+          },
+          "cleanup_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "accepted",
+          "recall_disabled",
+          "cleanup_id"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryReceipt": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "complete",
+              "failed"
+            ]
+          },
+          "operation_id": {
+            "type": "string"
+          },
+          "external_cost_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input_tokens": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output_tokens": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "external_cost_micro_usd",
+          "input_tokens",
+          "output_tokens"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryActivity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source_run_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "capture",
+              "purge"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "sending",
+              "waiting",
+              "complete",
+              "failed",
+              "unknown",
+              "cancelled"
+            ]
+          },
+          "generation": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "receipt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AgentMemoryReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "source_run_id",
+          "kind",
+          "state",
+          "generation",
+          "error_code",
+          "created_at",
+          "receipt"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryActivityPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentMemoryActivity"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemorySearch": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemorySearchResult": {
+        "type": "object",
+        "properties": {
+          "context": {
+            "type": "string"
+          },
+          "receipt": {
+            "$ref": "#/components/schemas/AgentMemoryReceipt"
+          }
+        },
+        "required": [
+          "context",
+          "receipt"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemoryQueued": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "waiting"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "AgentMemorySource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string"
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "receipt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AgentMemoryReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "content",
+          "receipt"
         ],
         "additionalProperties": false
       }

@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      runtime_image_artifact:
+        description: Retain the tested runtime candidate for isolated qualification (not a release)
+        type: boolean
+        default: false
   schedule:
     - cron: '17 6 * * 1' # Refresh dependency/image advisory data weekly.
 permissions:
@@ -235,6 +240,22 @@ jobs:
           pnpm test:native hermes deepseek pi --failure --image-only
           pnpm test:native hermes deepseek pi --cancel --image-only
           pnpm test:native --stdio --image-only
+      - name: Retain the exact clean runtime candidate
+        if: github.event_name == 'workflow_dispatch' && inputs.runtime_image_artifact
+        run: |
+          docker tag platform-runtime:0.1.0 "platform-runtime:candidate-${GITHUB_SHA}"
+          docker image inspect "platform-runtime:candidate-${GITHUB_SHA}" > runtime-candidate.image.json
+          printf '%s\n' "$GITHUB_SHA" > runtime-candidate.source
+          docker save "platform-runtime:candidate-${GITHUB_SHA}" | gzip -1 > runtime-candidate.tar.gz
+          sha256sum runtime-candidate.tar.gz > runtime-candidate.sha256
+      - name: Runtime candidate artifact
+        if: github.event_name == 'workflow_dispatch' && inputs.runtime_image_artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: runtime-candidate-${{ github.sha }}
+          path: runtime-candidate.*
+          compression-level: 0
+          retention-days: 3
       - name: Scan the actual OS, Python and JavaScript runtime dependencies
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
@@ -267,6 +288,59 @@ jobs:
           name: native-coverage
           path: coverage/native/
           if-no-files-found: error
+          retention-days: 7
+  native-profile:
+    name: Isolated native profiling qualification
+    needs: native
+    # Audit failures still permit diagnostic qualification of the explicitly
+    # retained candidate; they never permit staging or production release.
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.runtime_image_artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      DOCKER_RUNTIME_IMAGE: platform-runtime:candidate-${{ github.sha }}
+      NATIVE_MEMORY_EXPECT_DIAGNOSTICS: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: runtime-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/runtime-candidate
+      - name: Verify and load the exact tested image
+        working-directory: ${{ runner.temp }}/runtime-candidate
+        run: |
+          sha256sum -c runtime-candidate.sha256
+          test "$(cat runtime-candidate.source)" = "$GITHUB_SHA"
+          gzip -dc runtime-candidate.tar.gz | docker load
+          docker image inspect "$DOCKER_RUNTIME_IMAGE" --format '{{.Os}}/{{.Architecture}} {{.Id}}'
+      - name: Matched full-sampling native latency cohorts
+        run: |
+          for capture in 0 1; do
+            NATIVE_MEMORY_CAPTURE=$capture NATIVE_MEMORY_OUTPUT_DIR="$RUNNER_TEMP/native-memory-matrix-$capture" pnpm test:workers:native --memory-profile opencode claude-code pi
+          done
+      - name: Matched one-percent native CPU workload
+        run: NATIVE_MEMORY_CASE=cpu NATIVE_MEMORY_OUTPUT_DIR="$RUNNER_TEMP/native-memory-cpu" pnpm test:workers:native --memory-profile opencode
+      - name: Native profiling evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-profiling-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/native-memory-*/**/*.json
+            ${{ runner.temp }}/native-memory-*/**/*.jsonl
+            ${{ runner.temp }}/native-memory-*/**/*.log
+            ${{ runner.temp }}/native-memory-*/**/*.mjs
+          if-no-files-found: warn
           retention-days: 7
   mutation:
     name: Critical policy mutation tests

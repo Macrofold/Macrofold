@@ -1,4 +1,5 @@
 import type { Tx } from '../../db';
+import { nativeModelLimits } from './native-model-limits';
 import { lock } from '../../db';
 import { id, seal, token, sha256 } from './crypto';
 import { assert } from './errors';
@@ -151,6 +152,7 @@ export async function runDemand(tx: Tx, run: NativeRunRow): Promise<RunDemand> {
     worktree: { id: run.worktree_id, revision: worktree.data.latest_checkpoint_id || 'empty' },
     session: { id: run.session_id, revision: String(session.revision) }, permission_view: permissionView,
     compatibility_key: sha256(JSON.stringify({ harness: run.config.harness, model: run.config.model, instructions: run.config.instructions,
+      modelLimits: nativeModelLimits(run.config.rate_card, run.config.limits?.max_output_tokens),
       model_parameters: run.config.model_parameters, harness_prompt_mode: run.config.harness_prompt_mode,
         permissions: run.config.permission_layers,
         connections: run.config.connection_access,

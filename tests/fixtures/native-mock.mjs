@@ -55,6 +55,7 @@ const configuration = {
   prompt: 'Create native.txt with a short note, then finish.',
   workspace: '/workspace',
   stateHome: '/agent-home',
+  modelLimits: { contextTokens: 128000, maxOutputTokens: 65536 },
   gatewayURL: 'http://127.0.0.1:8787',
   toolURL: 'http://127.0.0.1:8787/mcp',
   token: 'fixture-local-only',

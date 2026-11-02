@@ -11,8 +11,29 @@ export type Model = {
   input_micro_usd_per_million: string;
   output_micro_usd_per_million: string;
   enabled: boolean;
+  context_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
   simulated?: boolean;
 };
+
+/** Shared by cached selection and native admission; missing is not unlimited. */
+export function hasModelTokenLimits(
+  model: Model | undefined,
+): model is Model & { context_tokens: number; output_tokens: number } {
+  return (
+    !!model &&
+    Number.isSafeInteger(model.context_tokens) &&
+    Number.isSafeInteger(model.output_tokens) &&
+    Number(model.context_tokens) > 0 &&
+    Number(model.output_tokens) > 0 &&
+    Number(model.output_tokens) <= Number(model.context_tokens) &&
+    (model.input_tokens === undefined ||
+      (Number.isSafeInteger(model.input_tokens) &&
+        model.input_tokens > 0 &&
+        model.input_tokens <= Number(model.context_tokens)))
+  );
+}
 
 // These are retail rules, not account entitlements. Review native compatibility and
 // all billable dimensions before extending this list. No environment JSON is needed.
@@ -20,6 +41,9 @@ export type Model = {
 export const modelPolicy: Model[] = [
   {
     id: 'gpt-5.4-mini',
+    context_tokens: 400000,
+    input_tokens: 272000,
+    output_tokens: 128000,
     name: 'GPT-5.4 mini',
     provider: 'openai',
     harnesses: ['codex', 'opencode', 'hermes', 'deepseek', 'pi'],
@@ -29,6 +53,8 @@ export const modelPolicy: Model[] = [
   },
   {
     id: 'claude-sonnet-4-6',
+    context_tokens: 1000000,
+    output_tokens: 128000,
     name: 'Claude Sonnet 4.6',
     provider: 'anthropic',
     harnesses: ['claude-code', 'opencode'],
@@ -38,6 +64,8 @@ export const modelPolicy: Model[] = [
   },
   {
     id: 'claude-haiku-4-5-20251001',
+    context_tokens: 200000,
+    output_tokens: 64000,
     name: 'Claude Haiku 4.5',
     provider: 'anthropic',
     harnesses: ['claude-code', 'opencode'],
@@ -64,6 +92,7 @@ export const discoveredModelSchema = z.object({
   tools: z.boolean().optional(),
   text: z.boolean().optional(),
   context_tokens: z.number().int().positive().optional(),
+  input_tokens: z.number().int().positive().optional(),
   output_tokens: z.number().int().positive().optional(),
 });
 export const discoveredModelsSchema = z
@@ -87,55 +116,77 @@ export function tokenPrice(value: unknown): string | undefined {
 }
 
 export function applyModelPolicy(provider: ModelProvider, discovered?: DiscoveredModel[]): Model[] {
+  const availableById = new Map(discovered?.map((entry) => [entry.id, entry]));
   const reviewed = modelPolicy.filter((model) => model.provider === provider);
   // OpenRouter is one supported chat/tools protocol, not an adapter per model.
   // Discovery may add routes only where capabilities and every charge fit that protocol.
   // Routing aliases choose a different model at runtime and cannot freeze a model rate card.
   // Direct providers still need reviewed prices because discovery has no rate card.
-  const rules = provider === 'openrouter' && discovered
-    ? discovered.filter((entry) => !entry.id.startsWith('openrouter/')).map((entry): Model => reviewed.find((rule) => rule.id === entry.id) || {
-        id: entry.id,
-        name: entry.name,
-        provider,
-        harnesses: ['opencode', 'hermes', 'deepseek', 'pi'],
-        input_micro_usd_per_million: '0',
-        output_micro_usd_per_million: '0',
-        enabled: true,
-      })
-    : reviewed;
-  return rules
-    .map((rule) => {
-      const result = { ...rule, harnesses: [...rule.harnesses] };
-      if (!discovered) return { ...result, enabled: result.enabled && provider !== 'openrouter' };
-      const available = discovered.find((entry) => entry.id === rule.id);
-      result.enabled = rule.enabled && !!available;
-      if (available && provider === 'openrouter') {
-        const input = tokenPrice(available.pricing?.prompt);
-        const output = tokenPrice(available.pricing?.completion);
-        // Reject unaccounted fees or pricing structures rather than treating them as zero.
-        const safePrices =
-          available.pricing &&
-          Object.entries(available.pricing).every(([key, value]) => {
-            if (key === 'prompt' || key === 'completion') return true;
-            // Hosted search tools, plugins and web_search_options are rejected by the gateway.
-            if (key === 'web_search') return tokenPrice(value) !== undefined;
-            if (key === 'input_cache_read') {
-              const cached = tokenPrice(value);
-              return cached !== undefined && input !== undefined && BigInt(cached) <= BigInt(input);
-            }
-            return tokenPrice(value) === '0';
-          });
-        // These are the common limits configured by the chat/tools runtimes. Models
-        // below that floor need per-model runtime limits before they can be admitted.
-        const fitsRuntime = (available.context_tokens || 0) >= 128000 && (available.output_tokens || 0) >= 8192;
-        result.enabled &&= !!(available.tools && available.text && fitsRuntime && input && output && safePrices);
-        if (result.enabled && input !== undefined && output !== undefined) {
-          result.input_micro_usd_per_million = input;
-          result.output_micro_usd_per_million = output;
-        }
+  const rules =
+    provider === 'openrouter' && discovered
+      ? discovered
+          .filter((entry) => !entry.id.startsWith('openrouter/'))
+          .map(
+            (entry): Model =>
+              reviewed.find((rule) => rule.id === entry.id) || {
+                id: entry.id,
+                name: entry.name,
+                provider,
+                harnesses: ['opencode', 'hermes', 'deepseek', 'pi'],
+                input_micro_usd_per_million: '0',
+                output_micro_usd_per_million: '0',
+                enabled: true,
+              },
+          )
+      : reviewed;
+  return rules.map((rule) => {
+    const result = { ...rule, harnesses: [...rule.harnesses] };
+    if (!discovered)
+      return {
+        ...result,
+        enabled: result.enabled && provider !== 'openrouter' && hasModelTokenLimits(result),
+      };
+    const available = availableById.get(rule.id);
+    result.enabled = rule.enabled && !!available;
+    if (available) {
+      result.context_tokens = available.context_tokens ?? result.context_tokens;
+      result.input_tokens = available.input_tokens ?? result.input_tokens;
+      result.output_tokens = available.output_tokens ?? result.output_tokens;
+    }
+    if (available && provider === 'openrouter') {
+      const input = tokenPrice(available.pricing?.prompt);
+      const output = tokenPrice(available.pricing?.completion);
+      // Reject unaccounted fees or pricing structures rather than treating them as zero.
+      const safePrices =
+        available.pricing &&
+        Object.entries(available.pricing).every(([key, value]) => {
+          if (key === 'prompt' || key === 'completion') return true;
+          // Hosted search tools, plugins and web_search_options are rejected by the gateway.
+          if (key === 'web_search') return tokenPrice(value) !== undefined;
+          if (key === 'input_cache_read') {
+            const cached = tokenPrice(value);
+            return cached !== undefined && input !== undefined && BigInt(cached) <= BigInt(input);
+          }
+          return tokenPrice(value) === '0';
+        });
+      // Preserve the reviewed compatibility floor, not a runtime ceiling.
+      const fitsRuntime = (available.context_tokens || 0) >= 128000 && (available.output_tokens || 0) >= 8192;
+      result.enabled &&= !!(
+        available.tools &&
+        available.text &&
+        fitsRuntime &&
+        input &&
+        output &&
+        safePrices
+      );
+      if (result.enabled && input !== undefined && output !== undefined) {
+        result.input_micro_usd_per_million = input;
+        result.output_micro_usd_per_million = output;
       }
-      return result;
-    });
+    }
+    result.enabled &&= hasModelTokenLimits(result);
+    return result;
+  });
 }
 
 export function rateCardVersion(model: Model) {

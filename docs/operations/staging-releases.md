@@ -36,3 +36,24 @@ Releases are serialized and never cancelled mid-migration. Stale releases do not
 The workflow performs free readiness/authentication checks. It does not automatically spend on model providers, send emails, invoke connectors, or complete a paid cloud task. Existing local browser coverage remains in the upstream verification workflow; hosted browser and budgeted native acceptance remain explicit release checks. Production preparation/promotion and automatic rollback are deferred.
 
 Unit tests cover target separation, immutable revision/image readiness and failed readiness responses. Hosted workflow activation requires the environment configuration above and a pushed verified revision; local tests alone do not establish deployment acceptance. See [release TODO](../maintainers/TODO.md) and [release walkthrough](launch-guide.md).
+
+## Isolated runtime candidate
+
+To retain the exact clean Linux AMD64 image from a manual verification run:
+
+```sh
+gh workflow run verify.yml --ref YOUR_BRANCH -f runtime_image_artifact=true
+gh run list --workflow verify.yml --branch YOUR_BRANCH --limit 1
+gh run download RUN_ID --name runtime-candidate-COMMIT_SHA --dir .data/runtime-candidate
+cd .data/runtime-candidate
+shasum -a 256 -c runtime-candidate.sha256
+docker load --input runtime-candidate.tar.gz
+```
+
+The archive uses `platform-runtime:candidate-COMMIT_SHA`, preserving any local
+preview tag. Its source SHA, image identity and archive checksum accompany it;
+GitHub retains it for three days. Inspect the complete workflow and vulnerability
+report: retaining a candidate before the audit is **not** release approval. This
+manual branch run does not trigger staging promotion, and creates no cloud Host
+or paid inference. Use the normal release path above for registry publication,
+migrations, matching API/worker/client artifacts and hosted acceptance.

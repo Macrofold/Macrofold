@@ -100,6 +100,8 @@ pub enum Kind {
     Runpod,
     #[serde(rename = "external_model")]
     ExternalModel,
+    #[serde(rename = "memory_service")]
+    MemoryService,
 }
 
 impl Default for Kind {

@@ -34,6 +34,10 @@ type RunResult struct {
 	ContentExpired *bool `json:"content_expired,omitempty"`
 	ContentExpiredAt *time.Time `json:"content_expired_at,omitempty"`
 	Inference *InferenceReceipt `json:"inference,omitempty"`
+	// Stable failure classification, including model_output_limit_exceeded for an incomplete native completion. Partial output and verified checkpoints may still be available.
+	FailureCode *string `json:"failure_code,omitempty"`
+	// True when retained native failure answer text exceeded the 4 MiB diagnostic bound. Available text remains partial and must not be published as a complete answer.
+	OutputTextTruncated *bool `json:"output_text_truncated,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -412,6 +416,70 @@ func (o *RunResult) SetInference(v InferenceReceipt) {
 	o.Inference = &v
 }
 
+// GetFailureCode returns the FailureCode field value if set, zero value otherwise.
+func (o *RunResult) GetFailureCode() string {
+	if o == nil || IsNil(o.FailureCode) {
+		var ret string
+		return ret
+	}
+	return *o.FailureCode
+}
+
+// GetFailureCodeOk returns a tuple with the FailureCode field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunResult) GetFailureCodeOk() (*string, bool) {
+	if o == nil || IsNil(o.FailureCode) {
+		return nil, false
+	}
+	return o.FailureCode, true
+}
+
+// HasFailureCode returns a boolean if a field has been set.
+func (o *RunResult) HasFailureCode() bool {
+	if o != nil && !IsNil(o.FailureCode) {
+		return true
+	}
+
+	return false
+}
+
+// SetFailureCode gets a reference to the given string and assigns it to the FailureCode field.
+func (o *RunResult) SetFailureCode(v string) {
+	o.FailureCode = &v
+}
+
+// GetOutputTextTruncated returns the OutputTextTruncated field value if set, zero value otherwise.
+func (o *RunResult) GetOutputTextTruncated() bool {
+	if o == nil || IsNil(o.OutputTextTruncated) {
+		var ret bool
+		return ret
+	}
+	return *o.OutputTextTruncated
+}
+
+// GetOutputTextTruncatedOk returns a tuple with the OutputTextTruncated field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunResult) GetOutputTextTruncatedOk() (*bool, bool) {
+	if o == nil || IsNil(o.OutputTextTruncated) {
+		return nil, false
+	}
+	return o.OutputTextTruncated, true
+}
+
+// HasOutputTextTruncated returns a boolean if a field has been set.
+func (o *RunResult) HasOutputTextTruncated() bool {
+	if o != nil && !IsNil(o.OutputTextTruncated) {
+		return true
+	}
+
+	return false
+}
+
+// SetOutputTextTruncated gets a reference to the given bool and assigns it to the OutputTextTruncated field.
+func (o *RunResult) SetOutputTextTruncated(v bool) {
+	o.OutputTextTruncated = &v
+}
+
 func (o RunResult) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -449,6 +517,12 @@ func (o RunResult) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Inference) {
 		toSerialize["inference"] = o.Inference
+	}
+	if !IsNil(o.FailureCode) {
+		toSerialize["failure_code"] = o.FailureCode
+	}
+	if !IsNil(o.OutputTextTruncated) {
+		toSerialize["output_text_truncated"] = o.OutputTextTruncated
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -508,6 +582,8 @@ func (o *RunResult) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "content_expired")
 		delete(additionalProperties, "content_expired_at")
 		delete(additionalProperties, "inference")
+		delete(additionalProperties, "failure_code")
+		delete(additionalProperties, "output_text_truncated")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -9,6 +9,7 @@ type FileResult = {
   entry?: Schema['FileEntry'];
 };
 export type OperationResults = {
+  memory_search: { workspace_id: string; integration_id: string };
   file_write: FileResult;
   file_delete: FileResult;
   file_rename: FileResult;
@@ -38,12 +39,13 @@ export type OperationResults = {
 };
 export type OperationKind = keyof OperationResults;
 type OperationAuthority = {
-  scope: 'files:read' | 'workspaces:read' | 'webhooks:read';
+  scope: 'files:read' | 'workspaces:read' | 'webhooks:read' | 'runs:read';
   binding: 'workspace' | 'worktree' | 'checkpoint' | 'organization';
 };
 /** Adding an operation requires an explicit authorization decision. Names never
  * determine permissions, and unknown operations have no default authority. */
 export const operationAuthority = {
+  memory_search: { scope: 'runs:read', binding: 'workspace' },
   file_write: { scope: 'files:read', binding: 'worktree' },
   file_delete: { scope: 'files:read', binding: 'worktree' },
   file_rename: { scope: 'files:read', binding: 'worktree' },

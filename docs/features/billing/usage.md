@@ -58,3 +58,7 @@ For one immediate inference, use the returned `result.inference.usage` and `.bil
 ## Brief for a coding agent
 
 > Integrate `GET /v1/billing/usage` using a server-held Bearer key with `usage:read` and no workspace restrictions. Supply `from` inclusive and `to` exclusive as RFC 3339 timestamps. Optional AND filters: `worker_id`, `workspace_id`, `worktree_id`, `run_id`, `session_id`, `customer_id`, `agent_key`, `provider`, `model`, `billing_mode`, `kind`. Page with `limit` (1–100) and `next_cursor`, preserving the filters. Entries itemize model/tool/compute/storage charges and model input/output/cache token counts. Sum decimal-string `charged_micro_usd` using integer arithmetic; divide by 1,000,000 for USD. Preserve null/unknown usage, distinguish provisional settlements, and never add BYOK provider estimates or budget consumption to Macrofold charges. Reread completed windows for late settlement, deduplicating by entry ID. Read the deployment's `/openapi.json` for the exact schema.
+
+## Incomplete native answers
+
+`model_output_limit_exceeded` means the model reached its output allowance, including reasoning. Its token usage can still be complete and billable even when the visible answer is short. Reported output counts are retained exactly; unknown usage stays provisional. Inspect Run failure/result and checkpoint state separately from its billing rows. Raising the output allowance changes reservation needs, not the existing spending cap or BYOK charge policy. [Allowance details](../execution/models.md#native-output-allowance).

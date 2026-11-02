@@ -50,6 +50,8 @@ type APIClient struct {
 
 	// API Services
 
+	AgentIntegrationsAPI *AgentIntegrationsAPIService
+
 	AgentsAPI *AgentsAPIService
 
 	ApiKeysAPI *ApiKeysAPIService
@@ -125,6 +127,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.common.client = c
 
 	// API Services
+	c.AgentIntegrationsAPI = (*AgentIntegrationsAPIService)(&c.common)
 	c.AgentsAPI = (*AgentsAPIService)(&c.common)
 	c.ApiKeysAPI = (*ApiKeysAPIService)(&c.common)
 	c.ArtifactsAPI = (*ArtifactsAPIService)(&c.common)

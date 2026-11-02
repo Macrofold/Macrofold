@@ -11,6 +11,8 @@ const pageSchema = z.object({
         name: z.string().optional(),
         display_name: z.string().optional(),
         context_length: z.number().int().positive().nullish(),
+        max_input_tokens: z.number().int().positive().nullish(),
+        max_tokens: z.number().int().positive().nullish(),
         top_provider: z
           .object({
             context_length: z.number().int().positive().nullish(),
@@ -81,7 +83,12 @@ export function providerModelCatalog(transport: typeof fetch = fetch): ModelCata
                   entry.architecture.output_modalities.length === 1 &&
                   entry.architecture.output_modalities[0] === 'text',
               }
-            : {}),
+            : provider === 'anthropic'
+              ? {
+                  input_tokens: entry.max_input_tokens ?? undefined,
+                  output_tokens: entry.max_tokens ?? undefined,
+                }
+              : {}),
         })),
       );
       if (entries.length > 10000 || Buffer.byteLength(JSON.stringify(entries)) > 8 * 1024 * 1024)

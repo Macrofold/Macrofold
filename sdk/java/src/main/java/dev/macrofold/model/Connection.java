@@ -89,7 +89,9 @@ public class Connection {
 
     RUNPOD(String.valueOf("runpod")),
 
-    EXTERNAL_MODEL(String.valueOf("external_model"));
+    EXTERNAL_MODEL(String.valueOf("external_model")),
+
+    MEMORY_SERVICE(String.valueOf("memory_service"));
 
     private String value;
 

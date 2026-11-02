@@ -715,5 +715,69 @@ export const routes = {
   "setModelDeploymentService": {
     "method": "PUT",
     "path": "/v1/model-deployments/{deployment_id}/service"
+  },
+  "listIntegrationPacks": {
+    "method": "GET",
+    "path": "/v1/integration-packs"
+  },
+  "listAgentIntegrations": {
+    "method": "GET",
+    "path": "/v1/agent-integrations"
+  },
+  "createAgentIntegration": {
+    "method": "POST",
+    "path": "/v1/agent-integrations"
+  },
+  "getAgentIntegration": {
+    "method": "GET",
+    "path": "/v1/agent-integrations/{integration_id}"
+  },
+  "updateAgentIntegration": {
+    "method": "PATCH",
+    "path": "/v1/agent-integrations/{integration_id}"
+  },
+  "deleteAgentIntegration": {
+    "method": "DELETE",
+    "path": "/v1/agent-integrations/{integration_id}"
+  },
+  "listAgentIntegrationMemories": {
+    "method": "GET",
+    "path": "/v1/agent-integrations/{integration_id}/memories"
+  },
+  "writeAgentIntegrationMemory": {
+    "method": "PUT",
+    "path": "/v1/agent-integrations/{integration_id}/memories"
+  },
+  "deleteAgentIntegrationMemory": {
+    "method": "DELETE",
+    "path": "/v1/agent-integrations/{integration_id}/memories"
+  },
+  "exportAgentIntegrationMemory": {
+    "method": "GET",
+    "path": "/v1/agent-integrations/{integration_id}/memory-export"
+  },
+  "forgetAgentIntegrationMemory": {
+    "method": "POST",
+    "path": "/v1/agent-integrations/{integration_id}/forget"
+  },
+  "listAgentIntegrationActivity": {
+    "method": "GET",
+    "path": "/v1/agent-integrations/{integration_id}/activity"
+  },
+  "createAgentIntegrationNote": {
+    "method": "POST",
+    "path": "/v1/agent-integrations/{integration_id}/notes"
+  },
+  "searchAgentIntegrationMemory": {
+    "method": "POST",
+    "path": "/v1/agent-integrations/{integration_id}/search"
+  },
+  "retryAgentIntegrationCheck": {
+    "method": "POST",
+    "path": "/v1/agent-integrations/{integration_id}/activity/{source_id}/check"
+  },
+  "getAgentIntegrationSource": {
+    "method": "GET",
+    "path": "/v1/agent-integrations/{integration_id}/activity/{source_id}"
   }
 } as const;

@@ -1,6 +1,6 @@
 import { copyFile } from 'node:fs/promises';
 import { build } from 'esbuild';
-await build({
+const result = await build({
   entryPoints: [
     'packages/runtime/src/entry.ts',
     'packages/runtime/src/host-control.ts',
@@ -21,6 +21,27 @@ await build({
   outExtension: { '.js': '.mjs' },
   packages: 'external',
   sourcemap: true,
+  metafile: true,
 });
+
+// Local dynamic imports alone can still hoist external SDKs in this bundle
+// layout. Keep required selected SDK evaluation inside its awaited factory.
+const exclusiveSDKs = [
+  '@anthropic-ai/claude-agent-sdk',
+  '@earendil-works/pi-ai',
+  '@earendil-works/pi-coding-agent',
+  '@opencode-ai/sdk',
+];
+const native = result.metafile.outputs['packages/runtime/dist/native-worker.mjs'];
+if (!native) throw new Error('Native worker build metadata is missing.');
+const eager = native.imports.filter(
+  (item) =>
+    item.kind === 'import-statement' &&
+    exclusiveSDKs.some((sdk) => item.path === sdk || item.path.startsWith(`${sdk}/`)),
+);
+if (eager.length)
+  throw new Error(
+    `Exclusive native SDK imports must stay lazy: ${eager.map((item) => item.path).join(', ')}`,
+  );
 
 await copyFile('packages/runtime/src/hermes-bridge.py', 'packages/runtime/dist/hermes-bridge.py');

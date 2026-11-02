@@ -1,13 +1,16 @@
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { questionsAllowed } from '../../contracts/permissions';
 import { permissionFileTools, fileToolName, permissionFileDefinition } from './permission-files';
-import { query, createSdkMcpServer, tool, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { TurnInput } from './turn-input';
 import { randomUUID } from 'node:crypto';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
+import { isOutputLimitReason, modelOutputLimitExceeded } from '../../contracts/model-completion';
 
-export class ClaudeAdapter implements HarnessAdapter {
-  private conversation?: ReturnType<typeof query>;
+type ClaudeSDK = typeof import('@anthropic-ai/claude-agent-sdk');
+class ClaudeAdapter implements HarnessAdapter {
+  constructor(private readonly sdk: ClaudeSDK) {}
+  private conversation?: ReturnType<ClaudeSDK['query']>;
   private input?: TurnInput<SDKUserMessage>;
   private context?: HarnessContext;
   close() {
@@ -35,12 +38,13 @@ export class ClaudeAdapter implements HarnessAdapter {
     let output = '',
       resumeId = c.resumeId;
     let outcome: NativeResult['outcome'] = 'failure';
+    let outputLimited = false;
     const reused = Boolean(this.conversation);
     const input = this.input || new TurnInput<SDKUserMessage>();
     this.input = input;
     const conversation =
       this.conversation ||
-      query({
+      this.sdk.query({
         prompt: input,
         options: {
           cwd: c.workspace,
@@ -69,6 +73,7 @@ export class ClaudeAdapter implements HarnessAdapter {
             ANTHROPIC_BASE_URL: c.gatewayURL,
             ANTHROPIC_API_KEY: c.token,
             CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+            CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(c.modelLimits.maxOutputTokens),
           },
           systemPrompt: {
             type: 'preset',
@@ -87,10 +92,10 @@ export class ClaudeAdapter implements HarnessAdapter {
               : {}),
             ...(guarded && definition
               ? {
-                  worktree: createSdkMcpServer({
+                  worktree: this.sdk.createSdkMcpServer({
                     name: 'worktree',
                     tools: [
-                      tool(fileToolName, definition.description, definition.shape, async (args) => {
+                      this.sdk.tool(fileToolName, definition.description, definition.shape, async (args) => {
                         try {
                           return { content: [{ type: 'text' as const, text: await files(args) }] };
                         } catch (error) {
@@ -153,9 +158,10 @@ export class ClaudeAdapter implements HarnessAdapter {
             type: string;
             index?: number;
             message?: { id: string };
-            delta?: { type: string; text?: string; thinking?: string };
+            delta?: { type: string; text?: string; thinking?: string; stop_reason?: string };
             content_block?: { type: string; id?: string; name?: string; input?: unknown };
           };
+          outputLimited ||= isOutputLimitReason(event.delta?.stop_reason);
           if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
             output += event.delta.text || '';
             await emit({ type: 'output.delta', data: { text: event.delta.text || '' } });
@@ -211,15 +217,39 @@ export class ClaudeAdapter implements HarnessAdapter {
               });
           }
         if (message.type === 'result') {
-          outcome = message.subtype === 'success' ? 'success' : signal.aborted ? 'cancelled' : 'failure';
+          outputLimited ||= isOutputLimitReason(message.stop_reason);
+          const unfinished = ['tool_use', 'pause_turn', 'model_context_window_exceeded'].includes(
+            message.stop_reason || '',
+          );
+          outcome = outputLimited
+            ? 'failure'
+            : message.subtype === 'success' && !unfinished
+              ? 'success'
+              : signal.aborted
+                ? 'cancelled'
+                : 'failure';
           if (message.subtype === 'success' && message.result) output = message.result;
           break;
         }
       }
+    } catch (error) {
+      if (!outputLimited) throw error;
+      outcome = 'failure';
     } finally {
       signal.removeEventListener('abort', abort);
       if (!c.warm || outcome !== 'success') this.close();
     }
-    return { output, resumeId, outcome, ...(outcome === 'failure' ? { failureCode: 'harness_error' } : {}) };
+    return {
+      output,
+      resumeId,
+      outcome,
+      ...(outcome === 'failure'
+        ? { failureCode: outputLimited ? modelOutputLimitExceeded : 'harness_error' }
+        : {}),
+    };
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  return new ClaudeAdapter(await import('@anthropic-ai/claude-agent-sdk'));
 }

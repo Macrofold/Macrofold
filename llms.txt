@@ -18,6 +18,7 @@
 - [Customer-agent quickstart](docs/features/customer-agents/quickstart.md): Ensure a customer assistant, send messages and retrieve saved files through ownership-checked SDK methods.
 - [Customer account connections](docs/features/customer-agents/connections.md): Embed capability choices, verified account consent, permission editing and disconnect in your app.
 - [File memory starter](docs/features/customer-agents/memory.md): Install an optional editable memory and task convention.
+- [Agent library and memory](docs/features/customer-agents/agent-library.md): Install optional editable or service memory with scoped collections, explicit costs and lifecycle controls.
 - [Personal agent example](examples/personal-agent/README.md): Run a complete customer-isolated personal agent app and adapt its ownership, persistence and recovery boundaries.
 - [Customer data recipes](examples/integrations/README.md): Connect Supabase, Prisma, Pinecone or a customer-scoped MCP server with runnable local fixtures.
 

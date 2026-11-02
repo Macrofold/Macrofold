@@ -54,6 +54,7 @@ async function collect(directory: string) {
         NODE_OPTIONS: '--dns-result-order=ipv4first',
         NEXT_TELEMETRY_DISABLED: '1',
         LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS: process.env.APP_ORIGIN,
+        LOCAL_MEMORY_SERVICE_ALLOWED_ORIGINS: process.env.APP_ORIGIN,
       };
       for (const surface of ['browser', 'server', 'worker', 'cli'])
         await mkdir(path.join(directory, surface));

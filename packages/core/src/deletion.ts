@@ -6,6 +6,7 @@ import { auth, requireScopes, type Principal } from './auth';
 import { assert } from './errors';
 import * as r from './resources';
 import { seal, unseal, id } from './crypto';
+import { disableResourceIntegrations } from './agent-integrations';
 
 export async function requestWorkspaceDeletion(
   tx: Tx,
@@ -51,6 +52,7 @@ export async function requestWorkspaceDeletion(
     }
   }
   if (workspace.deletion_due_at) return workspace;
+  await disableResourceIntegrations(tx, { workspace_id: workspaceId });
   await tx.query('UPDATE triggers SET enabled=false,updated_at=now() WHERE workspace_id=$1', [workspaceId]);
   await tx.query(
     "UPDATE runs SET cancel_requested=true WHERE workspace_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input')",
@@ -91,6 +93,7 @@ export async function purgeWorkspaces(tx: Tx, at: Date) {
     )
   ).rows;
   for (const workspace of workspaces) {
+    await disableResourceIntegrations(tx, { workspace_id: workspace.id }, true);
     const triggerIds = (await tx.query('SELECT id FROM triggers WHERE workspace_id=$1', [workspace.id])).rows.map(
       (v) => v.id,
     );

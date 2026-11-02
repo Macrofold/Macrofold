@@ -155,3 +155,7 @@ CLI run/chat admission remains a client of the shared resolver. It must not conv
 ## Finite local work
 
 The CLI inherits SDK Run waiting (30 hours by default), stream reconnect and HTTP deadlines. Wait expiry detaches without cancelling the remote Run. `run_recovery_required` stops text/completion waiting with a typed error and retained receipt. Remote lists reject repeated cursors or more than 1,000 pages; explicit local folder inventory stops after 100,000 entries, before transfer admission. Local Git subprocesses have a two-minute deadline and fixed stdout/stderr ceilings; object downloads retain the five-minute deadline, byte/hash checks and non-progress rejection. Human prompt/EOF waiting is intentionally interactive and is not an automatic retry loop.
+
+## Native output allowance
+
+The native execution flag `--max-output-tokens` is a positive integer mapped to existing `limits.max_output_tokens`. Preset merges preserve the saved budget when only timeout/output is overridden; Session messages use the same limit field without changing saved defaults. The API validates the model's maximum and remaining budget. Terminal output-limit failure retains the normal unsuccessful exit/result semantics; it is not an SDK retry. [Native output contract](../execution/models.md#native-output-allowance).

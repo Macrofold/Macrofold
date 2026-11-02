@@ -18,4 +18,6 @@ Run independent I/O concurrently when appropriate, with bounded fan-out. Keep de
 
 Propagate cancellation/deadlines through the owning API. Release database clients, timers, streams, listeners, file handles, and child processes in cleanup paths. Retries need a transient-error classification, bounded attempts/deadline, and safe side-effect semantics.
 
+Initialize callback-visible lifecycle state before attaching listeners or starting/resuming work; callbacks can run during an awaited setup step.
+
 Construct subprocess calls with an executable and argument array. Treat paths and shell text as untrusted inputs; JSON serialization is not shell escaping. Respect ESM/package boundaries and the Node versions actually supported by each artifact.

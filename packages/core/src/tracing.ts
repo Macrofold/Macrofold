@@ -92,6 +92,7 @@ export function recordTrace(observation: TraceObservation) {
           workspace_id: c.workspace_id,
           worktree_id: c.worktree_id,
           run_id: c.run_id,
+          operation_id: c.operation_id,
           session_id: c.session_id,
           customer_id: c.customer_id,
           request_id: observation.id,

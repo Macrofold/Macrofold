@@ -35,7 +35,8 @@ import dev.macrofold.ApiClient;
 @JsonPropertyOrder({
   Limits.JSON_PROPERTY_TIMEOUT_SECONDS,
   Limits.JSON_PROPERTY_MAX_COST_MICRO_USD,
-  Limits.JSON_PROPERTY_STOP_ON_MODEL_ERROR
+  Limits.JSON_PROPERTY_STOP_ON_MODEL_ERROR,
+  Limits.JSON_PROPERTY_MAX_OUTPUT_TOKENS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class Limits {
@@ -50,6 +51,10 @@ public class Limits {
   public static final String JSON_PROPERTY_STOP_ON_MODEL_ERROR = "stop_on_model_error";
   @javax.annotation.Nullable
   private Boolean stopOnModelError;
+
+  public static final String JSON_PROPERTY_MAX_OUTPUT_TOKENS = "max_output_tokens";
+  @javax.annotation.Nullable
+  private Integer maxOutputTokens;
 
   public Limits() { 
   }
@@ -110,7 +115,7 @@ public class Limits {
   }
 
   /**
-   * Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
+   * Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. Output-limit completions always fail a native Run with model_output_limit_exceeded, regardless of this flag; no automatic paid repair is performed.
    * @return stopOnModelError
    */
   @javax.annotation.Nullable
@@ -128,6 +133,32 @@ public class Limits {
   }
 
 
+  public Limits maxOutputTokens(@javax.annotation.Nullable Integer maxOutputTokens) {
+    this.maxOutputTokens = maxOutputTokens;
+    return this;
+  }
+
+  /**
+   * Maximum generated tokens per native model call, including reasoning and tool-call output. Does not raise the Run spending cap or deadline. Omission inherits the Session allowance or uses the model-aware native default (32768; 65536 for high/xhigh/max effort or Muse Contributor default reasoning), bounded by the model maximum.
+   * minimum: 1
+   * maximum: 9007199254740991
+   * @return maxOutputTokens
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MAX_OUTPUT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getMaxOutputTokens() {
+    return maxOutputTokens;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MAX_OUTPUT_TOKENS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setMaxOutputTokens(@javax.annotation.Nullable Integer maxOutputTokens) {
+    this.maxOutputTokens = maxOutputTokens;
+  }
+
+
   /**
    * Return true if this Limits object is equal to o.
    */
@@ -142,12 +173,13 @@ public class Limits {
     Limits limits = (Limits) o;
     return Objects.equals(this.timeoutSeconds, limits.timeoutSeconds) &&
         Objects.equals(this.maxCostMicroUsd, limits.maxCostMicroUsd) &&
-        Objects.equals(this.stopOnModelError, limits.stopOnModelError);
+        Objects.equals(this.stopOnModelError, limits.stopOnModelError) &&
+        Objects.equals(this.maxOutputTokens, limits.maxOutputTokens);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(timeoutSeconds, maxCostMicroUsd, stopOnModelError);
+    return Objects.hash(timeoutSeconds, maxCostMicroUsd, stopOnModelError, maxOutputTokens);
   }
 
   @Override
@@ -157,6 +189,7 @@ public class Limits {
     sb.append("    timeoutSeconds: ").append(toIndentedString(timeoutSeconds)).append("\n");
     sb.append("    maxCostMicroUsd: ").append(toIndentedString(maxCostMicroUsd)).append("\n");
     sb.append("    stopOnModelError: ").append(toIndentedString(stopOnModelError)).append("\n");
+    sb.append("    maxOutputTokens: ").append(toIndentedString(maxOutputTokens)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -214,6 +247,11 @@ public class Limits {
     // add `stop_on_model_error` to the URL query string
     if (getStopOnModelError() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sstop_on_model_error%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStopOnModelError()))));
+    }
+
+    // add `max_output_tokens` to the URL query string
+    if (getMaxOutputTokens() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%smax_output_tokens%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getMaxOutputTokens()))));
     }
 
     return joiner.toString();

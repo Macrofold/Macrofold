@@ -138,10 +138,14 @@ function protocol(
         }
       }
       if (path.endsWith('count_tokens')) return;
+      // Admission accepts equal aliases, but each upstream accepts only its
+      // protocol's field. Never forward another protocol's output control.
+      delete payload.max_output_tokens;
+      delete payload.max_completion_tokens;
+      delete payload.max_tokens;
       if (path.endsWith('responses')) payload.max_output_tokens = bounds.maxOutput;
       else if (provider === 'anthropic') payload.max_tokens = bounds.maxOutput;
       else {
-        delete payload.max_tokens;
         payload.max_completion_tokens = bounds.maxOutput;
         if (payload.stream) payload.stream_options = { include_usage: true };
       }

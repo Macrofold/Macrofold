@@ -179,6 +179,9 @@ export function limits(flags: Options): Schema['Limits'] {
     throw new CliError('--max-cost is a USD amount with at most six decimal places.');
   return {
     timeout_seconds: flags.timeout ? Number(flags.timeout) : undefined,
+    ...(flags['max-output-tokens'] !== undefined
+      ? { max_output_tokens: Number(flags['max-output-tokens']) }
+      : {}),
     max_cost_micro_usd: cost
       ? (BigInt(cost.split('.')[0]) * 1000000n + BigInt((cost.split('.')[1] || '').padEnd(6, '0'))).toString()
       : '2000000',

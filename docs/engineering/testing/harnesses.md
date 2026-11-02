@@ -21,6 +21,14 @@ Build the image first as described in [local Docker](../../getting-started/local
 
 ## Measured results
 
+For the November native output/memory integration, use the current [output
+verification](../../projects/native-output-budget-verification.md) and [matched
+memory/startup record](../../projects/native-memory-startup-tech-design.md#diagnostic-and-lazy-loading-comparison).
+They qualify actual pinned binaries and bounded diagnostics, distinguish fresh
+processes from cold machines, retain profiler misses and state the remaining
+clean-image/hosted gates. The older results below retain their original date;
+their advisory counts are not a current security scan.
+
 - Native Hermes, DeepSeek and Pi: file edits, exact MCP invocation, checkpoint restoration, native session identity and prior-conversation replay pass.
 - All three: confirmed authentication failure and cancellation preserve files and explicit terminal outcomes.
 - Complete customer API → PostgreSQL worker → Docker → gateway → verified checkpoint journeys pass for all six harnesses, including a killed/replaced worker and a second turn in a new container. The matrix passed across targeted invocations after fixing Codex's client-executed tool-search validation and the fixture relay's handling of Anthropic beta query parameters.
@@ -112,3 +120,7 @@ The Claude worktree-context regression is covered by `pnpm test:native claude-co
 DeepSeek's convenience SDK cannot reopen a persisted session in a replacement process. Its driver uses the official agent registry's resume API instead. Native tests require restored conversation context, so a fresh session over restored files cannot accidentally pass as continuation. Hermes likewise requires its stored conversation to be supplied explicitly to the embedded agent. These are native integration constraints, not a replacement scheduler or model loop.
 
 Release work remains in the [maintainer checklist](../../maintainers/TODO.md). No additional paid execution is authorized by this record.
+
+## Native output qualification
+
+The [native output verification record](../../projects/native-output-budget-verification.md) records the coordinated admission/gateway/runtime/client change and measured scope. Existing fixtures now provide required model capabilities and native `modelLimits`. The requested no-new-maintained-tests constraint was honored: additional forced-length, Unicode, fault and browser scenarios run from ignored disposable drivers against actual pinned binaries and an isolated database. These are not paid-model quality tests. Repeat the recorded scenarios and use a matching runtime image for release acceptance; do not infer cloud behavior from simulator results.

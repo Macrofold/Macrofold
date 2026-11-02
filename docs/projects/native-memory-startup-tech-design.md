@@ -1,6 +1,6 @@
 # Native memory diagnostics and startup efficiency: technical design
 
-Status: proposed; implementation has not started under this design.
+Status: M0 baseline and M1–M3 implementation/local functional qualification complete. M4 local measurements are recorded; clean release-image, observer-budget and hosted qualification remain open.
 
 Parent: [project index](README.md). Behavior/acceptance: [feature specification](native-memory-startup-feature-spec.md). Work: [maintainer tracker](../maintainers/TODO.md#native-memory-and-startup-efficiency).
 
@@ -18,30 +18,30 @@ These changes require no schema migration, new dependency, customer parameter, p
 
 Relevant implemented owners:
 
-| Owner | Current responsibility | Proposed change |
-| --- | --- | --- |
+| Owner                                                            | Existing responsibility                                                                    | Implemented extension                                                                                            |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | [agent-processes](../../packages/runtime/src/agent-processes.ts) | Shared in-flight `/proc` inventory, effective-UID filtering, memory sum, writer quiescence | Return the existing observation without another scan; optional bounded PSS reader. Preserve quiescence behavior. |
-| [supervisor](../../packages/runtime/src/supervisor.ts) | Guard every 500 ms, cancellation, child protocol, protected result and snapshot | Retain failure facts; aggregate optional samples; accept narrow diagnostic frames. |
-| [native-worker](../../packages/runtime/src/native-worker.ts) | Adapter selection, permissions, model bridge, warm turn loop | Selected lazy adapter, optional stage/own-heap markers, unchanged per-turn capability rotation. |
-| [runtime types](../../packages/runtime/src/types.ts) | Native configuration, adapter interface and result | Internal capture settings and structured resource failure. |
-| [performance contracts](../../packages/contracts/performance.ts) | Content-free collector record and sink types | Optional `native_memory` payload on an operation record. |
-| [core performance](../../packages/core/src/performance.ts) | Sampling, finite capture, attribution and bounds | Capture-settings factory, bounded late delivery and native-record import. |
-| [worker machines](../../packages/core/src/worker-machines.ts) | Authorized allocation configuration and Host control | Attach operator-generated capture settings at prepare. |
-| [cloud engine](../../packages/core/src/cloud-engine.ts) | Native polling, event ingestion, persistence and final publication | Consume private profiles; publish one safe memory-failure event from the protected final result. |
-| [Host runtime](../../packages/core/src/host-runtime.ts) | Validate provider observations | Preserve/validate the new optional result field instead of stripping it. |
-| [runtime build](../../scripts/build-runtime.ts) | Bundled ESM entry points with external packages | Keep layout; verify that required SDK imports remain dynamic in the artifact. |
+| [supervisor](../../packages/runtime/src/supervisor.ts)           | Guard every 500 ms, cancellation, child protocol, protected result and snapshot            | Retain failure facts; aggregate optional samples; accept narrow diagnostic frames.                               |
+| [native-worker](../../packages/runtime/src/native-worker.ts)     | Adapter selection, permissions, model bridge, warm turn loop                               | Selected lazy adapter, optional stage/own-heap markers, unchanged per-turn capability rotation.                  |
+| [runtime types](../../packages/runtime/src/types.ts)             | Native configuration, adapter interface and result                                         | Internal capture settings and structured resource failure.                                                       |
+| [performance contracts](../../packages/contracts/performance.ts) | Content-free collector record and sink types                                               | Optional `native_memory` payload on an operation record.                                                         |
+| [core performance](../../packages/core/src/performance.ts)       | Sampling, finite capture, attribution and bounds                                           | Capture-settings factory, bounded late delivery and native-record import.                                        |
+| [cloud preparation](../../packages/core/src/cloud-engine.ts)     | Configuration shared by automatic and explicit Worker execution                            | Attach operator-generated capture settings at prepare.                                                           |
+| [cloud engine](../../packages/core/src/cloud-engine.ts)          | Native polling, event ingestion, persistence and final publication                         | Consume private profiles; publish one safe memory-failure event from the protected final result.                 |
+| [Host runtime](../../packages/core/src/host-runtime.ts)          | Validate provider observations                                                             | Preserve/validate the new optional result field instead of stripping it.                                         |
+| [runtime build](../../scripts/build-runtime.ts)                  | Bundled ESM entry points with external packages                                            | Keep layout; verify that required SDK imports remain dynamic in the artifact.                                    |
 
 Retained facts from the investigated October 31 OpenCode Run:
 
-| Observation | Value and interpretation |
-| --- | --- |
-| Allocation | 1,024 MiB RAM, 250 CPU millis; the latter is a quarter-core allocation, not evidence of measured CPU throttling. |
-| Model request | OpenRouter `meta/muse-spark-1.3-contributor`; one captured request, 74,138 JSON input bytes, two messages and two tools. No token usage was captured. |
-| Created → Run started | 8.590 s; includes scheduling/placement, not model computation. |
-| Run started → runtime started | 7.857 s; a broad lifecycle interval, not a measured SDK-import duration. |
-| Runtime started → stream-failure event | 7.657 s; the captured model-request interval was 6.121 s and overlaps this interval. Do not add them. |
-| Failure event → Run completed | 4.596 s; includes shutdown/persistence/publication. Total created-to-completed: 28.700 s. |
-| Final state | `memory_limit`, with verified persistence; no surviving process samples or actual RSS peak, and the runtime had been removed. |
+| Observation                            | Value and interpretation                                                                                                                              |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allocation                             | 1,024 MiB RAM, 250 CPU millis; the latter is a quarter-core allocation, not evidence of measured CPU throttling.                                      |
+| Model request                          | OpenRouter `meta/muse-spark-1.3-contributor`; one captured request, 74,138 JSON input bytes, two messages and two tools. No token usage was captured. |
+| Created → Run started                  | 8.590 s; includes scheduling/placement, not model computation.                                                                                        |
+| Run started → runtime started          | 7.857 s; a broad lifecycle interval, not a measured SDK-import duration.                                                                              |
+| Runtime started → stream-failure event | 7.657 s; the captured model-request interval was 6.121 s and overlaps this interval. Do not add them.                                                 |
+| Failure event → Run completed          | 4.596 s; includes shutdown/persistence/publication. Total created-to-completed: 28.700 s.                                                             |
+| Final state                            | `memory_limit`, with verified persistence; no surviving process samples or actual RSS peak, and the runtime had been removed.                         |
 
 The trace cannot reconstruct uncaptured memory. OpenRouter performs inference remotely; these processes are not loading Muse's model weights. SDK heaps, native processes, retained history and shared pages remain candidates to measure. A stream closing proves neither a provider retry nor an OOM. No historical leak or exact memory culprit is established.
 
@@ -59,10 +59,13 @@ type AgentMemorySample = {
   rssBytes: number;
   processCount: number;
   unavailableProcessCount: number;
-  processes: ReadonlyMap<number, {
-    rssBytes: number | null;
-    kind: 'node' | 'opencode' | 'bun' | 'python' | 'other';
-  }>;
+  processes: ReadonlyMap<
+    number,
+    {
+      rssBytes: number | null;
+      kind: 'node' | 'opencode' | 'bun' | 'python' | 'other';
+    }
+  >;
 };
 ```
 
@@ -133,11 +136,11 @@ The event arrives when the protected native result is ingested, not necessarily 
 
 Reuse `PERF_PROFILING_ENABLED`, `PERF_PROFILING_SAMPLE_RATE`, `PERF_PROFILING_DURATION_SECONDS` and the existing output policy. No additional flag is needed. Enable all worker replicas that may prepare or probe the Run so any normal observer can import the report; separately enable the API process when HTTP profiling is wanted. Enabling only a preparer can lose reports later observed by a disabled replica.
 
-Add `nativeProfileCapture(runId)` to the existing core collector. When inactive, expired or sample rate zero, return `undefined`. Otherwise use SHA-256 of `capture_id + ":" + run_id`; interpret its first four bytes as an unsigned big-endian integer divided by `2 ** 32` and select when below the sample rate. This selects whole turns without another draw on each poll or multiplication by the enclosing job's sampler. No per-Run registry is needed.
+The existing core collector exposes `nativeProfileCapture(runId, deadlineMs)`. When inactive, expired or sample rate zero, return `undefined`. Otherwise use SHA-256 of `capture_id + ":" + run_id`; interpret its first four bytes as an unsigned big-endian integer divided by `2 ** 32` and select when below the sample rate. This selects whole turns without another draw on each poll or multiplication by the enclosing job's sampler. No per-Run registry is needed.
 
 Capture settings contain only `capture_id`, `origin_instance_id`, `sample_rate` and absolute `expires_at_ms`. Expiry is the earlier of the collector's expiry and the Run deadline. IDs are UUIDs; sample rate is finite in `(0, 1]`. Clamp remaining duration at receipt to `[0, 3,600 seconds]`, then use a monotonic deadline. Do not renew it on retries or reuse; these settings are diagnostic correlation, not an authorization grant.
 
-Add optional `performance` to trusted `NativeConfiguration` and its schema. Attach it in `WorkerMachines.prepare` from operator composition, never by spreading public Run input. Do not forward environment variables, output directories, tracing keys or profiler credentials into the agent. Treat invalid diagnostic configuration as disabled, with a fixed warning, without rejecting otherwise valid execution configuration. Keep authoritative runtime-configuration validation strict as before.
+Add optional `performance` to trusted `NativeConfiguration` and its schema. Attach it at the shared cloud-engine configuration preparation boundary so automatic and explicit Worker executions receive the same operator composition; never spread public Run input. Do not forward environment variables, output directories, tracing keys or profiler credentials into the agent. Treat invalid diagnostic configuration as disabled, with a fixed warning, without rejecting otherwise valid execution configuration. Keep authoritative runtime-configuration validation strict as before.
 
 Keep capture settings out of public Run config, checkpoints, the prepare fingerprint and `warmSessionKey`. Repeated prepare returns the first accepted assignment configuration. Each warm turn receives its own settings, possibly absent, without invalidating the harness. Recovery never replays execution to obtain diagnostics.
 
@@ -145,18 +148,18 @@ Keep capture settings out of public Run config, checkpoints, the prepare fingerp
 
 Add `packages/runtime/src/memory-profile.ts` with a small `MemoryProfileAccumulator` that accepts observations, stage markers and a monotonic clock, and returns the bounded `NativeMemoryProfile` data below. Keep `/proc` reads in `agent-processes.ts` and transport in the supervisor. Use `observe`, `stage`, `finish` and idempotent `dispose` methods; no timers or I/O inside the accumulator. The supervisor owns its lifecycle and the Host's small active-profile/PSS-read counters; release a profile slot on finish or exception. This keeps aggregation independently testable without another collector framework.
 
-| Bound | Initial value and reason |
-| --- | --- |
-| Active optional profiles per Host process | 8; limits observer memory/I/O independently of customer admission. Extra profiles are skipped, not Runs. |
-| RSS profile observations | At most 1 per second, reusing guard observations; no extra inventory or timer. Guard remains every 500 ms. |
-| Retained recent samples | Ring of 16; aggregates and observed peak continue after older examples are replaced. |
-| Stages | Fixed enum: `process_start`, `adapter_load` and existing `RuntimeStage` values. No user-defined labels. |
-| Largest processes | Five at the observed RSS peak; five separately in a limit-failure summary. |
-| PSS enrichment | At most one attempt per profiled allocation per 5 seconds; largest eight currently observed processes; two reads in flight across the Host; no waiting queue. |
-| Per-process PSS read | Maximum 16 KiB from `smaps_rollup`; unavailable/oversized data is omitted, not truncated into a valid number. |
-| Native diagnostic frame | Maximum 1 KiB; fixed stage/heap schema; at most 32 accepted frames per turn. Excess is dropped. |
-| Profile publication | One private profile record per turn, on expiry or turn end, whichever occurs first. Maximum 7 KiB payload so the outer record fits the existing 8-KiB sink limit. |
-| Output/replay bounds | Existing sink caps: 256 records, 1 MiB outstanding, one writer. Native event/probe byte caps remain unchanged. |
+| Bound                                     | Initial value and reason                                                                                                                                          |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Active optional profiles per Host process | 8; limits observer memory/I/O independently of customer admission. Extra profiles are skipped, not Runs.                                                          |
+| RSS profile observations                  | At most 1 per second, reusing guard observations; no extra inventory or timer. Guard remains every 500 ms.                                                        |
+| Retained recent samples                   | Ring of 16; aggregates and observed peak continue after older examples are replaced.                                                                              |
+| Stages                                    | Fixed enum: `process_start`, `adapter_load` and existing `RuntimeStage` values. No user-defined labels.                                                           |
+| Largest processes                         | Five at the observed RSS peak; five separately in a limit-failure summary.                                                                                        |
+| PSS enrichment                            | At most one attempt per profiled allocation per 5 seconds; largest eight currently observed processes; two reads in flight across the Host; no waiting queue.     |
+| Per-process PSS read                      | Maximum 16 KiB from `smaps_rollup`; unavailable/oversized data is omitted, not truncated into a valid number.                                                     |
+| Native diagnostic frame                   | Maximum 1 KiB; fixed stage/heap schema; at most 32 accepted frames per turn. Excess is dropped.                                                                   |
+| Profile publication                       | One private profile record per turn, on expiry or turn end, whichever occurs first. Maximum 7 KiB payload so the outer record fits the existing 8-KiB sink limit. |
+| Output/replay bounds                      | Existing sink caps: 256 records, 1 MiB outstanding, one writer. Native event/probe byte caps remain unchanged.                                                    |
 
 These are diagnostic work budgets, not application capacity defaults. Qualify their observer cost before shipping; lower optional detail rather than raising customer latency or weakening the memory guard.
 
@@ -215,21 +218,36 @@ type NativeMemoryProfile = {
   limit_bytes: number | null;
   peak_observed_rss_bytes: number | null;
   samples_seen: number;
-  recent: { offset_ms: number; stage: MemoryStage; rss_bytes: number;
-    process_count: number; unavailable_process_count: number }[]; // <=16
-  stages: { stage: MemoryStage; observations: number; duration_ms: number;
-    rss_max_bytes: number | null }[]; // one per fixed enum value
+  recent: {
+    offset_ms: number;
+    stage: MemoryStage;
+    rss_bytes: number;
+    process_count: number;
+    unavailable_process_count: number;
+  }[]; // <=16
+  stages: { stage: MemoryStage; observations: number; duration_ms: number; rss_max_bytes: number | null }[]; // one per fixed enum value
   largest_processes: MemoryFailure['largest_processes']; // observed RSS peak
-  pss_unavailable_reason?: 'permissions' | 'unsupported' | 'busy' |
-    'deadline' | 'vanished' | 'read_failed';
-  pss?: { offset_ms: number; age_ms: number; read_ms: number;
-    covered_processes: number; observed_processes: number;
-    covered_rss_bytes: number; pss_bytes: number; complete: boolean };
+  pss_unavailable_reason?: 'permissions' | 'unsupported' | 'busy' | 'deadline' | 'vanished' | 'read_failed';
+  pss?: {
+    offset_ms: number;
+    age_ms: number;
+    read_ms: number;
+    covered_processes: number;
+    observed_processes: number;
+    covered_rss_bytes: number;
+    pss_bytes: number;
+    complete: boolean;
+  };
   adapter_load_ms?: number; // absent for a reused adapter or incomplete load
-  heap_marks: { kind: 'before_adapter_load' | 'after_adapter_load' |
-    'turn_start' | 'turn_end'; worker_offset_ms: number;
-    rss_bytes: number; heap_used_bytes: number; heap_total_bytes: number;
-    external_bytes: number; array_buffers_bytes: number }[]; // <=3
+  heap_marks: {
+    kind: 'before_adapter_load' | 'after_adapter_load' | 'turn_start' | 'turn_end';
+    worker_offset_ms: number;
+    rss_bytes: number;
+    heap_used_bytes: number;
+    heap_total_bytes: number;
+    external_bytes: number;
+    array_buffers_bytes: number;
+  }[]; // <=3
   dropped: { frames: number; pss_reads: number; recent_samples: number };
 };
 ```
@@ -254,13 +272,13 @@ The build uses `bundle: true`, external packages and no splitting. A local esbui
 
 Move external SDK value imports into its awaited `createAdapter()` factory; keep types as type-only imports. Update internal direct constructor callers/tests to use the factory instead of retaining a compatibility constructor:
 
-| Adapter/owner | Required treatment |
-| --- | --- |
-| Claude | Import the Claude agent SDK in its factory; retain query, MCP-server and tool helpers on that instance. |
-| Pi | Defer Pi AI/coding-agent values; defer Pi-only MCP client/transport values in its tool bridge. |
-| OpenCode | Defer the existing v1 client/v2 server/v2 client values until selected initialization. Preserve their current protocol roles. |
-| Codex | Audit its transitive values and defer only dependencies exclusive to its selected path. Preserve native RPC startup. |
-| Hermes/DeepSeek | Preserve their selected subprocess/bridge boundaries. Do not eagerly load their language runtimes or optional SDKs from the common worker. |
+| Adapter/owner             | Required treatment                                                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude                    | Import the Claude agent SDK in its factory; retain query, MCP-server and tool helpers on that instance.                                                                                           |
+| Pi                        | Defer Pi AI/coding-agent values; defer Pi-only MCP client/transport values in its tool bridge.                                                                                                    |
+| OpenCode                  | Defer the existing v1 client/v2 server/v2 client values until selected initialization. Preserve their current protocol roles.                                                                     |
+| Codex                     | Audit its transitive values and defer only dependencies exclusive to its selected path. Preserve native RPC startup.                                                                              |
+| Hermes/DeepSeek           | Preserve their selected subprocess/bridge boundaries. Do not eagerly load their language runtimes or optional SDKs from the common worker.                                                        |
 | Shared permission service | Keep genuinely common policy code shared. Defer MCP server value imports until that service is actually requested; no need to ban shared MCP dependencies required by the selected configuration. |
 
 Use type-only imports or `typeof import("package")` aliases. The native module cache handles SDK reuse; the warm loop retains the adapter. Helpers used only when tools are enabled may import their own optional SDK on first use; attribute that to tool setup, not `adapter_load_ms`. Do not add top-level `await import()` in unconditionally initialized modules or change SDK versions/publisher internals for this optimization.
@@ -283,6 +301,36 @@ Cold Host acquisition, restoration, selected harness startup and upstream calls 
 ## 7. Implementation order
 
 Read the current feature owners and scoped instructions before coding. Preserve the main preview and unrelated edits. Each stage includes its focused checks; no stage closes acceptance for another.
+
+M0 baseline and M1–M3 implementation are complete with local functional evidence.
+M4's local matched timing/RSS and CPU workloads are complete, retaining the
+observer-budget misses below. The remaining work is clean Linux AMD64 candidate
+verification/qualification and separately scoped hosted acceptance, tracked in
+the [maintainer work](../maintainers/TODO.md#native-memory-and-startup-efficiency).
+The steps below retain the implementation order and invariants for future changes.
+
+### Integration order and ownership
+
+Work in the isolated `codex/native-runtime-memory-packs` integration branch based
+on main `0101368a`. Preserve the original dirty output-budget checkout unchanged;
+its tracked patch and seven new authored files are copied and three-way reconciled
+with current scheduling/ownership fixes. Regenerate shared outputs from the merged
+contract. Keep output allowances, first-failure accounting, withheld executable
+tool frames and all warm compatibility identities intact.
+
+Freeze the existing qualified output runtime as M0; build/freeze M2 while loading
+remains eager, then implement M3. Runtime observation/adapter owners and the core
+profiler/import owners work independently against the same diagnostic schema.
+The optional integration library composes current Run preparation and committed
+completion; it must not add another native loop or interfere with no-pack runs.
+Its deployment/funding decision belongs to its existing project plan.
+
+Finish targeted contract, API, CLI/dashboard, native, cancellation/persistence and
+profile checks on the combined source. Build matching application and clean
+Dockerfile runtime artifacts under task-owned tags, without retagging a live
+image or restarting the preview. Retain failed samples and concrete unverified
+hosted gates in each workstream's evidence; one completed stream does not close
+another stream's acceptance.
 
 ### M0 — Baseline and fixtures
 
@@ -320,14 +368,14 @@ Read the current feature owners and scoped instructions before coding. Preserve 
 
 Use [TESTING.md](../../TESTING.md) for required coverage/gates. Extend existing tests rather than build another native acceptance runner.
 
-| Layer | Cases that must detect regressions |
-| --- | --- |
-| Process reader/unit | KiB conversion, exact rounding boundary, zombies/foreign UID, missing values, vanished PIDs, concurrent inventory sharing, no stale quiescence proof; PSS descriptor ownership/reuse, oversized/unavailable data and partial coverage. |
-| Collector/unit | Off/unsampled no-op, deterministic selection, immutable expiry/ten-second receive window, immediate explicit shutdown, bounded observations/reads, stale callbacks, finalize/dispose once, warm reset and no fake zeros. |
-| Supervisor/native | Guard signals before enrichment/export; exact failure summary survives event truncation; malformed/forged frames cannot change result/limits; cancellation/deadline, grace and quiescent checkpoints remain intact. |
-| Core integration | Capture cannot be customer supplied/renewed on replay; private profiles advance cursor without public/SQL sample storage; one resource event even after lease change; checkpoint-error precedence; safe tracing; sink closed/full/foreign capture handling. |
-| Built artifact | Test-only module-load hooks verify unselected SDK absence and selected SDK loading inside the timed factory; no production hooks. Exercise assets, abort during loading and safe import failure in the actual image without source mounts. |
-| Native harnesses | All six selections; cold startup, two warm turns, changed permissions, fresh-container restored conversation, cancellation, SDK/tool bridge cleanup and no hidden inference replay. |
+| Layer               | Cases that must detect regressions                                                                                                                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Process reader/unit | KiB conversion, exact rounding boundary, zombies/foreign UID, missing values, vanished PIDs, concurrent inventory sharing, no stale quiescence proof; PSS descriptor ownership/reuse, oversized/unavailable data and partial coverage.                      |
+| Collector/unit      | Off/unsampled no-op, deterministic selection, immutable expiry/ten-second receive window, immediate explicit shutdown, bounded observations/reads, stale callbacks, finalize/dispose once, warm reset and no fake zeros.                                    |
+| Supervisor/native   | Guard signals before enrichment/export; exact failure summary survives event truncation; malformed/forged frames cannot change result/limits; cancellation/deadline, grace and quiescent checkpoints remain intact.                                         |
+| Core integration    | Capture cannot be customer supplied/renewed on replay; private profiles advance cursor without public/SQL sample storage; one resource event even after lease change; checkpoint-error precedence; safe tracing; sink closed/full/foreign capture handling. |
+| Built artifact      | Test-only module-load hooks verify unselected SDK absence and selected SDK loading inside the timed factory; no production hooks. Exercise assets, abort during loading and safe import failure in the actual image without source mounts.                  |
+| Native harnesses    | All six selections; cold startup, two warm turns, changed permissions, fresh-container restored conversation, cancellation, SDK/tool bridge cleanup and no hidden inference replay.                                                                         |
 
 During implementation use verified repository commands, with concrete affected filenames once added:
 
@@ -350,20 +398,152 @@ Use a deterministic upstream delay long enough to retain multiple samples, and s
 
 Compare before/after with the same observer mode to establish startup savings; compare on/off within the same build to establish observer cost. Use the existing isolated load harness for the profiler's 1%-CPU and full-sampling latency budgets; a handful of native turns cannot qualify high-traffic CPU overhead. If no trustworthy baseline or clean machine is available, mark the affected result unverified instead of substituting local noise or mathematical estimates.
 
+### Recorded local baseline — November 1
+
+M0 retained 80 successful actual-harness turns on immutable Linux ARM64 image
+`sha256:727975889e2a7be40ed3b9d48df092d51b710096ed116be1ff5eb295ae4b8282`,
+lockfile SHA-256 `b4830854acf273c9d93dc56dff044cd96bc8def2d6e3a0c701a87f2135086b3f`.
+The network-disabled fixture gives each upstream response a separately measured
+2,500-ms delay. Native first-request intervals below exclude that wait; complete
+turn intervals retain it and cleanup. No provider inference was purchased.
+
+| Harness / native process | Samples | First model request mean / p95 | Complete turn mean / p95 |
+| ------------------------ | ------: | -----------------------------: | -----------------------: |
+| OpenCode / fresh         |      20 |           2,886.6 / 3,517.8 ms |       5,565.5 / 6,166 ms |
+| OpenCode / warm          |      30 |                 49.4 / 69.5 ms |       2,708.5 / 2,743 ms |
+| Claude / fresh           |       5 |           1,180.0 / 1,701.9 ms |       3,818.6 / 4,343 ms |
+| Claude / warm            |      10 |                 18.9 / 25.3 ms |       2,621.0 / 2,651 ms |
+| Pi / fresh               |       5 |             855.6 / 1,161.8 ms |       3,454.8 / 3,753 ms |
+| Pi / warm                |      10 |                  9.0 / 12.5 ms |       2,597.0 / 2,611 ms |
+
+These are fresh-process/warm-continuation observations in retained containers,
+not clean-machine or hosted cold starts. The preceding first-container OpenCode
+smoke reached the model at 7.56 s and remains in the evidence; page/image caches
+can affect subsequent cohorts. Docker Desktop exposed ten CPUs and 3.83 GiB RAM;
+the fixture container limit was two CPUs / 4 GiB. This shared laptop topology
+does not certify fleet capacity or the high-traffic CPU observer budget.
+
+The same original image completed three overlapping OpenCode allocations and
+their cleanup. A synthetic child filled the 64-MiB event log before a real
+supervisor-enforced memory failure; it retained the existing `memory_limit`
+outcome and capture behavior, but had no new numeric summary or memory profile,
+as expected before M1/M2. The original runtime cannot reconstruct RSS/PSS after
+the fact. Raw intervals, misses, fixture hash, environment and cleanup evidence
+are retained privately under `.data/native-memory-startup-20261101/` in the
+integration worktree; the original output checkout is unchanged.
+
+### Diagnostic and lazy-loading comparison
+
+The frozen eager diagnostic image is
+`sha256:ba4c6be4289048dd132dec53cdb46f7ac5e26ab0dcd5cf415857708bb66351c4`;
+the final lazy comparison image is
+`sha256:64f25db6b1a7737799931ecac6c5d2b9774ce5bab1279a18823f63b197e0e40d`.
+Both bake bundles on M0's identical pinned dependency image; neither is a clean
+Dockerfile release build. Each completed 160 actual native turns: the required
+OpenCode/Claude/Pi cold/warm counts with profiling off and on. All 80 selected
+reports arrived per image, none arrived off, and no diagnostic frames dropped.
+Every first call, outlier and complete-turn interval is retained.
+
+| Harness  | Fresh-process first model request, off: eager → lazy mean | Observed RSS peak, on: eager → lazy cold / warm mean |
+| -------- | --------------------------------------------------------: | ---------------------------------------------------: |
+| OpenCode |                                      2,899.6 → 2,083.5 ms |                    748.6 / 695.2 → 619.3 / 611.8 MiB |
+| Claude   |                                        1,269.6 → 510.1 ms |                    416.5 / 412.9 → 311.4 / 320.8 MiB |
+| Pi       |                                          874.1 → 700.8 ms |                    205.8 / 179.7 → 165.7 / 153.3 MiB |
+
+These matched local observations support removing unused SDK initialization;
+they do not identify a historical leak, establish a total-memory ceiling or
+prove a hosted SLA. PSS was explicitly unavailable because the existing sandbox
+permissions denied it. No privilege was added to make a benchmark pass. Reported
+RSS covers allocation processes, not controller/whole-container physical memory.
+
+Actual compiled module hooks prove selected SDK loading and unselected SDK
+absence for all six harnesses. Import-failure and cancellation-during-import
+fixtures made zero model calls. A 64-MiB full event log could drop the optional
+profile while the protected result retained the real RSS guard failure and
+verified capture. Three overlapping OpenCode allocations retained distinct Run
+and process identities and cleaned up independently.
+
+Final focused runtime checks cover **54 distinct cases** across eight unit files,
+run in targeted cohorts rather than one aggregate invocation. They include bounded
+process/PSS reads, accumulator limits, selected factories, warm compatibility and
+resumed-startup cleanup. A pending child line is drained before a failed startup
+returns, and repeated startup failures release optional capture slots/listeners.
+Runtime builds pass the compiled-import guard. Core collector and terminal-ingestion
+checks are recorded separately in [harness verification](../engineering/testing/harnesses.md).
+
+The final V2 image also passed ordinary native acceptance for **all six harnesses**:
+concurrent Runs and independent cancellation/capture; two warm follow-ups;
+changed actual file permissions forcing cold resume with unchanged checkpoint
+identity; stale-checkpoint cold reload; and export/import of verified authored
+files and conversation state into a fresh container. This is 18 acceptance groups
+across concurrent, export and import modes, not a live provider or hosted test.
+
+Additional V2 image cases verify one `capture_expired` record while execution
+continues, a fresh later warm profile, rejection of malformed/wrong/stale frames
+and forged reserved profiles/result fields, and native-success versus
+memory-limit outcomes when snapshot capture also fails. The raw native result
+preserves independent execution/persistence facts and trusted memory measurements;
+the core layer still owns public checkpoint-failure precedence. OpenCode, Claude
+and Pi profiling on/off/on turns retain the same native PID/birth time/session
+and produce exactly one/zero/one reports, without old heap or loader marks.
+
+The on/off intervals do **not** certify the observer latency budget on this
+shared laptop: for example, lazy Pi warm on/off means differed by +21.7 ms.
+Keep that miss and the earlier eager warm outlier rather than trimming them.
+Detailed raw intervals, p50/p95 and misses are retained under private
+`.data/native-memory-startup-20261101/`, including `m2-summary-01.json`,
+`m3-v2-summary-01.json`, `final-functional-summary-01.json` and
+`m3-v2-all-six-native.log`.
+
+### Native observer CPU qualification
+
+The final V2 image completed **1,648 successful turns**: 1,600 measured warm
+turns in eight alternating on/off pairs of 100-turn blocks, plus 48 explicitly
+excluded prewarm turns. Each block uses a fresh process and the same synthetic
+input. Turn 49 waits 2,500 ms in both conditions; only that turn in an on block
+captures diagnostics, giving one preselected capture per 100 turns. All eight
+sampled reports include RSS and the local append; each records PSS permission
+denial. This is not a measurement of successful PSS collection.
+
+Container cgroup-v2 `cpu.stat` deltas include the fixture, Host controller,
+supervisor and native children, under two CPUs / 4 GiB. They exclude core
+SHA-selection/import and HTTP/database work. Complete blocks, per-turn intervals,
+throttling and the three-turn excluded prewarm for each block are retained in
+`m3-v2-cpu-summary-01.json` and its raw measurements.
+
+Aggregate on/off CPU differed by −0.70%; the mean paired difference was −0.62%
+with a conservative two-sided 95% paired-t interval of **[−4.14%, +2.91%]**.
+The interval does not establish the **<2% CPU** budget. Together with the retained
+full-sampling latency misses, these results leave both observer budgets
+unqualified; a negative point estimate is not proof of negligible overhead.
+Clean Linux AMD64 qualification must retain the same interval scope, failures and
+first calls rather than silently replace or discard this local evidence.
+
 ### Completion and rollout
 
-Link evidence for N1–N7. Build matching application/runtime artifacts and coordinate activation through normal Host lifecycle controls while preserving the shared preview. With no users, no migrations, dual-format readers or rolling-version negotiation are required. Isolated test fixtures may be recreated. Verify the complete image, not just a source overlay; report local versus hosted results separately. A rollback uses the previous qualified image and disables optional capture, leaving safety enforcement active.
+N1–N5 have local runtime/core functional evidence; N6 has measured startup/RSS
+improvement but open observer budgets; N7's guides/evidence are maintained with
+remaining release work in the tracker. The exact V2 comparison image remains
+frozen while clean Linux AMD64 Dockerfile build/audit and public-client checks
+complete. A manually triggered qualification workflow may retain the exact
+tested candidate and run isolated on/off/CPU workloads; adding that workflow is
+not evidence that it passed. Hosted/provider-specific acceptance remains separate.
+
+Build matching application/runtime artifacts and coordinate activation through normal Host lifecycle controls while preserving the shared preview. With no users, no migrations, dual-format readers or rolling-version negotiation are required. Isolated test fixtures may be recreated. Verify the complete image, not just a source overlay; report local versus hosted results separately. A rollback uses the previous qualified image and disables optional capture, leaving safety enforcement active.
 
 ## 9. Deliberate deferrals and evidence triggers
 
-| Opportunity | Reason to defer; trigger |
-| --- | --- |
-| Change memory defaults or enforce PSS/cgroup totals | Would change admission/isolation semantics. Consider only after representative RSS/PSS and real OOM evidence, including shared pages and all supported providers. |
-| Heap allocation stacks or snapshots | High overhead and potential customer-content disclosure. Consider a separate isolated debugger only if sampled RSS/heap identifies a reproducible heap-retention problem. |
-| Per-allocation kernel cgroups | Additional provider/privilege/lifecycle complexity; does not remove the need for portable diagnostics. Revisit for an explicit hard-isolation requirement. |
-| Replace broad `/proc` inventory with a process index | Existing shared scans also prove quiescence. Revisit only if clean multi-allocation profiles show scan CPU is material; preserve fresh fork/exit proof. |
-| Persistent host-memory dashboards/diagnostic storage | Not required to explain one Run; adds retention, access and operational scope. Revisit if operators need continuous fleet monitoring. |
-| Native queue/phase handoff changes | Existing [scheduling project](native-scheduling-latency.md); remaining hosted/tail acceptance belongs there. |
-| Deeper publisher-runtime tuning | Requires evidence after unused loading is removed. Preserve upstream APIs and native session semantics; do not assume a leak from a large RSS sum. |
+| Opportunity                                          | Reason to defer; trigger                                                                                                                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change memory defaults or enforce PSS/cgroup totals  | Would change admission/isolation semantics. Consider only after representative RSS/PSS and real OOM evidence, including shared pages and all supported providers.         |
+| Heap allocation stacks or snapshots                  | High overhead and potential customer-content disclosure. Consider a separate isolated debugger only if sampled RSS/heap identifies a reproducible heap-retention problem. |
+| Per-allocation kernel cgroups                        | Additional provider/privilege/lifecycle complexity; does not remove the need for portable diagnostics. Revisit for an explicit hard-isolation requirement.                |
+| Replace broad `/proc` inventory with a process index | Existing shared scans also prove quiescence. Revisit only if clean multi-allocation profiles show scan CPU is material; preserve fresh fork/exit proof.                   |
+| Persistent host-memory dashboards/diagnostic storage | Not required to explain one Run; adds retention, access and operational scope. Revisit if operators need continuous fleet monitoring.                                     |
+| Native queue/phase handoff changes                   | Existing [scheduling project](native-scheduling-latency.md); remaining hosted/tail acceptance belongs there.                                                              |
+| Deeper publisher-runtime tuning                      | Requires evidence after unused loading is removed. Preserve upstream APIs and native session semantics; do not assume a leak from a large RSS sum.                        |
 
-No unanswered product decision blocks this proposal. Real memory savings, observer cost, the adequate allocation size and provider-specific hosted behavior remain measurements to establish during implementation, not claims this design can supply.
+No unanswered product decision blocks the implementation. Matched local startup
+and observed-RSS savings are measured above. Observer budgets, an adequate
+allocation size for representative workloads and provider-specific hosted
+behavior remain unqualified; local results do not supply those claims.

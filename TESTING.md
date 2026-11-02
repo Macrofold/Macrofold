@@ -83,6 +83,8 @@ The domain wrapper runs files on parallel workers (`DOMAIN_TEST_WORKERS`, defaul
 
 Inject clocks or use explicit timestamps for expiry tests. JavaScript fake timers do not advance PostgreSQL time. For races, use separate connections/transactions and barriers or observable events that establish the ordering being tested. `Promise.all` alone does not prove competing operations overlapped. Test committed outcomes after both operations finish; arbitrary sleeps are not synchronization.
 
+Prove post-failure admission by attempting an operation after the confirmed fence. Creation timestamps or a final failed status alone cannot show whether an effect or retry occurred.
+
 ### PostgreSQL and authentication
 
 Run database tests through `pnpm test:domain` or `pnpm test:integration`. The [wrapper](scripts/test-domain.ts) provisions and removes a disposable database/object directory, including migrations and authentication setup. Calling Vitest directly for these tests bypasses that isolation. The preview worker can stay running against its separate database.
@@ -116,6 +118,8 @@ Exercise keyboard navigation, focus, accessible names, and error feedback for ch
 ### API, clients, and Python
 
 For contract changes, update OpenAPI, regenerate clients with `pnpm contracts`, and test actual requests/responses plus package entrypoints. Include applicable status codes, headers, validation errors, pagination, and authorization. For streams, cover split chunks, termination, reconnection/cursors, and cancellation. Compile-time types do not validate incoming JSON or prove transport compatibility.
+
+For streamed tool calls, include valid arguments followed by an output limit or terminal error, and assert no invocation; malformed-argument cases alone miss premature execution.
 
 Use pytest fixtures to own and clean up Python test state, and HTTPX `MockTransport` for deterministic client requests and errors. Verify request construction and response/error handling, including streaming where affected. Keep financial expectations exact with integer units or `Decimal`. [pytest fixtures](https://docs.pytest.org/en/stable/how-to/fixtures.html), [HTTPX transports](https://www.python-httpx.org/advanced/transports/).
 

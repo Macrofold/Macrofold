@@ -260,6 +260,18 @@ commit/rollback, empty queues and unchanged dispatcher claims. The existing
 fleet/fanout qualification remains open. Private evidence is retained under
 `.data/request-efficiency/frontier-wakeup/`; the preview remains unmigrated.
 
+Full CI on `9418b759` ([run 41401623562](https://github.com/Macrofold/Macrofold/actions/runs/41401623562))
+passes the 18 notification cases, all 29 load cases, SDK verification, policy
+mutation checks, and the clean native build with all six harnesses. Domain tests
+report 2,325 passes, ten failures and one skip; every failed case also failed on
+the base branch. The native audit retains the same 62 high/critical findings,
+without additions, and package audit and restore-role failures remain unchanged.
+Application checks pass 145 browser and 21 server cases plus the terminal/Python
+journeys. Two browser checks fail: the known copy-clock race and an additional
+contrast failure in unchanged deletion UI, not yet independently qualified.
+Combined coverage and release acceptance remain blocked; these results do not
+establish hosted acceptance or a clean release.
+
 ## Activation and reversal
 
 The earlier SQL/payload follow-up needs no runtime-image change; the focused

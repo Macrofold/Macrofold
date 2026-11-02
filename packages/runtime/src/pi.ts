@@ -4,20 +4,18 @@ import { permissionAdapters } from '../../contracts/permission-adapters';
 import { permissionFileTools, fileToolName, permissionFileDefinition } from './permission-files';
 import path from 'node:path';
 import { access } from 'node:fs/promises';
-import { InMemoryCredentialStore } from '@earendil-works/pi-ai';
-import {
-  createAgentSession,
-  DefaultResourceLoader,
-  ModelRuntime,
-  SessionManager,
-  SettingsManager,
-} from '@earendil-works/pi-coding-agent';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { piBrokerTools } from './pi-tools';
 
-export class PiAdapter implements HarnessAdapter {
+type PiSDK = typeof import('@earendil-works/pi-coding-agent');
+type PiAI = typeof import('@earendil-works/pi-ai');
+class PiAdapter implements HarnessAdapter {
+  constructor(
+    private readonly sdk: PiSDK,
+    private readonly ai: PiAI,
+  ) {}
   private resident?: {
-    session: Awaited<ReturnType<typeof createAgentSession>>['session'];
+    session: Awaited<ReturnType<PiSDK['createAgentSession']>>['session'];
     resumeId: string;
     broker: Awaited<ReturnType<typeof piBrokerTools>>;
     lifetime: AbortController;
@@ -32,6 +30,9 @@ export class PiAdapter implements HarnessAdapter {
     }
   }
   async run({ configuration: c, signal, emit }: HarnessContext): Promise<NativeResult> {
+    const { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager } =
+      this.sdk;
+    const { InMemoryCredentialStore } = this.ai;
     signal.throwIfAborted();
     const reused = Boolean(this.resident);
     if (!this.resident) {
@@ -227,4 +228,12 @@ export class PiAdapter implements HarnessAdapter {
       if (!c.warm || !successful) await this.close();
     }
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  const [sdk, ai] = await Promise.all([
+    import('@earendil-works/pi-coding-agent'),
+    import('@earendil-works/pi-ai'),
+  ]);
+  return new PiAdapter(sdk, ai);
 }

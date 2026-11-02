@@ -25,7 +25,8 @@ import {
 import type { Model } from './model-policy';
 import { providerModelCatalog } from '../../providers/src/model-catalog';
 import { validateModelParameters } from './model-parameters';
-import { modelCredential } from './model-credentials';
+import { modelCredential, modelCredentialQuery, modelCredentialFromResult } from './model-credentials';
+import type { QueryResult } from 'pg';
 import { assertStorageCapacity } from './storage-maintenance';
 import {
   reserve,
@@ -205,6 +206,7 @@ async function admitInferenceState(
     });
   configuration.admission_ms = performance.now() - admissionStarted;
   const actorCheckedAtMonotonicMs = performance.now();
+  let credentialResult: QueryResult<Record<string, unknown>> | undefined;
   if (prepared) {
     const actor = {
       organization_id: p.organizationId,
@@ -215,6 +217,7 @@ async function admitInferenceState(
       actor,
       input.stream ? ['runs:write', 'runs:read'] : ['runs:write'],
     );
+    const credentialQuery = target ? undefined : modelCredentialQuery(catalogBinding(input));
     const guards = await queryGroup(tx, [
       lockQuery('capacity:global'),
       executionCapacityQuery(p.organizationId, 'inference', policy),
@@ -224,7 +227,10 @@ async function admitInferenceState(
       },
       ...actorQueries,
       ...(prepared.modelSelection ? [currentSelectedModelQuery(prepared.modelSelection)] : []),
+      ...(credentialQuery ? [credentialQuery] : []),
     ]);
+    if (credentialQuery)
+      credentialResult = guards[3 + actorQueries.length + (prepared.modelSelection ? 1 : 0)];
     const capacity = capacityDecision(guards[1]);
     if (!capacity.allowed)
       assert(
@@ -260,7 +266,11 @@ async function admitInferenceState(
   // Capacity locks can wait while an owner disconnects or rotates a connection.
   // Resolve both catalog and deployment credentials after those waits, before
   // admitting dispatch. See docs/features/decisions/implementation.md#durable-request-boundary.
-  const secret = target ? '' : await modelCredential(tx, p.userId, catalogBinding(input));
+  const secret = target
+    ? ''
+    : prepared
+      ? modelCredentialFromResult(p.userId, catalogBinding(input), credentialResult)
+      : await modelCredential(tx, p.userId, catalogBinding(input));
   const deploymentHeaders = target ? await deploymentCredentialTx(tx, p, target) : undefined;
   const runId = id();
   // Anchor before the SQL statement so wire latency can only shorten, never

@@ -1,24 +1,39 @@
 import type { Tx } from '../../db';
+import type { QueryResult } from 'pg';
 import { unseal } from './crypto';
 import { assert } from './errors';
-import * as resources from './resources';
 
-/** Exact funding binding shared by native and direct requests. Revocation is
- * checked per invocation; a BYOK failure never substitutes a managed key. */
-export async function modelCredential(
-  tx: Tx,
+type ModelCredentialBinding = {
+  provider: string;
+  billing_mode: string;
+  provider_connection_id?: string;
+};
+
+/** Current credentials may share an ordered guard group after its locks. Only
+ * the exact credential fields cross the wire, never tool catalogs or settings. */
+export function modelCredentialQuery(binding: ModelCredentialBinding) {
+  if (binding.billing_mode !== 'byok') return;
+  assert(binding.provider_connection_id, 400, 'connection_required', 'Select a provider connection.');
+  return {
+    text: `SELECT id,data->>'provider' AS provider,data->>'status' AS status,
+      data->>'owner_subject_id' AS owner_subject_id,data->>'secret_ciphertext' AS secret_ciphertext
+      FROM connections WHERE id=$1`,
+    values: [binding.provider_connection_id],
+  };
+}
+
+export function modelCredentialFromResult(
   userId: string,
-  binding: {
-    provider: string;
-    billing_mode: string;
-    provider_connection_id?: string;
-  },
+  binding: ModelCredentialBinding,
+  result?: QueryResult<Record<string, unknown>>,
 ) {
   if (binding.billing_mode === 'byok') {
     assert(binding.provider_connection_id, 400, 'connection_required', 'Select a provider connection.');
-    const connection = await resources.get(tx, 'connections', binding.provider_connection_id);
+    const connection = result?.rows[0];
+    assert(connection, 404, 'not_found', 'Resource not found.');
     assert(
-      connection.provider === binding.provider &&
+      connection.id === binding.provider_connection_id &&
+        connection.provider === binding.provider &&
         connection.status === 'healthy' &&
         connection.owner_subject_id === userId,
       403,
@@ -36,4 +51,11 @@ export async function modelCredential(
   const secret = process.env[`${binding.provider.toUpperCase()}_API_KEY`];
   assert(secret, 503, 'provider_not_configured', 'The managed model provider is not configured.');
   return secret;
+}
+
+/** Exact funding binding shared by native and direct requests. Revocation is
+ * checked per invocation; a BYOK failure never substitutes a managed key. */
+export async function modelCredential(tx: Tx, userId: string, binding: ModelCredentialBinding) {
+  const query = modelCredentialQuery(binding);
+  return modelCredentialFromResult(userId, binding, query ? await tx.query(query) : undefined);
 }

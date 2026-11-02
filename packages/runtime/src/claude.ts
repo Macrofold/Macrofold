@@ -1,13 +1,15 @@
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { questionsAllowed } from '../../contracts/permissions';
 import { permissionFileTools, fileToolName, permissionFileDefinition } from './permission-files';
-import { query, createSdkMcpServer, tool, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { TurnInput } from './turn-input';
 import { randomUUID } from 'node:crypto';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 
-export class ClaudeAdapter implements HarnessAdapter {
-  private conversation?: ReturnType<typeof query>;
+type ClaudeSDK = typeof import('@anthropic-ai/claude-agent-sdk');
+class ClaudeAdapter implements HarnessAdapter {
+  constructor(private readonly sdk: ClaudeSDK) {}
+  private conversation?: ReturnType<ClaudeSDK['query']>;
   private input?: TurnInput<SDKUserMessage>;
   private context?: HarnessContext;
   close() {
@@ -40,7 +42,7 @@ export class ClaudeAdapter implements HarnessAdapter {
     this.input = input;
     const conversation =
       this.conversation ||
-      query({
+      this.sdk.query({
         prompt: input,
         options: {
           cwd: c.workspace,
@@ -87,10 +89,10 @@ export class ClaudeAdapter implements HarnessAdapter {
               : {}),
             ...(guarded && definition
               ? {
-                  worktree: createSdkMcpServer({
+                  worktree: this.sdk.createSdkMcpServer({
                     name: 'worktree',
                     tools: [
-                      tool(fileToolName, definition.description, definition.shape, async (args) => {
+                      this.sdk.tool(fileToolName, definition.description, definition.shape, async (args) => {
                         try {
                           return { content: [{ type: 'text' as const, text: await files(args) }] };
                         } catch (error) {
@@ -222,4 +224,8 @@ export class ClaudeAdapter implements HarnessAdapter {
     }
     return { output, resumeId, outcome, ...(outcome === 'failure' ? { failureCode: 'harness_error' } : {}) };
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  return new ClaudeAdapter(await import('@anthropic-ai/claude-agent-sdk'));
 }

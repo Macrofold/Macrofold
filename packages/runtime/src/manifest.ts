@@ -59,6 +59,9 @@ async function captureSnapshotOwned(
     return { hash, size: bytes.length };
   };
   let visited = 0;
+  // Reads, hashing and chunk writes are awaited before reuse. A capture owns one
+  // buffer, rather than allocating 4 MiB for every small file in the checkpoint.
+  let chunkBuffer: Buffer | undefined;
   for (const namespace of ['workspace', 'home'] as const) {
     const root = roots[namespace];
     const normalized = new Set<string>();
@@ -97,7 +100,7 @@ async function captureSnapshotOwned(
           try {
             const handle = await open(copy?.database || absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
             try {
-              const bytes = Buffer.alloc(CHUNK_BYTES);
+              const bytes = (chunkBuffer ??= Buffer.alloc(CHUNK_BYTES));
               while (true) {
                 const next = await handle.read(bytes, 0, bytes.length, null);
                 if (!next.bytesRead) break;

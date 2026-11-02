@@ -172,9 +172,9 @@ it('snapshots stable indexed restore metadata pages once and rejects a changed s
   await transaction(org, (tx) =>
     resources.update(tx, 'worktrees', run.worktree_id, {
       git_files: [],
-      files: Array.from({ length: 20 }, (_, i) => ({
+      files: Array.from({ length: 133 }, (_, i) => ({
         ...saved,
-        path: `file-${String(i).padStart(2, '0')}.txt`,
+        path: `file-${String(i).padStart(3, '0')}.txt`,
         type: 'file' as const,
         modified_at: new Date().toISOString(),
         git_ignored: false,
@@ -183,14 +183,17 @@ it('snapshots stable indexed restore metadata pages once and rejects a changed s
   );
   const source = { organization: org, run: run.id, worktree: run.worktree_id, session: run.session_id };
   const first = await transaction(org, (tx) => readRestoreInventoryPage(tx, source, 0));
-  expect(first.files).toHaveLength(16);
+  expect(first.files).toHaveLength(128);
   expect(first.complete).toBe(false);
-  const second = await transaction(org, (tx) => readRestoreInventoryPage(tx, source, 16, first.revision));
+  const second = await transaction(org, (tx) =>
+    readRestoreInventoryPage(tx, source, first.nextOffset, first.revision),
+  );
   expect(second.files.map((file) => file.path)).toEqual([
-    'file-16.txt',
-    'file-17.txt',
-    'file-18.txt',
-    'file-19.txt',
+    'file-128.txt',
+    'file-129.txt',
+    'file-130.txt',
+    'file-131.txt',
+    'file-132.txt',
   ]);
   expect(second.complete).toBe(true);
   expect(
@@ -202,7 +205,7 @@ it('snapshots stable indexed restore metadata pages once and rejects a changed s
   ).toBe(2);
   await transaction(org, (tx) => resources.update(tx, 'worktrees', run.worktree_id, { files: [] }));
   await expect(
-    transaction(org, (tx) => readRestoreInventoryPage(tx, source, 16, first.revision)),
+    transaction(org, (tx) => readRestoreInventoryPage(tx, source, first.nextOffset, first.revision)),
   ).rejects.toMatchObject({ code: 'restore_source_changed' });
 });
 it('reuses content verification only inside its active publication guard', async () => {

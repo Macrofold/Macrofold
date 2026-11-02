@@ -7,6 +7,39 @@ import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile, cp, rm, symlink, chmod } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const harness = process.argv[2] || 'codex';
+const moduleCheck = process.env.NATIVE_MODULE_CHECK === '1';
+const exclusiveSDKs = {
+  '@anthropic-ai/claude-agent-sdk': 'claude-code',
+  '@opencode-ai/sdk/client': 'opencode-v1',
+  '@opencode-ai/sdk/v2/server': 'opencode-server',
+  '@opencode-ai/sdk/v2/client': 'opencode-client',
+  '@earendil-works/pi-ai': 'pi-ai',
+  '@earendil-works/pi-coding-agent': 'pi-agent',
+};
+if (moduleCheck) {
+  // Instrument only this disposable container, importing the actual bundle
+  // unchanged. Source-level imports alone cannot prove the bundled load graph.
+  await cp('/opt/platform/native-worker.mjs', '/opt/platform/native-worker-original.mjs');
+  await writeFile(
+    '/opt/platform/native-worker.mjs',
+    `
+    import { registerHooks } from 'node:module';
+    const exclusive = ${JSON.stringify(exclusiveSDKs)};
+    const seen = new Set();
+    registerHooks({ resolve(specifier, context, next) {
+      const result = next(specifier, context);
+      if (Object.hasOwn(exclusive, specifier) && !seen.has(specifier)) {
+        seen.add(specifier);
+        process.stdout.write(JSON.stringify({ type: 'event', event: {
+          type: 'fixture.sdk_loaded', data: { sdk: exclusive[specifier] }
+        } }) + '\\n');
+      }
+      return result;
+    } });
+    await import('./native-worker-original.mjs');
+  `,
+  );
+}
 const mediaMode = process.argv[3] === 'media';
 const mediaValidator = mediaMode
   ? (await import('/opt/platform/media-validation.mjs')).modelInputBound
@@ -138,6 +171,24 @@ const result = JSON.parse(await readFile('/platform-control/result.json', 'utf8'
 console.log(JSON.stringify({ harness, calls: fixture.calls, observed, result }));
 assert.equal(result.outcome, cancellation ? 'cancelled' : failureMode ? 'failure' : 'success');
 assert.equal(result.persistence, 'captured');
+if (moduleCheck) {
+  const events = (await readFile('/platform-control/events.jsonl', 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  const loaded = events
+    .filter((event) => event.type === 'fixture.sdk_loaded')
+    .map((event) => event.data.sdk)
+    .sort();
+  const expected =
+    {
+      'claude-code': ['claude-code'],
+      opencode: ['opencode-client', 'opencode-server', 'opencode-v1'],
+      pi: ['pi-agent', 'pi-ai'],
+    }[harness] || [];
+  assert.deepEqual(loaded, expected, 'Only the selected exclusive SDKs may load.');
+  console.log(JSON.stringify({ harness, loaded_sdks: loaded }));
+}
 if (harness === 'opencode' && failureMode && !cancellation) {
   const events = (await readFile('/platform-control/events.jsonl', 'utf8'))
     .trim()
@@ -210,7 +261,11 @@ await writeFile('/completed-control/snapshot/page-0.json', JSON.stringify(index.
 await rm('/workspace', { recursive: true, force: true });
 await rm('/agent-home', { recursive: true, force: true });
 const { restoreSnapshot } = await import('/opt/platform/restore.mjs');
-await restoreSnapshot('/completed-control/snapshot', { workspace: '/workspace', home: '/agent-home', harness }, 10001);
+await restoreSnapshot(
+  '/completed-control/snapshot',
+  { workspace: '/workspace', home: '/agent-home', harness },
+  10001,
+);
 await mkdir('/platform-control');
 await writeFile(
   '/platform-control/config.json',

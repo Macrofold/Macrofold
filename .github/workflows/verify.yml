@@ -227,7 +227,7 @@ jobs:
       - name: Build the current source and exercise actual harnesses without external networking
         run: |
           docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
-          pnpm test:native --image-only
+          pnpm test:native --image-only --modules
           pnpm test:native codex claude-code --media --image-only
           pnpm test:native --permissions --image-only
           pnpm test:native opencode --questions --image-only

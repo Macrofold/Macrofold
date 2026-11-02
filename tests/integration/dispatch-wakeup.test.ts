@@ -8,7 +8,7 @@ import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';
 import { createWorktree } from '../../packages/core/src/files';
-import { admitRun, cancelRun } from '../../packages/core/src/runs';
+import { admitRun, cancelRun, submitInput } from '../../packages/core/src/runs';
 import { credit } from '../../packages/core/src/ledger';
 import { createWorker, getWorker } from '../../packages/core/src/workers';
 import { reserveHost } from '../../packages/core/src/host-allocations';
@@ -243,6 +243,37 @@ it('wakes for ordinary native admission and queued-head cancellation through the
   await transaction(account.p.organizationId, (tx) => cancelRun(tx, account.p, run.run_id));
   expect(await delivered()).toEqual(['']);
 });
+
+it.each(['answer', 'cancel'] as const)(
+  'commits an idle native %s wake without early notification',
+  async (control) => {
+    const run = await nativeRun();
+    expect(await claimRun(account.p.organizationId, run.run_id)).not.toBeNull();
+    await transaction(account.p.organizationId, async (tx) => {
+      await tx.query('UPDATE runs SET status=$2,execution_binding=$3,input_request=$4 WHERE id=$1', [
+        run.run_id,
+        control === 'answer' ? 'waiting_for_input' : 'running',
+        JSON.stringify({ phase: 'poll', failures: 0, controlWait: true }),
+        control === 'answer' ? JSON.stringify({ id: 'wake-question', question: 'Synthetic question' }) : null,
+      ]);
+      await tx.query(
+        "UPDATE dispatch_jobs SET available_at=clock_timestamp()+interval '1 minute' WHERE resource_id=$1",
+        [run.run_id],
+      );
+    });
+    await delivered();
+    await transaction(account.p.organizationId, async (tx) => {
+      if (control === 'answer')
+        await submitInput(tx, account.p, run.run_id, {
+          input_request_id: 'wake-question',
+          answer: { text: 'Ready' },
+        });
+      else await cancelRun(tx, account.p, run.run_id);
+      expect(received).toEqual([]);
+    });
+    expect(await delivered()).toEqual(['']);
+  },
+);
 
 it('wakes a queued Run when account policy frees capacity, without hints for unchanged limits', async () => {
   try {

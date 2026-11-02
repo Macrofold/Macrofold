@@ -3,7 +3,7 @@ import type { HarnessAdapter, HarnessContext } from './types';
 import { NativeBridge } from './native-bridge';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 
-export class HermesAdapter implements HarnessAdapter {
+class HermesAdapter implements HarnessAdapter {
   private bridge = new NativeBridge();
   close() {
     this.bridge.close();
@@ -47,4 +47,8 @@ export class HermesAdapter implements HarnessAdapter {
       context,
     );
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  return new HermesAdapter();
 }

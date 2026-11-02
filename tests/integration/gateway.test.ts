@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { auth, customerScopes, type Principal } from '../../packages/core/src/auth';
 import { config } from '../../packages/core/src/config';
 import { pool, authPool, transaction } from '../../packages/db';
-import { id, sha256, unseal } from '../../packages/core/src/crypto';
+import { id, seal, sha256, unseal } from '../../packages/core/src/crypto';
 import { encryptModelBody, modelTransport } from '../../packages/contracts/model-transport';
 import { storage } from '../../packages/providers/src/storage';
 import * as resources from '../../packages/core/src/resources';
@@ -142,6 +142,73 @@ async function prepared(stopOnModelError = false) {
   return { runId, token, fetch, call };
 }
 describe('model gateway metering without provider calls', () => {
+  it.each(['rotate', 'disconnect'] as const)(
+    'observes credential %s committed while native admission waits for its Run lock',
+    async (change) => {
+      const s = await prepared();
+      const saved = await transaction(p.organizationId, async (tx) => {
+        const connection = await saveConnection(tx, p, {
+          name: 'Post-lock BYOK account',
+          kind: 'model',
+          provider: 'openai',
+          auth_method: 'api_key',
+          secret: 'fixture-before-lock',
+        });
+        await tx.query('UPDATE runs SET config=config||$2::jsonb WHERE id=$1', [
+          s.runId,
+          JSON.stringify({ billing_mode: 'byok', provider_connection_id: connection.id }),
+        ]);
+        return connection;
+      });
+      let release = () => {},
+        entered = () => {};
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const acquired = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      let holderPid = 0;
+      const holder = transaction(p.organizationId, async (tx) => {
+        await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [s.runId]);
+        holderPid = (await tx.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')).rows[0].pid;
+        entered();
+        await gate;
+        await resources.update(
+          tx,
+          'connections',
+          saved.id,
+          change === 'rotate' ? { secret_ciphertext: seal('fixture-after-lock') } : { status: 'error' },
+        );
+      });
+      await acquired;
+      s.fetch.mockImplementation(async (_url, init) => {
+        expect(new Headers(init?.headers).get('authorization')).toBe('Bearer fixture-after-lock');
+        return Response.json({ usage: { input_tokens: 11, output_tokens: 3 } });
+      });
+      const pending = s.call({ stream: false });
+      try {
+        await expect
+          .poll(
+            async () =>
+              (
+                await pool.query<{ waiting: boolean }>(
+                  'SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid))) AS waiting',
+                  [holderPid],
+                )
+              ).rows[0].waiting,
+          )
+          .toBe(true);
+      } finally {
+        release();
+      }
+      await holder;
+      const response = await pending;
+      expect(response.status).toBe(change === 'rotate' ? 200 : 403);
+      await response.text();
+      expect(s.fetch).toHaveBeenCalledTimes(change === 'rotate' ? 1 : 0);
+    },
+  );
   it('forwards answer deltas but withholds native completion until accounting commits', async () => {
     const s = await prepared();
     let release!: () => void;

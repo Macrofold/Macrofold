@@ -75,6 +75,12 @@ Account plan/concurrency/timeout changes also emit a committed hint; unchanged
 limits and unrelated account metadata remain silent. Raising a cap does not
 require another Run to finish or the periodic fallback before rediscovery.
 
+For the standalone poller, a committed native answer or cancellation makes a
+healthy idle quiet-probe job due immediately. Controls arriving during a live
+probe are retained by its fenced publication. This never steals a live phase,
+shortens failure backoff or replaces a retained local quantum. Workflow's bounded
+sleep and an already-running provider operation remain separate waits.
+
 Each pool discovers work independently, so a slow query cannot hold another
 pool's later refill. Already-running transfer/control phases skip queued
 eligibility discovery. Cloud and simulator dispatchers share a short

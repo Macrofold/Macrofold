@@ -1,7 +1,4 @@
 import { fileAccess, questionsAllowed } from '../../contracts/permissions';
-import { createOpencodeClient as createSessionClient } from '@opencode-ai/sdk/client';
-import { createOpencodeServer } from '@opencode-ai/sdk/v2/server';
-import { createOpencodeClient } from '@opencode-ai/sdk/v2/client';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { openCodePermissionSettings } from './permission-settings';
@@ -21,8 +18,14 @@ function turnError(error: unknown) {
     ) ?? new Error('OpenCode turn failed')
   );
 }
-export class OpenCodeAdapter implements HarnessAdapter {
-  private server?: Awaited<ReturnType<typeof createOpencodeServer>>;
+type OpenCodeSDK = {
+  createSessionClient: (typeof import('@opencode-ai/sdk/client'))['createOpencodeClient'];
+  createOpencodeServer: (typeof import('@opencode-ai/sdk/v2/server'))['createOpencodeServer'];
+  createOpencodeClient: (typeof import('@opencode-ai/sdk/v2/client'))['createOpencodeClient'];
+};
+class OpenCodeAdapter implements HarnessAdapter {
+  constructor(private readonly sdk: OpenCodeSDK) {}
+  private server?: Awaited<ReturnType<OpenCodeSDK['createOpencodeServer']>>;
   private sessionId?: string;
   close() {
     this.server?.close();
@@ -37,6 +40,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
     fileTools,
     setStage,
   }: HarnessContext): Promise<NativeResult> {
+    const { createSessionClient, createOpencodeServer, createOpencodeClient } = this.sdk;
     const guarded = permissionAdapters.opencode.translate(c.permissions || []).mode === 'guarded';
     const allowQuestions = questionsAllowed(c.permissions || []);
     if (guarded && fileAccess(c.permissions || []).read && !fileTools)
@@ -335,4 +339,17 @@ export class OpenCodeAdapter implements HarnessAdapter {
       if (!c.warm || !successful) this.close();
     }
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  const [session, server, client] = await Promise.all([
+    import('@opencode-ai/sdk/client'),
+    import('@opencode-ai/sdk/v2/server'),
+    import('@opencode-ai/sdk/v2/client'),
+  ]);
+  return new OpenCodeAdapter({
+    createSessionClient: session.createOpencodeClient,
+    createOpencodeServer: server.createOpencodeServer,
+    createOpencodeClient: client.createOpencodeClient,
+  });
 }

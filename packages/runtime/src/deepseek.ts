@@ -8,7 +8,7 @@ import { NativeBridge } from './native-bridge';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { deepSeekPermissionSettings } from './permission-settings';
 
-export class DeepSeekAdapter implements HarnessAdapter {
+class DeepSeekAdapter implements HarnessAdapter {
   private bridge = new NativeBridge();
   close() {
     this.bridge.close();
@@ -127,4 +127,8 @@ export class DeepSeekAdapter implements HarnessAdapter {
       context,
     );
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  return new DeepSeekAdapter();
 }

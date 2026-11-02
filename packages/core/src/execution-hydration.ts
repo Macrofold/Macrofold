@@ -50,7 +50,10 @@ export async function stageRestoreObjects(
 export type RestoreSourceRevision = { worktree: string; session: string };
 type RestoreFile = FileRecord & { namespace: 'workspace' | 'home'; git: boolean };
 
-const RESTORE_INVENTORY_PAGE = 16;
+// Metadata pages do not hold decoded file bytes. Keep enough entries together to
+// avoid a phase/transaction pair for every sixteen tiny files; transfer bytes and
+// object-read concurrency remain independently bounded above.
+const RESTORE_INVENTORY_PAGE = 128;
 type RestoreInventorySource = { organization: string; run: string; worktree: string; session: string };
 
 /** Snapshot metadata pages once under the accepted source revisions. Indexed

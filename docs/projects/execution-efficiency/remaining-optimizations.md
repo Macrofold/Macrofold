@@ -363,6 +363,47 @@ Compiled captures then demonstrated duplicate profiler ownership: Next instrumen
 
 No customer API schema change, provider retry, permission cache, disabled observer or weaker durability is planned. Reassess the plan before introducing any such change. Source-level rollback restores prior composition without deleting financial records or accepted identities. Completion requires correctness evidence and a measured cold target on a declared serving topology. The final c8g.xlarge qualification meets both: six first requests at 72.95–91.67 ms overhead with exact accounting and full traces. Identical-build c7g.xlarge cold samples remain 95.38–153.50 ms, so that topology does not qualify. Hosted lifecycle/network/database and sustained-load acceptance remain separate gates.
 
+## Focused request and native overhead follow-through
+
+Approved scope is only changes that meaningfully reduce serving latency, CPU or
+RAM. Preserve the separate output-budget and optional agent-knowledge worktrees;
+do not import memory packs or new default-off diagnostic machinery to justify a
+resource-efficiency change. Start from main `0101368a` in an isolated worktree.
+
+Implementation owners and order:
+
+1. Runtime adapter factories and the existing build guard: extract only selected
+   harness/SDK loading from the already qualified native startup work. Keep warm
+   handles, per-turn credentials, cancellation during loading and cold checkpoint
+   continuation. No new runtime/API output-budget contract is needed.
+2. Runtime manifest capture: reuse one bounded chunk buffer while sequentially
+   hashing/storing each file, rather than allocating a full chunk for every tiny
+   file. Preserve awaited writes, byte/hash verification and failure cleanup.
+   Increase restore metadata pages from 16 to 128 entries, leaving the four-MiB
+   transfer envelope and read concurrency unchanged; qualify revision fencing,
+   exact ordered coverage and many-small-file transaction counts separately.
+3. Existing Run controls and dispatch publication: accelerate an answered native
+   question or active cancellation without waiting for the two-second quiet
+   probe. Use the existing durable job/phase owner; controls arriving during a
+   live lease must survive its next publication without stealing ownership or
+   removing provider-error backoff. Notifications remain hints, not authority.
+4. Model credential and gateway owners: narrow credential projections and batch
+   independent actor/breaker/BYOK reads through existing ordered query groups
+   after required locks. Preserve current owner/provider/health checks, exact
+   BYOK and all shared accounting/cancellation/replay boundaries.
+5. Catalog preparation: remove a transaction around public global metadata only
+   if existing deadline/checkout primitives give a small safe autocommit path.
+   Keep current revision/expiry checks at admission; do not cache authority.
+
+Each slice needs its existing focused tests, a real boundary check and matched
+before/after counts, latency or allocation evidence. Use disposable fixtures and
+synthetic providers; retain cold/warm intervals, misses and independent provider
+time. Runtime changes require actual built-image/module isolation and continuation
+checks; public API behavior remains unchanged, so unrelated SDK matrices are not
+part of the local loop. Update the existing native startup/scheduling plans and
+central tracker with shipped scope and measured limits. Reject speculative
+frameworks, extra services, relaxed durability and negligible-gain rewrites.
+
 ## Source map and handoff checklist
 
 Read the current functions rather than copying these proposal snippets blindly. Relevant existing owners:

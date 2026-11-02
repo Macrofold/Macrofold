@@ -10,6 +10,7 @@ import { build } from 'esbuild';
 const root = path.resolve(import.meta.dirname, '..');
 const image = process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0';
 const imageOnly = process.argv.includes('--image-only');
+const modules = process.argv.includes('--modules');
 const media = process.argv.includes('--media');
 if (media)
   await build({
@@ -39,6 +40,7 @@ const selected = process.argv
         '--stdio',
         '--media',
         '--warm',
+        '--modules',
       ].includes(a),
   );
 for (const harness of stdio ? ['stdio'] : selected.length ? selected : harnessNames) {
@@ -52,6 +54,7 @@ for (const harness of stdio ? ['stdio'] : selected.length ? selected : harnessNa
     '--mount',
     `type=bind,src=${root}/tests/fixtures,dst=/tests,readonly`,
   ];
+  if (modules) args.push('-e', 'NATIVE_MODULE_CHECK=1');
   if (media)
     for (const suffix of ['', '.map']) args.push(
       '--mount',

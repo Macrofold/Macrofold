@@ -33,7 +33,7 @@ test('plan controls and queued run status work through the dashboard and public 
     'Scale',
   ]);
   const cap = page.getByRole('spinbutton', { name: 'Concurrent jobs', exact: true });
-  await expect(cap).toHaveAttribute('max', '2');
+  await expect(cap).toHaveAttribute('max', '20');
   await cap.fill('1');
   await page.getByRole('spinbutton', { name: 'Execution timeout cap (seconds)' }).fill('600');
   await page.getByRole('button', { name: 'Save execution limits' }).click();
@@ -45,13 +45,13 @@ test('plan controls and queued run status work through the dashboard and public 
   // A fixture billing entitlement exercises the real dashboard/catalog without Stripe calls.
   await pool.query("UPDATE organizations SET plan='scale' WHERE id=$1", [identity.organization_id]);
   await page.reload();
-  await expect(cap).toHaveAttribute('max', '50');
+  await expect(cap).toHaveAttribute('max', '500');
   await cap.fill('');
   await page.getByRole('spinbutton', { name: 'Execution timeout cap (seconds)' }).fill('');
   await page.getByRole('button', { name: 'Save execution limits' }).click();
   await expect(page.getByText('Execution limits saved')).toBeVisible();
   expect(await (await page.request.get('/v1/organization/execution-policy')).json()).toMatchObject({
-    concurrency_limit: 50,
+    concurrency_limit: 500,
     max_timeout_seconds: 7200,
   });
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -73,7 +73,10 @@ test('plan controls and queued run status work through the dashboard and public 
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
   };
-  const workspace = await post('/v1/workspaces', { name: 'Scheduling UI fixture', persistence: 'persistent' });
+  const workspace = await post('/v1/workspaces', {
+    name: 'Scheduling UI fixture',
+    persistence: 'persistent',
+  });
   let first: { run_id: string; session_id: string };
   // Pin a queue blocker before a preview worker can claim and finish it.
   const client = await pool.connect();
@@ -88,10 +91,12 @@ test('plan controls and queued run status work through the dashboard and public 
       model: 'fixture-model',
       billing_mode: 'managed',
     });
-    await client.query(
-      "UPDATE runs SET status='running',started_at=now(),heartbeat_at=now(),deadline=now()+interval '10 minutes' WHERE id=$1",
+    const blocker = await client.query(
+      "UPDATE runs SET status='running',started_at=now(),heartbeat_at=now(),deadline=now()+interval '10 minutes' WHERE id=$1 RETURNING id,status",
       [first.run_id],
     );
+    expect(blocker.rowCount).toBe(1);
+    expect(blocker.rows[0]).toEqual({ id: first.run_id, status: 'running' });
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');
@@ -107,7 +112,16 @@ test('plan controls and queued run status work through the dashboard and public 
       scheduling_class: 'interactive',
     });
     expect(next).not.toHaveProperty('queue_position');
-    expect(next.waiting_reason).toBe('earlier_worktree_work');
+    // packages/core/src/runs.ts admits without a fleet scan; GET resolves the
+    // current reason (docs/features/execution/scheduling.md#api-and-terminal-ux).
+    expect(next.waiting_reason).toBe('scheduler_turn');
+    expect(await (await page.request.get('/v1/runs/' + first.run_id)).json()).toMatchObject({
+      status: 'running',
+    });
+    expect(await (await page.request.get('/v1/runs/' + next.run_id)).json()).toMatchObject({
+      status: 'queued',
+      waiting_reason: 'earlier_worktree_work',
+    });
     await page.goto('/runs/' + next.run_id);
     const waiting = page.getByRole('status').filter({ hasText: 'Earlier work is using this worktree' });
     await expect(waiting).toBeVisible();

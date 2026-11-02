@@ -363,6 +363,80 @@ Compiled captures then demonstrated duplicate profiler ownership: Next instrumen
 
 No customer API schema change, provider retry, permission cache, disabled observer or weaker durability is planned. Reassess the plan before introducing any such change. Source-level rollback restores prior composition without deleting financial records or accepted identities. Completion requires correctness evidence and a measured cold target on a declared serving topology. The final c8g.xlarge qualification meets both: six first requests at 72.95–91.67 ms overhead with exact accounting and full traces. Identical-build c7g.xlarge cold samples remain 95.38–153.50 ms, so that topology does not qualify. Hosted lifecycle/network/database and sustained-load acceptance remain separate gates.
 
+## Focused request and native overhead follow-through
+
+Approved scope is only changes that meaningfully reduce serving latency, CPU or
+RAM. Preserve the separate output-budget and optional agent-knowledge worktrees;
+do not import memory packs or new default-off diagnostic machinery to justify a
+resource-efficiency change. Start from main `0101368a` in an isolated worktree.
+
+Implementation owners and order:
+
+1. Runtime adapter factories and the existing build guard: extract only selected
+   harness/SDK loading from the already qualified native startup work. Keep warm
+   handles, per-turn credentials, cancellation during loading and cold checkpoint
+   continuation. No new runtime/API output-budget contract is needed.
+2. Runtime manifest capture: reuse one bounded chunk buffer while sequentially
+   hashing/storing each file, rather than allocating a full chunk for every tiny
+   file. Preserve awaited writes, byte/hash verification and failure cleanup.
+   Increase restore metadata pages from 16 to 128 entries, leaving the four-MiB
+   transfer envelope and read concurrency unchanged; qualify revision fencing,
+   exact ordered coverage and many-small-file transaction counts separately.
+3. Existing Run controls and dispatch publication: release control slots while
+   awaiting a human question, then wake the durable job on answers/cancellation.
+   Use immediate quiet probes and a one-second durable wait; ordinary output
+   keeps event-watching long polls. Controls during publication must survive
+   without stealing live/retained/dispatcher claims or removing failure backoff.
+   Notifications remain hints, not authority; native reaction is measured apart
+   from controller delivery.
+4. Model credential and gateway owners: narrow credential projections and batch
+   independent actor/breaker/BYOK reads through existing ordered query groups
+   after required locks. Preserve current owner/provider/health checks, exact
+   BYOK and all shared accounting/cancellation/replay boundaries.
+5. Catalog preparation: remove a transaction around public global metadata only
+   if existing deadline/checkout primitives give a small safe autocommit path.
+   Keep current revision/expiry checks at admission; do not cache authority.
+6. Queued admission: use the shared scheduler's current fair frontier before
+   portable pollers lease pending jobs. An isolated 64-Run reproduction made
+   3,509 admission attempts and 69,477 SQL statements, dominated by losing locks
+   and prospective turns. Keep native/lightweight frontiers independent,
+   cleanup discoverable, and running phases concurrent; wake refill after short
+   admission rather than provider completion. Preserve prospective batch hints
+   for Workflow/local callers, authoritative SQL checks, and existing timeouts.
+   A committed queued-to-provisioning transition must also wake sibling pollers
+   when another queued head exists: local refill cannot wake a sleeping replica.
+   Reuse the payload-free notification trigger with an indexed existence guard;
+   leave the admitted job's recovery schedule/lease intact. Verify a held-provider
+   case with real listener-driven sleeping pollers, not frequent fixture ticks.
+   Compare the same bounded workload and all failure/status/financial facts.
+
+Each slice needs its existing focused tests, a real boundary check and matched
+before/after counts, latency or allocation evidence. Use disposable fixtures and
+synthetic providers; retain cold/warm intervals, misses and independent provider
+time. Runtime changes require actual built-image/module isolation and continuation
+checks; public API behavior remains unchanged, so unrelated SDK matrices are not
+part of the local loop. Update the existing native startup/scheduling plans and
+central tracker with shipped scope and measured limits. Reject speculative
+frameworks, extra services, relaxed durability and negligible-gain rewrites.
+
+## Release-readiness follow-through
+
+Before the final local squash and merge, repair the reproducible CI blockers:
+align unpaid scheduling/catalog fixtures with current execution policy, qualify
+large-chunk validation, repair restricted-role installation/restore setup, and
+make browser timing/accessibility checks reliable without weakening assertions.
+Update only affected dependency graphs to reviewed fixed versions, retaining
+native adapter compatibility and bundled notices. Reuse existing checks and
+isolated databases/images; never replace preview data or its active image.
+
+Run targeted regressions first, then qualify the final dependency graph, actual
+native image, optimized application and unchanged coverage gates. Record exact
+results and deployment prerequisites in the existing verification record. Local
+qualification does not close hosted-provider gates or authorize a remote push;
+the requested deliverable is one verified local commit merged into `main`.
+
+Local repair and qualification are complete under the [release-readiness record](optimization-verification.md#release-readiness-follow-through): unchanged coverage gates, both native architectures, dependency audits, application/SDK/package checks and recovery pass. Migration 061 is applied to the idle local database; preview activation and remote CI/hosted rollout remain distinct operator steps.
+
 ## Source map and handoff checklist
 
 Read the current functions rather than copying these proposal snippets blindly. Relevant existing owners:

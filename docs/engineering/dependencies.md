@@ -4,7 +4,16 @@ The application source is Apache-2.0. Its license does not relicense third-party
 
 Python's SDK uses HTTPX with Pydantic 2 (MIT) and typing-extensions (PSF) for generated response models and keyword types. Pyright is a pinned test-only dependency. The existing Node license inventory does not cover these Python packages or the native-language SDK graphs; [SDK architecture](../features/api/sdks/implementation.md) records their generation and [acceptance](testing/sdk-resources.md) records tested versions and measurement scope.
 
-[Dependency inventory](../dependency-licenses.csv) was refreshed September 19, 2026 with `pnpm licenses list --prod --json` from the installed macOS ARM64 graph. Linux runtime optional binaries have their own package set; retain those packages' original notice files in the built image. This inventory is a declared-license inventory, not legal clearance.
+[Dependency inventory](../dependency-licenses.csv) was refreshed November 2, 2026 with `pnpm licenses list --prod --json` from the installed macOS ARM64 graph (1,292 package records). Linux runtime optional binaries have their own package set; retain those packages' original notice files in the built image. This inventory is a declared-license inventory, not legal clearance.
+
+The current release graph pins security-fixed Next 16.4.1, Better Auth/plugins
+1.7.7, MCP SDK 1.32.0, Zod 4.6.6, Undici 8.12.2, Nodemailer 10.1.4 and Vitest
+4.1.12, with compatible transitive fixes in the pnpm lockfile. The high-severity
+audit gate passes: zero high/critical findings. Five moderate glob/minimatch
+findings remain unsuppressed; their fixes require parent-compatible major
+updates. The older dated audit results below are historical. The [release
+qualification](../projects/execution-efficiency/optimization-verification.md#release-readiness-follow-through)
+records actual application/native compatibility checks and remaining gates.
 
 Most packages declare MIT/Apache/BSD/ISC-style licenses. Particular review items: sharp/libvips binaries declare LGPL-3.0-or-later, lightningcss MPL-2.0, and caniuse-lite CC-BY-4.0. Preserve upstream notices/source availability required by those licenses when redistributing. The official MCP filesystem package points to its included LICENSE. Some platform-specific binary packages and `@vercel/cli-auth` omit a conventional package.json license declaration; inspect their included files/upstream distribution before publishing outside your organization.
 
@@ -22,7 +31,7 @@ Trigger scheduling uses pinned cron-parser 5.10.0 and Luxon 3.7.2 (MIT), recorde
 
 ## Additional native harness dependencies
 
-Hermes uses upstream commit `b2aa855b626ff8688eb34b95c60ee8b6a4af3679` (0.21.1), its frozen `uv.lock`, Python 3.11 and uv 0.9.28. The upstream checkout and licenses remain in `/opt/hermes`; no private source, login or API key is copied into the image. Pi's coding-agent/AI packages are pinned at 0.85.1. DeepSeek's runtime and official embedding packages are pinned at 0.1.5-alpha.1 (Cordis 4.0.2). Those workspaces declare MIT; preserve their bundled transitive notices. DeepSeek is a developer-preview dependency, so upgrades require replay/restore and protocol acceptance before changing the pin.
+Hermes uses upstream commit `b2aa855b626ff8688eb34b95c60ee8b6a4af3679` (0.21.1), its frozen `uv.lock`, Python 3.13 and uv 0.9.28. The upstream checkout and licenses remain in `/opt/hermes`; no private source, login or API key is copied into the image. Pi's coding-agent/AI packages are pinned at 0.85.1. DeepSeek's runtime and official embedding packages are pinned at 0.1.5-alpha.1 (Cordis 4.0.2). Those workspaces declare MIT; preserve their bundled transitive notices. DeepSeek is a developer-preview dependency, so upgrades require replay/restore and protocol acceptance before changing the pin.
 
 The Node production advisory check on September 8 reports zero known vulnerabilities. That scan does not cover Hermes's separate Python graph or OS packages. The Linux native fixtures verify the packaged shell/binary dependencies despite pnpm's disabled optional build scripts; unused web/UI plugins remain outside the selected DeepSeek profile. The larger image increases build, distribution and startup costs; no additional hosted service or recurring subscription is required. Record deployment image size/startup and run the Python/OS scans before publishing; [harness acceptance](testing/harnesses.md) tracks this separate scope.
 
@@ -40,11 +49,13 @@ The [declared-license inventory](../../examples/integrations/prisma/dependency-l
 
 ## Multimedia processing
 
-PDF.js (`pdfjs-dist` 6.3.289, Apache-2.0) and Mammoth 1.12.3 (BSD-2-Clause) are pinned dependencies for text extraction. PDF.js also provides an on-demand browser preview worker at the same version. image-size 2.0.4 (MIT) validates image headers and dimensions in both admission and runtime code. Preserve their bundled notices in runtime distributions. The refreshed production inventory contains 1,291 package entries. Processing uses a bounded subprocess with no external extraction service; [media decisions](../features/media/implementation.md) document limits and replacement boundaries.
+PDF.js (`pdfjs-dist` 6.3.289, Apache-2.0) and Mammoth 1.12.3 (BSD-2-Clause) are pinned dependencies for text extraction. PDF.js also provides an on-demand browser preview worker at the same version. image-size 2.0.4 (MIT) validates image headers and dimensions in both admission and runtime code. Preserve their bundled notices in runtime distributions. Processing uses a bounded subprocess with no external extraction service; [media decisions](../features/media/implementation.md) document limits and replacement boundaries.
 
-The current production pnpm audit reports no known findings. Narrow overrides select js-yaml 4.3.2 and devalue 5.9.2. The official Better Auth CIMD plugin 1.7.2 adds public-address-pinned OAuth client metadata retrieval and shares the existing auth version.
+Narrow overrides retain js-yaml 4.3.2 and select devalue 5.9.3. The official Better Auth CIMD plugin 1.7.7 adds public-address-pinned OAuth client metadata retrieval and shares the existing auth version. Current audit counts are recorded above.
 
-The complete runtime image is scanned with pinned Trivy 0.74.0 in CI and weekly verification. The gate fails on fixable high/critical OS, Python or JavaScript findings and retains its report; unfixed and lower-severity findings still require review. The accepted local image has no fixable high/critical findings. The runtime updates Debian security packages, pins global npm 11.19.1, and applies the hash-pinned `infra/runtime-python-security.txt` overlay for Hermes httpx2/httpcore2 2.12.0 and AnyIO 4.14.2 (CVE-2026-63374) after its frozen upstream install. `uv pip check` and native continuation fixtures pass. Remove that narrow overlay when the upstream lock includes the fixes. This local scan does not establish that a hosted image was replaced.
+The complete runtime image is scanned with pinned Trivy 0.74.0 in CI and weekly verification. The gate fails on fixable high/critical OS, Python or JavaScript findings and retains its report; unfixed and lower-severity findings still require review. The qualified Debian 13 AMD64 candidate has zero critical/fixable high findings and no high/critical Node or Python package findings. Its unsuppressed report retains 75 unfixed OS high findings across 17 CVEs, including SQLite FTS5 denial of service; it is not a blanket clean-security claim.
+
+The runtime pins Node 24.13.0 and npm 11.21.1, replaces only npm's asserted Undici 6.29.0 payload with hash-verified 6.29.1, and updates Debian security packages. The hash-pinned `infra/runtime-python-security.txt` overlay supplies Hermes httpx2/httpcore2 2.12.0, AnyIO 4.14.2, certifi 2026.10.19, PyJWT 2.15.1, urllib3 2.8.0 and Pillow 13.0.0. Exact upstream requirement replacements keep installed metadata consistent; agent code remains pinned. `uv pip check`, image normalization/JWT smokes, all-six native acceptance and genuine Hermes warm-Worker lifecycle checks pass. Remove the narrow overlay when upstream includes the fixes. Qualification used AMD64 binaries on ARM64 Docker Desktop; it does not establish native-x86 performance or hosted replacement.
 
 ## Execution tracing
 

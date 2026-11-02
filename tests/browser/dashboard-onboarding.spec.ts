@@ -32,7 +32,8 @@ test('home reflects account setup and hands a task to review without starting a 
     page.request.get('/v1/billing'),
     page.request.get('/v1/runs?status=succeeded&limit=1'),
   ]);
-  for (const response of [workspacesResponse, billingResponse, runsResponse]) expect(response.ok()).toBe(true);
+  for (const response of [workspacesResponse, billingResponse, runsResponse])
+    expect(response.ok()).toBe(true);
   const workspaces = await workspacesResponse.json();
   const billing = await billingResponse.json();
   const runs = await runsResponse.json();
@@ -47,7 +48,10 @@ test('home reflects account setup and hands a task to review without starting a 
     String(completed),
   );
   await expect(setup).toContainText(`${completed} of 3 complete`);
-  await expect(setup.getByRole('link', { name: /Create a workspace/ })).toHaveAttribute('href', '/workspaces');
+  await expect(setup.getByRole('link', { name: /Create a workspace/ })).toHaveAttribute(
+    'href',
+    '/workspaces',
+  );
   await expect(setup.getByRole('link', { name: /Set up funding/ })).toHaveAttribute('href', '/billing');
   await expect(setup.getByRole('link', { name: /Complete your first run/ })).toHaveAttribute('href', '/runs');
 
@@ -262,14 +266,19 @@ test('home explains read-only access and keeps the run review action disabled', 
       },
     });
   });
-  await signIn(page);
-  await page.getByRole('button', { name: 'Analyze a dataset', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Describe your task' })).not.toHaveValue('');
-  await expect(page.getByRole('button', { name: 'Review run', exact: true })).toBeDisabled();
-  await expect(
-    page.getByText('Your role can explore this worktree. Ask an administrator for access to start runs.'),
-  ).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Start with an example' })).toBeVisible();
+  try {
+    await signIn(page);
+    await page.getByRole('button', { name: 'Analyze a dataset', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Describe your task' })).not.toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Review run', exact: true })).toBeDisabled();
+    await expect(
+      page.getByText('Your role can explore this worktree. Ask an administrator for access to start runs.'),
+    ).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Start with an example' })).toBeVisible();
+  } finally {
+    // A background identity refresh can still own a fetched response at teardown.
+    await page.unrouteAll({ behavior: 'wait' });
+  }
 });
 
 test('mobile account-menu links close navigation and reveal the selected settings page', async ({ page }) => {

@@ -2,7 +2,8 @@
 export function authReturnPath(value: string | null | undefined, origin: string) {
   try {
     const destination = new URL(value || '/', origin);
-    if (destination.origin === origin) return destination.pathname + destination.search;
+    if (destination.origin === origin && !destination.pathname.startsWith('//'))
+      return destination.pathname + destination.search;
   } catch {
     // Malformed pasted links must not prevent the user from signing in.
   }

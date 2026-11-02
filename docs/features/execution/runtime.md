@@ -70,6 +70,12 @@ The runtime emits normalized output deltas, tool events, lifecycle metadata and 
 
 ## Harness adapters
 
+The worker awaits only the selected adapter and its required SDKs after preparing
+the isolated environment. Optional MCP bridges load when needed. Compatible warm
+turns retain the same adapter; cancellation during loading still prevents model
+dispatch. The runtime build rejects accidentally eager exclusive SDK imports, and
+the native image matrix checks actual module loading for all six harnesses.
+
 Native adapters implement the **Unified Harness Interface (UHI)** through `HarnessAdapter` in `packages/runtime/src/types.ts`. The [UHI guide](unified-harness-interface.md) owns the shared contract and contributor workflow; this section describes harness-specific integration decisions.
 
 `packages/contracts/harnesses.ts` owns the six harness identifiers and display metadata. Admission, CLI choices, dashboard controls and native dispatch use that registry; OpenAPI and all five generated SDKs carry matching enums, checked deterministically. The [public comparison](harnesses.md) describes supported model routes and tools.

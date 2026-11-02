@@ -88,8 +88,10 @@ test('the copy check clears after three seconds and copying again restarts the t
 }) => {
   await page.goto('/docs/agents');
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: fixtureOrigin });
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  // Pause ahead of the installed clock, before copying. Using two real clocks
+  // can ask Playwright to move backwards before the test even clicks Copy.
+  await page.clock.install({ time: new Date('2030-01-01T00:00:00Z') });
+  await page.clock.pauseAt(new Date('2030-01-01T00:01:00Z'));
   const copy = page.locator('.docs-prompt-block').getByRole('button', { name: 'Copy prompt', exact: true });
   const icon = copy.locator('.copy-feedback-icon');
   const source = await page.getByRole('region', { name: 'Setup prompt', exact: true }).innerText();

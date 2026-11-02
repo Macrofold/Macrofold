@@ -12,6 +12,11 @@ The auth service initializes once per module instance on first use. Importing ro
 
 Browser cookies are provider-managed Secure/HttpOnly/SameSite in production. Mutations check the exact configured Origin. The dashboard exposes profile/password, MFA, sessions/devices, connected OAuth applications, team invitations/roles and organization selection. Password changes can revoke other sessions. App revocation removes both access and refresh authority. The configured operator allowlist is server-side, not a user-selectable role.
 
+Successful password sign-in loads one fresh authenticated document, discarding
+anonymous prefetch/cache state instead of racing client navigation with refresh.
+The local assistant waits for identity before enabling; changing
+organizations still clears cached tenant data and local assistant history.
+
 An API key is generated with high-entropy randomness, shown once, stored by hash with prefix, scopes, optional workspaces, expiry and revocation. It cannot exceed its creator's effective authority. Keys belong to one organization; `X-Organization-Id` cannot redirect one into another. OAuth tokens select only current memberships. The browser's active-organization cookie is a selector and is reauthorized on every request. Switching reloads caches to prevent showing the prior organization as current.
 
 Owner changes serialize and preserve at least one owner. Admins manage members/viewers; owners control ownership. Invitations bind a verified email, expire after seven days, are single-use and require current inviter authority. Links are created for explicit sharing rather than automatically emailing someone. Removal/demotion revokes relevant keys and requests cancellation of ongoing work; future model/tool calls recheck authority. Tenant audit records expose access changes.

@@ -19,7 +19,7 @@ import { initializePerformance } from './performance-composition';
 import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
 import { id } from './crypto';
-import { modelCredential } from './model-credentials';
+import { modelCredentialQuery, modelCredentialFromResult } from './model-credentials';
 import { currentRunControlQuery, type RunControl, type NativeRunRow, type RunConfig } from './runs';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
 import { computeMaximum, type Model } from './catalog';
@@ -30,7 +30,7 @@ import {
   finishEventAppend,
   type PreparedEventAppend,
 } from './events';
-import { actorAuthorized } from './actor-authorization';
+import { actorAuthorizationQueries, actorAuthorizationFromResults } from './actor-authorization';
 import { boundedBody } from './body';
 import { emptyUsage, type ModelUsage as Usage } from './model-protocol';
 import { modelProtocol } from '../../providers/src/model-protocols';
@@ -258,8 +258,26 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       'run_configuration_changed',
       'The accepted model configuration changed before dispatch. Retry this request.',
     );
+    const actorQueries = actorAuthorizationQueries(run);
+    const credentialBinding = {
+      provider: model.provider,
+      billing_mode: run.config.billing_mode,
+      provider_connection_id: run.config.provider_connection_id,
+    };
+    const credentialQuery = modelCredentialQuery(credentialBinding);
+    // These current observations depend on the locked Run, not one another.
+    // Submission order preserves post-lock expiry/rotation checks without
+    // separate wire waits for each shared policy owner.
+    const guards = await queryGroup(tx, [
+      ...actorQueries,
+      {
+        text: 'SELECT 1 FROM provider_circuit_breakers WHERE key=$1 AND resolved_at IS NULL',
+        values: [`model:${model.provider}:${model.id}`],
+      },
+      ...(credentialQuery ? [credentialQuery] : []),
+    ]);
     assert(
-      await actorAuthorized(tx, run),
+      actorAuthorizationFromResults(run, guards.slice(0, actorQueries.length)),
       403,
       'authorization_revoked',
       'The initiating account or credential is no longer authorized to run agents.',
@@ -294,21 +312,17 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       'run_timeout',
       'The run deadline has passed.',
     );
-    const blocked = await tx.query(
-      'SELECT 1 FROM provider_circuit_breakers WHERE key=$1 AND resolved_at IS NULL',
-      [`model:${model.provider}:${model.id}`],
-    );
     assert(
-      !blocked.rowCount,
+      !guards[actorQueries.length].rowCount,
       503,
       'model_paused',
       'This model is paused pending operator review of its metering.',
     );
-    const secret = await modelCredential(tx, run.config.user_id, {
-      provider: model.provider,
-      billing_mode: run.config.billing_mode,
-      provider_connection_id: run.config.provider_connection_id,
-    });
+    const secret = modelCredentialFromResult(
+      run.config.user_id,
+      credentialBinding,
+      credentialQuery ? guards[actorQueries.length + 1] : undefined,
+    );
     const traceContext = prepared.traceContext;
     if (path.endsWith('count_tokens'))
       return {

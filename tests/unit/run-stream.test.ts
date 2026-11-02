@@ -4,6 +4,9 @@ const { query } = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock('../../packages/db', () => ({
   transaction: async (_org: string, work: (tx: unknown) => Promise<unknown>) => work({ query }),
 }));
+// This unit boundary owns replay/backpressure timers, not real session sockets.
+// The notification suite separately verifies reconnect and socket retirement.
+vi.mock('../../packages/core/src/run-event-notifications', () => ({ listenRunEvents: () => undefined }));
 import { streamEvents } from '../../packages/core/src/events';
 
 afterEach(() => {

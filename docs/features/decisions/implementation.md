@@ -8,6 +8,12 @@ The [execution-efficiency design](../../projects/execution-efficiency-tech-desig
 
 ## Validation and admission capacity
 
+`model-credentials.ts` owns the narrow current connection query and decoding used
+by native and direct model calls. Independent actor, circuit-breaker and BYOK
+reads share the existing ordered guard group after required locks. Connection
+identity, provider, owner and health are still checked per invocation; no tool
+catalogs or unrelated connection configuration are loaded to obtain a model key.
+
 `explicit-context.ts` keeps at most 128 compiled validators, keyed by canonical schema content. Every call still checks the finite-schema policy before using the cache; schemas are compiled from immutable JSON snapshots with no coercion, defaults or property removal. Eviction also removes Ajv's internal schema retention. This caches pure compilation, never customer evidence, permissions or resolved definitions. The 32 KiB schema bound limits retained schema text to 4 MiB; compiled code has additional memory cost.
 
 Workspace admission takes a shared `workspace-deletion` advisory transaction lock. Concurrent admissions may proceed together; deletion takes the same lock exclusively and waits for admissions to commit before archiving/cancelling. Wallet reservations and scheduler admission retain their own exclusive financial/capacity locks.

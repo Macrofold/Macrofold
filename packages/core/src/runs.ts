@@ -30,6 +30,7 @@ import { requireWorkspace, requireScopes, type Principal } from './auth';
 import { admitConnections, type ConnectionAccessSnapshot } from './connection-access-resolution';
 import { isToolConnection } from './connection-access-policy';
 import { requireClaudeSubscriptionExecution, validateClaudeFallback } from './claude-connections';
+import { wakeNativeControl } from './run-control-wakeup';
 
 type Schema = components['schemas'];
 export type RunConfig = Schema['SessionCreate'] & {
@@ -799,7 +800,11 @@ export async function cancelRun(tx: Tx, p: Principal, runId: string) {
     await settle(tx, p.organizationId, runId, BigInt(row.reservation_micro_usd), 0n);
     await tx.query("UPDATE dispatch_jobs SET state='done' WHERE resource_id=$1", [runId]);
     await emit(tx, p.organizationId, runId, 'run.cancelled', { status: 'cancelled' });
-  } else await emit(tx, p.organizationId, runId, 'run.cancel_requested', {});
+  } else {
+    if (row.kind === 'native_agent' && row.status === 'waiting_for_input' && !row.cancel_requested)
+      await wakeNativeControl(tx, runId);
+    await emit(tx, p.organizationId, runId, 'run.cancel_requested', {});
+  }
   return presentRun(await getRun(tx, runId));
 }
 export async function submitInput(tx: Tx, p: Principal, runId: string, input: Schema['RunInput']) {
@@ -819,6 +824,7 @@ export async function submitInput(tx: Tx, p: Principal, runId: string, input: Sc
     runId,
     JSON.stringify({ ...row.input_request, answer: input.answer }),
   ]);
+  if (row.kind === 'native_agent') await wakeNativeControl(tx, runId);
   await emit(tx, p.organizationId, runId, 'input.received', { input_request_id: input.input_request_id });
   return presentRun(row);
 }

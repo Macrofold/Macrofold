@@ -12,6 +12,8 @@ describe('dashboard client boundaries', () => {
       '//elsewhere.test/account',
       'javascript:alert(1)',
       'https://elsewhere.test',
+      origin + '//elsewhere.test/account',
+      origin + '/\\elsewhere.test/account',
     ])
       expect(authReturnPath(unsafe, origin)).toBe('/');
   });

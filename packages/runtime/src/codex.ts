@@ -64,7 +64,7 @@ export function codexEvent(message: RpcMessage): NativeEvent | undefined {
   }
   return undefined;
 }
-export class CodexAdapter implements HarnessAdapter {
+class CodexAdapter implements HarnessAdapter {
   private rpc?: JsonRpcProcess;
   private threadId?: string;
   close() {
@@ -268,4 +268,8 @@ export class CodexAdapter implements HarnessAdapter {
       if (!c.warm || !succeeded) this.close();
     }
   }
+}
+
+export async function createAdapter(): Promise<HarnessAdapter> {
+  return new CodexAdapter();
 }

@@ -5,13 +5,8 @@ import { worktreeInstructions } from './permission-files';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
-import { CodexAdapter } from './codex';
-import { ClaudeAdapter } from './claude';
-import { HermesAdapter } from './hermes';
-import { DeepSeekAdapter } from './deepseek';
-import { PiAdapter } from './pi';
-import type { HarnessAdapter, HarnessName } from './types';
-import { OpenCodeAdapter } from './opencode';
+import { harnessAdapters } from './harness-adapters';
+import type { HarnessAdapter } from './types';
 import type { NativeConfiguration, NativeEvent } from './types';
 import { startPermissionFileServer } from './permission-server';
 import { startModelTransport } from './model-transport';
@@ -70,15 +65,7 @@ const send = (value: unknown) =>
   new Promise<void>((resolve, reject) =>
     process.stdout.write(`${JSON.stringify(value)}\n`, (error) => (error ? reject(error) : resolve())),
   );
-const adapters: Record<HarnessName, new () => HarnessAdapter> = {
-  codex: CodexAdapter,
-  'claude-code': ClaudeAdapter,
-  opencode: OpenCodeAdapter,
-  hermes: HermesAdapter,
-  deepseek: DeepSeekAdapter,
-  pi: PiAdapter,
-};
-const adapter = new adapters[configuration.harness]();
+let adapter: HarnessAdapter | undefined;
 let files: Awaited<ReturnType<typeof startPermissionFileServer>> | undefined;
 const localToken = randomUUID();
 let active: { gatewayURL: string; toolURL?: string; token: string; signal: AbortSignal } | undefined;
@@ -102,6 +89,10 @@ const reportFailure = async (error: unknown) => {
   });
 };
 try {
+  stage = 'adapter_load';
+  adapter = await harnessAdapters[configuration.harness]();
+  controller.signal.throwIfAborted();
+  stage = 'transport_start';
   models = await startModelTransport(
     configuration.gatewayURL,
     localToken,
@@ -116,7 +107,6 @@ try {
   if (guarded && fileAccess(configuration.permissions || []).read && permissions.fileTools === 'mcp')
     files = await startPermissionFileServer(configuration.workspace, configuration.permissions || []);
   for (;;) {
-    controller = new AbortController();
     active = {
       gatewayURL: configuration.gatewayURL,
       toolURL: configuration.toolURL,
@@ -133,6 +123,7 @@ try {
       c.instructions = [worktreeInstructions(c.workspace, c.permissions || []), c.instructions]
         .filter(Boolean)
         .join('\n\n');
+      controller.signal.throwIfAborted();
       stage = 'harness_initialize';
       const result = await adapter.run({
         setStage: (value) => {
@@ -181,6 +172,7 @@ try {
       await send({ type: 'result', result });
       if (!next) break;
       configuration = await next;
+      controller = new AbortController();
     } catch (error) {
       await reasoning.close('interrupted');
       active = undefined;
@@ -194,7 +186,7 @@ try {
 } finally {
   active = undefined;
   controller.abort();
-  await adapter.close?.();
+  await adapter?.close?.();
   await models?.close();
   await files?.close();
   lines.close();

@@ -1,6 +1,8 @@
 import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
-test('workspace deletion has explicit confirmation, an archived view and a working undo', async ({ page }) => {
+test('workspace deletion has explicit confirmation, an archived view and a working undo', async ({
+  page,
+}) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
@@ -13,9 +15,12 @@ test('workspace deletion has explicit confirmation, an archived view and a worki
   await page.getByRole('button', { name: 'Schedule deletion', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Schedule permanent deletion', exact: true })).toBeDisabled();
   await page.getByLabel(`Type ${name} to confirm`).fill(name);
-  // Audit the settled interface, rather than a translucent frame of the entry transition.
+  await expect(page.getByRole('button', { name: 'Schedule permanent deletion', exact: true })).toBeEnabled();
+  // Include the enabled button's opacity transition, not only the dialog entrance.
   await page.getByRole('dialog').evaluate(async (dialog) => {
-    await Promise.all(dialog.getAnimations().map((animation) => animation.finished.catch(() => {})));
+    await Promise.all(
+      dialog.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => {})),
+    );
   });
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10000 });
   const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();

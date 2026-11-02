@@ -42,6 +42,11 @@ for (const surface of ['run', 'preset']) {
     await page.goto('/login');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('link', { name: surface === 'run' ? 'Runs' : 'Agent presets', exact: true }).click();
+    // The old screen can also expose "New run" while client navigation settles.
+    await expect(page).toHaveURL(surface === 'run' ? /\/runs$/ : /\/agents$/);
+    await expect(
+      page.getByRole('heading', { name: surface === 'run' ? 'Runs' : 'Agent presets', exact: true }),
+    ).toBeVisible();
     await page
       .getByRole('button', { name: surface === 'run' ? 'New run' : 'New preset', exact: true })
       .click();

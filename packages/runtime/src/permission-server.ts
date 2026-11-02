@@ -1,8 +1,6 @@
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { z } from 'zod';
 import type { PermissionLayers } from '../../contracts/permissions';
 import { permissionFileDefinition, fileToolName, permissionFileTools } from './permission-files';
@@ -11,6 +9,12 @@ import { permissionFileDefinition, fileToolName, permissionFileTools } from './p
  * serialized filesystem implementation remain shared with in-process tools.
  * It has no arbitrary command/resource/proxy endpoint and no vendor credential. */
 export async function startPermissionFileServer(root: string, layers: PermissionLayers) {
+  const [{ Server }, { StreamableHTTPServerTransport }, { CallToolRequestSchema, ListToolsRequestSchema }] =
+    await Promise.all([
+      import('@modelcontextprotocol/sdk/server/index.js'),
+      import('@modelcontextprotocol/sdk/server/streamableHttp.js'),
+      import('@modelcontextprotocol/sdk/types.js'),
+    ]);
   const execute = permissionFileTools(root, layers);
   const definition = permissionFileDefinition(layers);
   const token = randomBytes(32).toString('hex');

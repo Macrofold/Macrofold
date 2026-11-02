@@ -120,6 +120,242 @@ async function transferPhaseOwnership(s: Awaited<ReturnType<typeof scenario>>) {
 }
 
 describe('prepared native phase advancement', () => {
+  async function idleControl(control: 'answer' | 'cancel') {
+    const s = await scenario(undefined, { version: 1, questions: 'allow' }),
+      provider = new FaultMachine();
+    await advanceTo(s, provider, 'poll');
+    vi.spyOn(provider, 'probe').mockImplementation(async (_binding, offset) => ({
+      events: [],
+      nextOffset: offset,
+      status: { state: 'running' },
+      result: null,
+      input: { id: 'wake-question', question: 'Synthetic question', details: {} },
+    }));
+    await advanceCloudRun(s.org, s.runId, provider);
+    await advanceCloudRun(s.org, s.runId, provider);
+    const apply = () =>
+      transaction(s.org, (tx) =>
+        control === 'answer'
+          ? submitInput(tx, s.p, s.runId, { input_request_id: 'wake-question', answer: { text: 'Ready' } })
+          : cancelRun(tx, s.p, s.runId),
+      );
+    const job = () =>
+      transaction(
+        s.org,
+        async (tx) =>
+          (
+            await tx.query<{
+              due: boolean;
+              lease: string;
+              generation: number;
+              error: string | null;
+              state: string;
+            }>(
+              `SELECT available_at<=clock_timestamp() AS due,lease_until::text AS lease,
+          workflow_generation AS generation,error,state FROM dispatch_jobs WHERE resource_id=$1`,
+              [s.runId],
+            )
+          ).rows[0],
+      );
+    return { s, provider, apply, job };
+  }
+
+  it.each(['answer', 'cancel'] as const)(
+    'makes an idle native %s due without replacing ownership',
+    async (control) => {
+      const fixture = await idleControl(control);
+      const before = await fixture.job();
+      expect(before.due).toBe(false);
+      await fixture.apply();
+      expect(await fixture.job()).toEqual({ ...before, due: true });
+      const answer = vi.spyOn(fixture.provider, 'answer');
+      await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+      if (control === 'answer') expect(answer).toHaveBeenCalledOnce();
+      else expect(fixture.provider.cancellations).toBe(1);
+      expect(fixture.provider.starts).toBe(1);
+    },
+  );
+
+  it.each(['quiet', 'output', 'terminal'] as const)(
+    'releases the control slot for an unanswered question with %s readiness',
+    async (readiness) => {
+      const fixture = await idleControl('answer');
+      const wait = vi.fn(async () => {
+        throw new Error('Unanswered questions must not occupy a long-poll slot');
+      });
+      Object.assign(fixture.provider, { waitForEvents: wait });
+      if (readiness === 'output')
+        vi.mocked(fixture.provider.probe).mockImplementationOnce(async (_binding, offset) => ({
+          events: [{ sequence: 1, type: 'output.delta', data: { text: 'Question-side output' } }],
+          nextOffset: offset + 1,
+          status: { state: 'running' },
+          input: { id: 'wake-question', question: 'Synthetic question', details: {} },
+          result: null,
+        }));
+      if (readiness === 'terminal') {
+        const completed = await FaultMachine.prototype.probe.call(
+          fixture.provider,
+          { name: 'fixture', sessionId: fixture.s.runId, createdAt: new Date().toISOString() },
+          100,
+        );
+        vi.mocked(fixture.provider.probe).mockResolvedValueOnce(completed);
+      }
+      const result = await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+      expect(wait).not.toHaveBeenCalled();
+      expect(result.delaySeconds).toBe(readiness === 'quiet' ? 1 : 0);
+      if (readiness === 'output') {
+        const events = await transaction(
+          fixture.s.org,
+          async (tx) =>
+            (
+              await tx.query(
+                "SELECT data->>'text' AS text FROM run_events WHERE run_id=$1 AND type='output.delta'",
+                [fixture.s.runId],
+              )
+            ).rows,
+        );
+        expect(events).toContainEqual({ text: 'Question-side output' });
+      }
+      if (readiness === 'terminal')
+        expect(
+          (await transaction(fixture.s.org, (tx) => getRun(tx, fixture.s.runId))).execution_binding?.phase,
+        ).toBe('index');
+    },
+  );
+
+  it.each(['running', 'answered', 'cancelled'] as const)(
+    'keeps the native event wait for a %s Run',
+    async (condition) => {
+      const fixture = await idleControl('answer');
+      if (condition === 'running')
+        await transaction(fixture.s.org, (tx) =>
+          tx.query("UPDATE runs SET status='running',input_request=NULL WHERE id=$1", [fixture.s.runId]),
+        );
+      else if (condition === 'answered') await fixture.apply();
+      else await transaction(fixture.s.org, (tx) => cancelRun(tx, fixture.s.p, fixture.s.runId));
+      const wait = vi.fn<FaultMachine['probe']>(async (_binding, offset) => ({
+        events: [],
+        nextOffset: offset,
+        status: { state: 'running' },
+        input: null,
+        result: null,
+      }));
+      Object.assign(fixture.provider, { waitForEvents: wait });
+      vi.mocked(fixture.provider.probe).mockClear();
+      await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+      expect(wait).toHaveBeenCalledOnce();
+      expect(fixture.provider.probe).not.toHaveBeenCalled();
+      if (condition === 'cancelled') expect(fixture.provider.cancellations).toBe(1);
+    },
+  );
+
+  it.each(['answer', 'cancel'] as const)(
+    'preserves a %s arriving during a live quiet probe',
+    async (control) => {
+      const fixture = await idleControl(control);
+      let entered = () => {},
+        release = () => {};
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      vi.mocked(fixture.provider.probe).mockImplementationOnce(async (...args) => {
+        entered();
+        await gate;
+        return { events: [], nextOffset: args[1], status: { state: 'running' }, input: null, result: null };
+      });
+      const advance = advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+      try {
+        await started;
+        const before = await fixture.job();
+        await fixture.apply();
+        expect(await fixture.job()).toEqual(before);
+      } finally {
+        release();
+        await advance;
+      }
+      expect((await fixture.job()).due).toBe(true);
+      // The original quiet question transport resumes after the held probe.
+      const answer = vi.spyOn(fixture.provider, 'answer');
+      await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+      if (control === 'answer') expect(answer).toHaveBeenCalledOnce();
+      else expect(fixture.provider.cancellations).toBe(1);
+      expect(fixture.provider.starts).toBe(1);
+    },
+  );
+
+  it.each(['error', 'phase_failure', 'blocked', 'retained_phase', 'dispatch_claim'] as const)(
+    'does not shorten native control recovery or a %s',
+    async (condition) => {
+      const fixture = await idleControl('cancel');
+      await transaction(fixture.s.org, async (tx) => {
+        if (condition === 'error')
+          await tx.query("UPDATE dispatch_jobs SET error='transport_failed' WHERE resource_id=$1", [
+            fixture.s.runId,
+          ]);
+        if (condition === 'phase_failure')
+          await tx.query(
+            'UPDATE runs SET execution_binding=execution_binding||\'{"failures":1}\'::jsonb WHERE id=$1',
+            [fixture.s.runId],
+          );
+        if (condition === 'blocked')
+          await tx.query("UPDATE dispatch_jobs SET state='blocked' WHERE resource_id=$1", [fixture.s.runId]);
+        if (condition === 'retained_phase')
+          await tx.query('UPDATE runs SET execution_binding=execution_binding||$2::jsonb WHERE id=$1', [
+            fixture.s.runId,
+            JSON.stringify({ lock: id(), lockExpires: Date.now() + 120_000 }),
+          ]);
+        if (condition === 'dispatch_claim')
+          await tx.query(
+            "UPDATE dispatch_jobs SET available_at=clock_timestamp()+interval '2 minutes' WHERE resource_id=$1",
+            [fixture.s.runId],
+          );
+      });
+      const before = await fixture.job();
+      await fixture.apply();
+      expect(await fixture.job()).toEqual(before);
+    },
+  );
+
+  it('keeps provider backoff when cancellation arrives during a failed probe', async () => {
+    const fixture = await idleControl('cancel');
+    vi.mocked(fixture.provider.probe).mockImplementationOnce(async () => {
+      await fixture.apply();
+      throw new Error('Synthetic probe failure');
+    });
+    await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+    expect((await fixture.job()).due).toBe(false);
+    const run = await transaction(fixture.s.org, (tx) => getRun(tx, fixture.s.runId));
+    expect(run).toMatchObject({ cancel_requested: true, execution_binding: { failures: 1 } });
+    expect(run.execution_binding?.controlWait).toBeUndefined();
+  });
+
+  it('keeps a retained local quantum private when cancellation arrives between phases', async () => {
+    const fixture = await idleControl('cancel');
+    Object.assign(fixture.provider, { waitForEvents: fixture.provider.probe.bind(fixture.provider) });
+    vi.mocked(fixture.provider.probe).mockImplementationOnce(async (_binding, offset) => ({
+      events: [{ sequence: 1, type: 'output.delta', data: { text: 'Synthetic output' } }],
+      nextOffset: offset + 1,
+      status: { state: 'running' },
+      input: null,
+      result: null,
+    }));
+    const context: CloudRunContext = { retainReady: () => true };
+    expect(await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider, context)).toMatchObject({
+      delaySeconds: 0,
+      canContinue: true,
+    });
+    const before = await fixture.job();
+    expect(before.due).toBe(false);
+    await fixture.apply();
+    expect(await fixture.job()).toEqual(before);
+    await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider, context);
+    expect(fixture.provider.cancellations).toBe(1);
+    expect(fixture.provider.starts).toBe(1);
+  });
+
   it('reuses immutable configuration while observing cancellation before the next phase', async () => {
     const s = await scenario(),
       provider = new FaultMachine();

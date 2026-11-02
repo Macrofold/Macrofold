@@ -9,6 +9,7 @@ test('assistant preview gives guidance without account mutations and restores ke
   await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   const launcher = page.getByRole('button', { name: 'Ask Macrofold', exact: true });
   await expect(launcher).toBeVisible();
+  await expect(launcher).toBeEnabled();
   const writes: string[] = [];
   page.on('request', (request) => {
     if (new URL(request.url()).pathname.startsWith('/v1/') && !['GET', 'HEAD'].includes(request.method()))

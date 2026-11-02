@@ -4,7 +4,7 @@ import { mkdir, writeFile, access } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { availableParallelism, cpus, totalmem } from 'node:os';
 import { performance } from 'node:perf_hooks';
-import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { pool, authPool, credentialPool, transaction, afterCommit } from '../../packages/db';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
@@ -21,6 +21,11 @@ import type { PerformanceRecord } from '../../packages/contracts/performance';
 
 const apiProfiles = new Map<string, PerformanceRecord>();
 let apiCollector: ReturnType<typeof configurePerformance> | undefined;
+beforeEach(() => {
+  // Both the API and forked scripted poller must freeze zero compute charges;
+  // simulator admission deliberately reserves no real compute liability.
+  vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '0');
+});
 beforeAll(() => {
   const collector = configurePerformance({
     sampleRate: 1,
@@ -444,6 +449,7 @@ async function cohort(count: number, baseline?: string, replicas = 1, prompt = s
   }
 }
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(children.splice(0).map(stop));
   for (const organization of organizations.splice(0)) await retireFixtureRuns(organization);
 });

@@ -1,5 +1,9 @@
 # Implementation status
 
+[Focused request/native overhead reductions](../projects/execution-efficiency/optimization-verification.md#focused-request-and-native-overhead-qualification) are implemented locally. All-six built-image module/continuation checks and 160 matched native turns pass; selected SDK loading lowers cold first-model means from 3.10→2.21 s for OpenCode, 1.17→0.50 s for Claude and 0.91→0.71 s for Pi, with lower observed RSS. Checkpoint buffer reuse reduces 801 allocations to one, restore metadata transactions fall 256→32 for 4,096 files, and human-wait control requests reach the Host in 42–60 ms mean instead of about one second, releasing control slots between probes. Post-lock credential batching removes two native BYOK SQL waits and one direct BYOK wait. Current-head poller admission reduces a 64-Run burst from 3,509 attempts to 64, cutting SQL statements by 87%. These are local synthetic-provider measurements with retained misses, not hosted SLAs; diagnostics/defaults, preview and unrelated memory-pack work remain unchanged.
+
+[Release-readiness repair](../projects/execution-efficiency/optimization-verification.md#release-readiness-follow-through) qualifies the patched application dependencies and both local native-image architectures. Domain, load, all five SDKs, mutation, restricted-role installation/restore and source-matched combined coverage pass without relaxed gates. Migration 061 is applied to the idle local preview database. The existing preview process and default runtime image are preserved; new dependencies and candidate images require coordinated activation. Remote CI, image publication and hosted acceptance remain separate gates, with remaining dependency risks recorded explicitly.
+
 Direct inference now returns bounded, credential-redacted upstream rejection
 messages in `result.inference.provider_error`, beside the classified reason.
 Encrypted response ownership preserves JSON/SSE replay, current authorization,
@@ -42,8 +46,8 @@ The [scheduling review](../projects/native-scheduling-latency.md#implementation-
 adds complete phase-owned write fencing, shared class-alternating admission,
 exact failed-claim release and safe failure diagnostics. Its separate matched
 80-call local profile records 45–47 ms commit-to-provision p95 and 9–17 ms p95
-per handoff type, with fewer SQL statements/commits. Interactive quiet-probe
-wakeups and mixed-provider poller routing remain explicit follow-ups.
+per handoff type, with fewer SQL statements/commits. The focused follow-through
+above implements human-wait wakeups; mixed-provider poller routing remains open.
 
 [OpenRouter inference catalogue recovery](../engineering/testing/model-catalog.md#direct-inference-recovery) refreshes missing/expired prices before admission without depending on the worker poller. Fresh requests avoid discovery; refresh claims, backoff, price expiry and frozen billing terms remain enforced. Focused regressions and a synthetic local Muse BYOK request pass. The original caller's complete character-decision journey and hosted rollout remain unverified.
 

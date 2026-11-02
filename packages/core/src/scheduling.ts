@@ -97,15 +97,31 @@ export async function recordTurn(tx: Tx, org: string, turn: { service: number; s
  * Cleanup is considered before eligibility so expiry/cancellation cannot get stuck
  * behind a busy worktree or a full global ceiling. Runnable hints are capped by
  * observed free slots; a full deployment should not repeatedly claim doomed work. */
-export async function pendingRunCandidates(limit = 100, resource?: ExecutionClass) {
+export function pendingRunCandidates(limit = 100, resource?: ExecutionClass) {
+  return pendingCandidates(limit, resource, false);
+}
+
+/** Lease only the current fair admission head of each execution class. Multiple
+ * pollers leasing prospective turns otherwise compete for organization/global
+ * locks while the actual head waits. Running phases and cleanup stay concurrent. */
+export function pendingRunFrontier(limit = 100, resource?: ExecutionClass) {
+  return pendingCandidates(limit, resource, true);
+}
+
+async function pendingCandidates(limit: number, resource: ExecutionClass | undefined, frontier: boolean) {
+  const selection = `SELECT ${frontier ? "DISTINCT ON ((kind='native_agent'))" : ''}
+      organization_id,id,kind,CASE scheduling_class WHEN 'interactive' THEN 1 ELSE 2 END AS class,
+        service-age_bonus+(account_order-1)::double precision/scheduler_weight AS score,created_at
+      FROM eligible WHERE ${frontier ? 'account_order=1' : 'account_order<=greatest(0,account_limit-account_active)'}
+      AND ($4::text IS NULL OR (kind='native_agent')=($4='native'))
+      ORDER BY ${frontier ? "(kind='native_agent')," : ''}class,score,created_at,id`;
+  const runnable = frontier
+    ? `SELECT * FROM (${selection}) heads ORDER BY class,score,created_at,id`
+    : selection;
   return (
     await pool.query(
       `${schedulingSQL}, runnable AS (
-      SELECT organization_id,id,kind,CASE scheduling_class WHEN 'interactive' THEN 1 ELSE 2 END AS class,
-        service-age_bonus+(account_order-1)::double precision/scheduler_weight AS score,created_at
-      FROM eligible WHERE account_order<=greatest(0,account_limit-account_active)
-      AND ($4::text IS NULL OR (kind='native_agent')=($4='native'))
-      ORDER BY class,score,created_at,id
+      ${runnable}
       LIMIT greatest(0,least($2::integer,$3::integer-(SELECT coalesce(sum(n),0)::integer FROM active)))
     )
     SELECT organization_id,id AS resource_id,kind FROM (

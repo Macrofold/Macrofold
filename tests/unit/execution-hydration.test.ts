@@ -47,9 +47,12 @@ it('caps decoded batch bytes at four MiB including a full-size checkpoint chunk'
   const stage = vi.spyOn(provider, 'stage');
   expect(await stageRestoreObjects(provider, machine, objects)).toEqual([objects[0]]);
   expect(read).toHaveBeenCalledExactlyOnceWith('full', { signal: undefined });
-  expect(stage.mock.calls[0][1]).toEqual([
-    { path: `/platform-control/restore/chunks/${sha256(full)}`, content: full },
-  ]);
+  expect(stage).toHaveBeenCalledOnce();
+  const staged = stage.mock.calls[0][1];
+  expect(staged.map(({ path }) => path)).toEqual([`/platform-control/restore/chunks/${sha256(full)}`]);
+  // Compare all four MiB natively instead of deep-walking millions of bytes in
+  // the assertion engine; this retains exact payload verification.
+  expect(staged[0].content.equals(full)).toBe(true);
 });
 
 it('does not call the provider for an empty batch', async () => {

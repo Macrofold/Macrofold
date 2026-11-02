@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../packages/db', () => ({ pool: { query: mocks.query } }));
 vi.mock('../../packages/core/src/cloud-engine', () => ({ advanceCloudRun: mocks.advance }));
 vi.mock('../../packages/core/src/scheduling', () => ({
-  pendingRunCandidates: mocks.candidates,
+  pendingRunFrontier: mocks.candidates,
   orderDispatchJobs: (jobs: unknown[]) => jobs,
 }));
 vi.mock('../../packages/core/src/engine', () => ({ claimRun: mocks.claim }));
@@ -519,6 +519,40 @@ it('releases only its exact pending claim without a second admission or overridi
       ['job', lease],
     ],
   ]);
+});
+
+it('wakes for short pending admission before its held provider execution finishes', async () => {
+  const dispatcher = fixture(),
+    entered = barrier(),
+    phase = barrier();
+  mocks.query.mockImplementation(async (sql: string, args: unknown[]) => ({
+    rows:
+      sql.startsWith('WITH due') && args[4] === 'provision'
+        ? [{ id: 'pending', organization_id: 'org', resource_id: 'pending', state: 'pending' }]
+        : [],
+  }));
+  mocks.advance.mockImplementation(async () => {
+    entered.release();
+    await phase.promise;
+    return { ...ready, done: true };
+  });
+  await dispatcher.tick();
+  try {
+    await entered.promise;
+    vi.useFakeTimers();
+    let completed = false;
+    const waiting = dispatcher.waitForProgress().then(() => {
+      completed = true;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(completed).toBe(true);
+    expect(mocks.advance).toHaveBeenCalledOnce();
+    await waiting;
+  } finally {
+    phase.release();
+    await dispatcher.drain();
+    vi.useRealTimers();
+  }
 });
 
 it('does not wake an extra refill wave just because work started', async () => {

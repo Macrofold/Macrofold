@@ -51,6 +51,9 @@ async function collect(directory: string) {
         NEXT_DIST_DIR: process.env.NEXT_DIST_DIR,
         NEXT_TYPECHECK_CONFIG: typecheckConfig,
         TEST_COVERAGE_BUILD: '1',
+        // The shared-state operator journey uses the seeded demo identity;
+        // do not depend on a developer's operator allowlist or local .env.
+        OPERATOR_EMAILS: 'demo@example.test',
         NODE_OPTIONS: '--dns-result-order=ipv4first',
         NEXT_TELEMETRY_DISABLED: '1',
         LOCAL_MODEL_ENDPOINT_ALLOWED_ORIGINS: process.env.APP_ORIGIN,

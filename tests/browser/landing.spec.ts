@@ -36,8 +36,13 @@ test('the final homepage exposes clear onboarding, six benefits, code, and integ
     page.getByRole('heading', { name: 'Everything you need to go live.', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'BYOK or Use Credits' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'The conversation changes. Their information stays.' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Build this customer experience' })).toHaveAttribute('href', '/docs/customer-agents');
+  await expect(
+    page.getByRole('heading', { name: 'The conversation changes. Their information stays.' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Build this customer experience' })).toHaveAttribute(
+    'href',
+    '/docs/customer-agents',
+  );
   const productCopy = page.locator('.mf-product > .mf-section-heading > p');
   await expect(productCopy).toHaveText(
     'Everything agents can do on your computer available in your product or internal tool, with thousands of available app connectors.',
@@ -137,9 +142,9 @@ test('system motion settings do not pause playback and desktop diagrams pin at t
     .toBe(0);
   await expect(page.locator('.mf-site')).toHaveAttribute('data-motion-override', 'playing');
   await page.getByRole('button', { name: 'Workspace', exact: true }).click();
-  expect(
-    await page.locator('.mf-diagram').evaluate((el) => el.getAnimations({ subtree: true }).length),
-  ).toBeGreaterThan(0);
+  await expect
+    .poll(() => page.locator('.mf-diagram').evaluate((el) => el.getAnimations({ subtree: true }).length))
+    .toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Pause animations', exact: true }).click();
   for (const size of [
     { width: 1440, height: 1000 },

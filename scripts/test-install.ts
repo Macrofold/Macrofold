@@ -24,8 +24,12 @@ try {
     `CREATE ROLE ${migrationRole} LOGIN CREATEROLE NOSUPERUSER NOBYPASSRLS PASSWORD '${migrationPassword}'`,
   );
   roleCreated = true;
-  if ((await owner.query("SELECT 1 FROM pg_roles WHERE rolname='platform_reporting'")).rowCount)
-    await owner.query(`GRANT platform_reporting TO ${migrationRole} WITH ADMIN OPTION`);
+  // PostgreSQL 16+ requires ADMIN on an existing role to set its per-database
+  // deadlines. Model the migration operator's exact grants, not superuser access.
+  for (const role of ['platform_reporting', process.env.DATABASE_RUNTIME_ROLE || 'platform_app']) {
+    if ((await owner.query('SELECT 1 FROM pg_roles WHERE rolname=$1', [role])).rowCount)
+      await owner.query(`GRANT ${pg.escapeIdentifier(role)} TO ${migrationRole} WITH ADMIN OPTION`);
+  }
   await owner.query(`CREATE DATABASE ${database} OWNER ${migrationRole}`);
   created = true;
   const ownerURL = new URL(config.ownerDatabaseUrl),

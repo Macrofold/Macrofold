@@ -57,6 +57,11 @@ For rotation, configure `VAULT_ACTIVE_KEY_ID` and `VAULT_KEYRING_JSON`, retain o
 
 See [database setup](neon.md) and [hosting](hosting.md). Database backups alone cannot restore encrypted project content.
 
+The migration identity must own the target schemas and have `CREATEROLE` plus
+`ADMIN OPTION` on existing runtime/reporting roles. PostgreSQL 16+ requires that
+authority to install per-database runtime deadlines. Keep it in the administrative
+environment; the serving identity remains restricted.
+
 ## Execution and admission
 
 | Setting | Hosted configuration |

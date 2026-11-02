@@ -175,10 +175,51 @@ preview services were not restarted. No paid call or cloud resource was needed.
 This remains local control-plane/native mechanics evidence, not hosted model or
 fleet-scale acceptance.
 
-Do not add provider-aware global dispatch or native control-wakeup machinery in
-this review. Mixed execution-provider pollers sharing one database and faster
-answers/cancellation during native quiet waits remain explicit follow-ups;
-neither justifies weakening phase ownership or replaying native side effects.
+The review left provider-aware global dispatch and native control wakeups out of
+its scope. The focused continuation below now implements quiet-control wakeups;
+mixed-provider poller routing remains separate.
+
+### Quiet native controls
+
+A known unanswered human question now uses an immediate Host probe followed by
+an existing one-second durable job wait. It releases the control slot instead of
+holding the Host's one-second long poll. Ready output and terminal pages drain
+immediately; ordinary active, answered and stopping Runs keep event-watching
+long polls. Incidental output or failure detection while blocked on a human may
+wait roughly 1–1.75 seconds, including the normal 750-ms dispatcher repair.
+
+Committed answers and cancellation while awaiting input make only that healthy
+quiet job due. An internal `controlWait` hint and the shared one-second due bound
+exclude live phases, retained quanta and two-minute dispatcher claims. Fenced
+publication preserves a control arriving during a probe. No new transport,
+listener, polling loop or orchestration ownership is introduced; ordinary active
+cancellation incurs no extra wake query.
+
+Actual public HTTP controls, restricted PostgreSQL, the existing listener and
+standalone dispatcher invoke the real `HostRuntime` methods against an
+authenticated loopback Host fixture using the runtime filesystem watcher/probe.
+Twenty Runs (five per control/condition) all launch once, publish verified
+checkpoints and release wallet/model holds. Request start → Host control measures:
+
+| Human-wait control | Before mean / p95 | After mean / p95 |
+| --- | ---: | ---: |
+| Answer | 1,035.75 / 1,052.50 ms | 41.76 / 91.56 ms |
+| Cancellation | 1,033.51 / 1,049.54 ms | 60.35 / 74.68 ms |
+
+Over a 3.2-second idle window, measured Host-RPC occupancy falls from about 95.73%
+to 0.064%, with fewer probes. This excludes phase SQL and is not native reaction
+or CPU occupancy. The supervisor still consumes controls on its 500-ms timer;
+Workflow sleep and an already-running active probe remain separate waits. Five
+samples make p95 the maximum observed value, not a tail-latency SLA.
+
+Seventy-one focused regressions cover current Host selection, ready pages, commit
+races, claims, backoff and ownership. Raw samples, failed fixture setup and source
+identities are retained in `.data/request-efficiency/question-host-profile/`.
+The earlier `.data/request-efficiency/control-profile/` two-second fallback-port
+comparison remains archived but is superseded: current Hosts already long-poll
+with zero additional dispatch delay. Broad active-probe interruption would touch
+multiple transports and private-file cleanup; it is excluded as disproportionate
+to this resource-reduction change.
 
 ### Matched local qualification
 

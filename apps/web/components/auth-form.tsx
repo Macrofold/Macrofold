@@ -127,8 +127,9 @@ export function AuthForm({
                         location.assign(result.url);
                         return;
                       }
-                      router.push(returnPath);
-                      router.refresh();
+                      // Match MFA completion: one fresh authenticated document
+                      // discards anonymous prefetch and client identity caches.
+                      location.assign(returnPath);
                     }
                   }
                 } catch (error) {

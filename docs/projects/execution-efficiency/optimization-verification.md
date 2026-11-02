@@ -154,9 +154,201 @@ A three-measured-call plus one-warmup end-to-end profiler smoke run verifies met
 
 The TypeScript SDK build, final TypeScript check, documentation validation, focused formatting and diff checks pass. Documentation validation retains the existing Claude loader-precedence warning. The task-owned PostgreSQL containers and disposable volumes were removed; developer preview processes and databases were preserved. No paid calls were made.
 
+## Focused request and native overhead qualification
+
+The main-based `codex/request-overhead-efficiency` continuation contains only
+resource-reduction work. Separate output-budget and optional agent-knowledge
+worktrees remain preserved. No public API, accounting or diagnostic default is
+changed. Native loading/RSS and quiet-control measurements have their existing
+[memory](../native-memory-startup-tech-design.md#resource-reduction-qualification)
+and [scheduling](../native-scheduling-latency.md#quiet-native-controls) owners.
+
+Shared credential projection and post-lock guard composition pass 75 distinct
+gateway/immediate/credential cases, including actual lock-wait rotation,
+disconnection/key revocation, wrong tenant/owner/provider/result identity and
+routed catalog terms. The credential/catalog shared-worker sequence passes all
+24 cases after explicitly owning Docker fixture configuration and restoring the
+exact global catalog snapshot in `finally`. No catalog production code changes.
+
+A 320-call ABBA comparison against unchanged main completes every fixture call
+with zero in-flight gateway requests and exact usage counts. Submitted SQL groups
+are native managed **13→12**, native BYOK **14→12**, direct managed **20→20** and
+direct BYOK **20→19**. Statement/commit counts are unchanged at 24/3, 25/3, 53/4
+and 48/4 respectively. An intentionally oversized Connection verifies a returned
+credential row below 512 bytes rather than transferring over 262,144 bytes of
+unneeded metadata. `.data/sql-guard-profile/` retains every call, first samples,
+tails and source identities. These are local scripted-provider counts/timings,
+not a clean-host or hosted latency guarantee; unchanged managed-path timing
+variation is not attributed to a nonexistent SQL reduction.
+
+| Storage boundary  | Matched workload                                                                                               | Before → after                                                             |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Runtime capture   | Six alternating fresh-process cohorts per condition; 800 small files plus one multichunk file, 9,917,631 bytes | Mean 572.2→177.0 ms; CPU 883.5→208.9 ms; four-MiB buffer allocations 801→1 |
+| Restore inventory | Three alternating real-PostgreSQL cohorts per condition; 4,096 file records                                    | Mean 724.7→156.2 ms; transactions 256→32; statements 1,282→162             |
+
+Every capture byte/hash and every ordered inventory path is verified. All twelve
+capture intervals remain: baseline 474.9–635.0 ms, changed 164.3–188.0 ms.
+Post-capture process RSS averages 310.2→90.8 MB; this is fixture-process RSS,
+not unique allocation/whole-Host RAM. Inventory timing measures metadata only,
+excluding blob/provider restore; its largest returned page grows 4,280→33,624
+bytes while the existing four-MiB transfer and read-concurrency bounds remain.
+Eight runtime-efficiency and sixty snapshot/restore/SQLite cases pass. Raw
+scripts/results are private under `.data/request-efficiency/`; the shared laptop
+and concurrent verification limit causal wall-time claims.
+
+The queued portable-poller reproduction exposes a separate amplification bug:
+leasing prospective fair turns across two pollers causes thousands of failed
+admissions. Selecting the current fair head per execution class, then refilling
+immediately after admission, completes the same 64-Run synthetic-provider burst
+in **2.506 s rather than 28.321 s**. Admission attempts fall **3,509→64**, with
+zero losing lock/fair-turn attempts in the changed cohort. SQL statements fall
+**69,477→9,228**, submitted groups **59,741→6,367**, and checkouts
+**21,993→2,413**. Every Run succeeds and financial assertions pass; no timeout,
+capacity ceiling or fairness rule is relaxed. The shared host was heavily loaded
+in both cohorts, so structural work reduction is stronger evidence than their
+wall-time ratio. The changed cohort includes a few additional diagnostic queries,
+making its SQL reduction conservative. `.data/request-efficiency/queued-burst/` retains both complete
+runs and failed CI evidence. Workflow/simulator prospective batch semantics stay
+unchanged; this is not a general hosted-fleet throughput qualification.
+Twenty-nine portable continuation cases and three focused PostgreSQL cases prove
+early wake before a held provider completes, mixed-class/cleanup selection and
+full 16/24-slot refilling; one tick does not strand free capacity.
+
+Twelve public API → Docker → native-gateway Runs cover all six harnesses,
+worker replacement, fresh-container Session continuation, SSE replay and exact
+checkpoint contents, with no residual financial holds. The measured native image
+is v2; final local v3 additionally maps OpenCode's vendor question ID to the
+public UUID required by answer submission. The actual v2 question assertion
+fails on that incompatibility and passes on v3, alongside all-six v3 image
+module/file/continuation checks. These are synthetic-provider execution checks,
+not paid model-quality or hosted-provider acceptance.
+
+The frozen AMD64 CI candidate built and passed native checks, but its dependency
+audit retained the same 62 high/critical advisory tuples as main at that revision.
+That stage did not clear release acceptance; the
+[release-readiness follow-through](#release-readiness-follow-through) records the
+subsequent dependency and test repairs. The corresponding local v3 image was
+`platform-runtime:request-overhead-lazy-v3-20261102`,
+`sha256:0e4f0b5e427a3c6651cafe8a534b23e37af0f91afc01a3bbd0f7c41458f4df42`.
+Private build manifests, raw qualification and CI comparisons retain exact source
+identities; the shared default image and preview were not activated in that stage.
+
+The catalog autocommit idea is deliberately rejected: the existing transaction
+installs a server-side deadline compatible with transaction poolers. Saving two
+waits would drop that guarantee or require disproportionate cancellation code.
+Earlier rejected micro-optimizations and the original unmet twelve-group goal
+remain as documented; no authority cache, generic SQL engine, background money
+settlement or replacement scheduler is introduced.
+
+### Cross-poller review follow-through
+
+Current-head discovery exposed a missed eligibility hint: a poller that found
+the current head already leased could sleep through another poller's admission,
+even with a free slot. Local refill did not wake that sibling, and making the
+admitted job due would interfere with phase/recovery ownership.
+
+Migration 061 uses the existing content-free commit notification on the shared
+queued-to-provisioning transition. An indexed queued-existence guard suppresses
+empty-fleet scans; direct immediate requests remain silent. No new listener,
+polling loop, permission, capacity limit or execution identity is introduced.
+
+Actual PostgreSQL LISTEN, poller loops and a held provider reproduce the time
+until both provider requests begin at **816.19 ms before and 80.85 ms after**
+releasing the admission barrier. Exactly two calls occur and one remains held.
+This is one local matched interval, not a hosted tail guarantee. The regression
+also binds the held response to the first admitted Run's unique request subject,
+verifying ownership without assuming HTTP arrival order. Eighteen notification cases
+and 29 portable-continuation cases pass, including both execution classes,
+commit/rollback, empty queues and unchanged dispatcher claims. The existing
+fleet/fanout qualification remains open. Private evidence is retained under
+`.data/request-efficiency/frontier-wakeup/`; the preview remains unmigrated.
+
+Full CI on `9418b759` ([run 41401623562](https://github.com/Macrofold/Macrofold/actions/runs/41401623562))
+passes the 18 notification cases, all 29 load cases, SDK verification, policy
+mutation checks, and the clean native build with all six harnesses. Domain tests
+report 2,325 passes, ten failures and one skip; every failed case also failed on
+the base branch. The native audit retains the same 62 high/critical findings,
+without additions, and package audit and restore-role failures remain unchanged.
+Application checks pass 145 browser and 21 server cases plus the terminal/Python
+journeys. Two browser checks fail: the known copy-clock race and an additional
+contrast failure in unchanged deletion UI, not yet independently qualified.
+Combined coverage and release acceptance remain blocked; these results do not
+establish hosted acceptance or a clean release.
+
+## Release-readiness follow-through
+
+Release repair preserves the execution and accounting owners above. Unpaid
+scheduling fixtures now freeze zero compute liability; pool-only batches seed
+empty worktrees and still use real admission, without unnecessary Git snapshots.
+Teardown drains setup before retiring its tenant. Stream unit tests isolate
+optional sockets and prove notification wakeups with a frozen deadline instead
+of a host-wall latency assertion. The restricted-role installation rehearsal
+grants only the role administration required for database deadlines.
+
+Browser checks wait for their destination and settled descendant transitions,
+and drain routed requests before disposal. Password sign-in uses a fresh
+authenticated document; the assistant waits for hydration and organization
+identity. Shared return-path validation rejects same-origin URLs whose extracted
+`//` pathname would become an external redirect, including MFA completion.
+The fixture operator identity is explicit rather than inherited from `.env`.
+
+Verified on the final production source:
+
+| Gate | Result |
+| --- | --- |
+| Domain and original coverage floors | 2,335 passed; one existing opt-in profile skipped; 215 files |
+| Scheduling/load | 29 passed across five files |
+| Application | 191 distinct browser cases passed across the full run and focused repairs; 15 existing skips; 21 CLI/server cases, real PTY and Python SDK journeys passed |
+| Combined coverage | Lines 73.04%, statements 71.25%, branches 62.97%, functions 60.42%; all five required surfaces and unchanged module/global floors passed |
+| Five SDKs | TypeScript journeys, Python 231/Pyright, Go packages, Rust 22, Java 22 passed |
+| Policy mutation | 93.33%; 70 killed, five survivors, no timeout/error; unchanged 90% gate |
+| Distribution and recovery | Empty-project CLI/SDK installs; restricted-role installation, key rotation, 45-object independent restore and continuation passed |
+| AMD64 native image | All eight CI groups/25 fixture invocations and genuine Hermes warm-Worker lifecycle passed |
+| ARM64 native image | All six module checks/portable continuations and genuine Hermes concurrent/warm-Worker, cancellation and fresh-Host lifecycle passed |
+
+The initial browser run passed 189 cases and failed two stale assertions. Focused reruns on identical production source qualify the corrected animation and scheduling cases; this is not a claim that one complete browser command passed. Scheduling admission retains its documented compact `scheduler_turn`; the authorized Run read and dashboard verify `earlier_worktree_work`. Combined coverage merges these actual observations with the complete green domain run and current-image native observations, enforcing source/build hashes and retaining unmatched mappings without coverage credit.
+
+Migration 061 was applied through the normal migrator to `platform_preview_20260906` after verifying zero active Runs; postflight confirms version 061 and zero active Runs. The preview process, saved data and default image remain preserved. The task-owned PostgreSQL qualification container was removed after every suite exited.
+
+Qualified local Docker artifacts:
+
+- AMD64: `platform-runtime:release-efficiency-v2-20261102`, image ID `sha256:ec978d26e102c699fafc4daa22e7d77ef3ed0e424e2612c5293fb08bf458170d` (2,341,670,154 bytes).
+- ARM64: `platform-runtime:release-efficiency-arm64-20261102`, image ID `sha256:be3514c011bec257f76b033d414fb25aeb0e47360fe4eacbacf143764a10f78b` (2,136,967,517 bytes).
+
+These local image IDs are not published registry manifest digests. Debian 13,
+Python 3.13 and hash-verified security overlays preserve pinned harness code.
+The [dependency review](../../engineering/dependencies.md) records zero critical
+or fixable high image findings on both architectures, 75 retained unfixed OS high
+findings across 17 CVEs, and the five remaining moderate Node findings. No audit
+or coverage gate was relaxed.
+
+AMD64 checks used Docker Desktop's AMD64 support on an ARM64 host; ARM64 checks
+ran natively. These are functional/security checks: earlier performance numbers
+retain their original frozen source/toolchain identities, and no matched timing
+was rerun for these security images. Current-image AMD64 V8 observations map to the
+actual unchanged image bundles; test wrappers receive no application credit.
+Logs, source hashes, audits and previous failures are retained privately under
+`.data/request-efficiency/`. The disk-full and shared-connection-limit attempts
+were invalid infrastructure observations; the final database qualification uses
+a separate disposable PostgreSQL 17 cluster with 500 connections. No production
+capacity setting changed and no paid API calls were made.
+
 ## Activation and reversal
 
-This follow-up has no migration, generated public contract or runtime-image change. Application/worker code follows ordinary release procedures; no hosted deployment was performed. Preserve the existing preview and restart its supervisor only when intentionally activating the new source. The [operator guide](../../features/observability/performance.md) documents independent profiling, trace-content and HTTP-observation flags. To end a capture, set `PERF_PROFILING_ENABLED=false` and restart the affected process; expiry also detaches it automatically. Returning to the original code is a normal code rollback without database reversal. Full tracing and both HTTP observations remain enabled by default when their existing prerequisites are configured.
+The earlier SQL/payload follow-up needs no runtime-image change; the focused
+continuation above does. Build matching application/worker and native-image
+artifacts. Migration 061 is applied to the idle local preview database; hosted
+targets still require it before activating updated pollers. It changes only
+notification eligibility. The existing preview process and default image were
+preserved; selecting the qualified local image and restarting matching processes
+remains an explicit activation step. The [release checklist](../../operations/pre-deployment.md#native-execution-and-persistence)
+owns local image selection, VCR publication/readiness, configured Worker backends,
+and hosted acceptance. Drain old native phase owners through normal lifecycle
+controls before activation. No public contract change or SDK generation is required.
+The [operator guide](../../features/observability/performance.md) owns existing
+profiling/trace/HTTP-observation flags; defaults are preserved. Source rollback
+uses the previous qualified image without database reversal or loss of verified
+checkpoints and financial history.
 
 The earlier local profiling application/PostgreSQL containers, their private network and sampler were removed after verified source bundles and reports were copied out. Shared images, the developer database, unrelated applications and the running preview were preserved. Reproduction commands, topology, artifact digests and cleanup are retained in `.data/remaining-optimizations-linux/setup-and-results.md` and `artifact-manifest.json`; the [testing guide](../../engineering/testing.md) owns reusable profiler/acceptance commands. The later AWS experiment has separate source/result manifests and resource cleanup records under `.data/clean-performance-20261017/`.
 

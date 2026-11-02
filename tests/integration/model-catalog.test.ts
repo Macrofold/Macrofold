@@ -224,7 +224,7 @@ it.each(['missing', 'expired', 'failed'] as const)(
     await transaction(account.p.organizationId, (tx) =>
       credit(tx, account.p.organizationId, 1000000n, `catalog:${id()}`),
     );
-    Object.assign(config, { execution: 'docker', allowPaid: true });
+    Object.assign(config, { execution: 'docker', orchestration: 'poller', allowPaid: true });
     vi.stubEnv('OPENROUTER_API_KEY', 'fixture-only');
     if (state !== 'missing') {
       await refreshModelCatalog(async () => routed(), ['openrouter']);

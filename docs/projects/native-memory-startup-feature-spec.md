@@ -1,6 +1,6 @@
 # Native memory diagnostics and startup efficiency
 
-Status: proposed; design only. No runtime behavior changes are implemented by this project record.
+Status: selected-harness loading is implemented and locally qualified. The current approved scope is reducing request overhead and RAM; the additional diagnostic/profile capabilities below remain separate, unshipped work.
 
 Parent: [project index](README.md). Implementation: [technical design](native-memory-startup-tech-design.md). Tracking: [native memory and startup work](../maintainers/TODO.md#native-memory-and-startup-efficiency).
 
@@ -8,7 +8,7 @@ Parent: [project index](README.md). Implementation: [technical design](native-me
 
 A native OpenCode Run ended with `memory_limit`, after its stream closed without a final answer. Its allocation was 1,024 MiB. The retained model input was 74,138 bytes (about 72 KiB), but no process-level memory samples survived. That input size does not explain the allocation's total memory use, and the evidence does not establish a leak or identify the largest process. The [technical evidence](native-memory-startup-tech-design.md#2-current-flow-and-known-evidence) records the retained timing and request facts.
 
-The current supervisor sums resident memory reported for the allocation's Linux user. This is a safety measurement, not a measurement of unique physical memory: separate processes can share pages. The current native worker also imports all six adapters, including unrelated SDKs, before selecting one harness. This is demonstrably unnecessary dependency loading; its share of the historical failure and startup delay remains unmeasured.
+The supervisor sums resident memory reported for the allocation's Linux user. This is a safety measurement, not a measurement of unique physical memory: separate processes can share pages. The native worker previously imported all six adapters, including unrelated SDKs, before selecting one harness. It now loads only the selected adapter and required SDKs. Matched startup/RSS evidence is in the [technical record](native-memory-startup-tech-design.md#resource-reduction-qualification); it does not establish the historical failure's cause.
 
 The project makes the next failure explainable and removes that unnecessary loading. It does not raise limits to conceal the failure or promise that an OpenCode workload will fit in 1 GiB.
 
@@ -93,6 +93,6 @@ All supported harnesses remain installed in the reusable runtime image. The opti
 
 ## Delivery and decisions
 
-The [technical implementation stages](native-memory-startup-tech-design.md#7-implementation-order) are M0 baseline, M1 shared observations/failure summary, M2 optional capture/transport, M3 lazy loading and M4 qualification/documentation. Implement the entire agreed scope after implementation authorization; the stages are dependency order, not optional replacements for acceptance.
+The [technical implementation stages](native-memory-startup-tech-design.md#7-implementation-order) retain the original diagnostic proposal. The current continuation implements M3 and its M0/M4 measurement/integration work; M1/M2 add investigation capabilities rather than reduce serving overhead and are excluded by the narrowed scope. Existing safety monitoring and the default-off serving profiler are unchanged. Persistent agent-knowledge libraries are unrelated to this RAM project and are not included.
 
 The proposed choices are settled here: reuse the current profiler and transport, keep safety/accounting unchanged, sample PSS sparingly, defer only necessary SDKs and preserve the current bundle layout. Measurements will determine whether memory defaults, deeper OpenCode retention work or native phase scheduling deserve a separate change. None is presumed necessary by this proposal.

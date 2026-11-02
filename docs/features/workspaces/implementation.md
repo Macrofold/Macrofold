@@ -36,6 +36,12 @@ Capture also bounds visited filesystem nodes, including empty directories. Objec
 
 Native upload progress is set-based and independent of the four concurrent transfer slots. Manifests are verified under the existing five-minute storage preparation guard at publication, then checkpoint preparation reuses only that guard's private tenant/key/hash/size proof. Duplicate file content shares manifest preparation within the guard. Proofs are neither persisted nor accepted from the runtime; disposal, expiry or recovery requires verification again. The final short transaction checks the guard, execution ownership and unchanged Worktree revision before publishing files and native Session state.
 
+Runtime capture reuses one four-MiB buffer per capture, awaiting each hash/write
+before reuse. Restore inventory pages hold 128 file metadata records, reducing
+phase/transaction overhead for many small files. This does not increase decoded
+transfer bytes, object-read concurrency or checkpoint limits; revision checks and
+verified progress remain unchanged.
+
 Manifest candidates are fully verified before their content-addressed key is written. A malformed candidate cannot overwrite an older verified checkpoint manifest and only then fail integrity checking. Small stored objects already fitting one chunk retain their existing verified chunk identity during restore preparation.
 
 Editing or uploading replacement content preserves an existing regular file's mode, including its executable bit in Git. Replacing a symlink with an ordinary file does not inherit the symlink's permissions.

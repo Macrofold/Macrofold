@@ -18,6 +18,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { assistantGuidance, type AssistantGuidance } from '../lib/dashboard-assistant';
 import { CopyButton } from './copy-button';
 import { docsRepository } from '../lib/docs/settings';
+import { useHydrated } from '../lib/use-hydrated';
 import { Button } from './ui';
 import './dashboard-assistant.css';
 
@@ -25,10 +26,11 @@ type Exchange = { question: string; guidance: AssistantGuidance };
 
 export function DashboardAssistant({ organizationId }: { organizationId?: string }) {
   // Remount the local conversation before any new organization can display it.
-  return <AssistantPanel key={organizationId ?? 'pending-organization'} />;
+  return <AssistantPanel key={organizationId ?? 'pending-organization'} ready={!!organizationId} />;
 }
 
-function AssistantPanel() {
+function AssistantPanel({ ready }: { ready: boolean }) {
+  const hydrated = useHydrated();
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
@@ -83,7 +85,7 @@ function AssistantPanel() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button type="button" className="assistant-launcher">
+        <button type="button" className="assistant-launcher" disabled={!hydrated || !ready}>
           <MessageCircle size={17} aria-hidden="true" />
           <span>Ask Macrofold</span>
           <span className="assistant-launcher-dot" aria-hidden="true" />

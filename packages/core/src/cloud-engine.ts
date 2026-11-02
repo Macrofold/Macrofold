@@ -36,6 +36,7 @@ import {
 } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
 import { queueRetryAt } from './queue-wait';
+import { NATIVE_QUESTION_WAIT_SECONDS } from './run-control-wakeup';
 import { mapConcurrent } from './concurrent';
 import type { DispatchClass } from './capacity';
 
@@ -85,6 +86,8 @@ export type ExecutionState = {
   snapshotId?: string;
   lock?: string;
   lockExpires?: number;
+  /** Only an idle quiet probe may be accelerated by a new caller control. */
+  controlWait?: true;
   failures?: number;
   advances?: number;
   recoveryBlocked?: boolean;
@@ -253,6 +256,7 @@ export async function advanceCloudRun(
       return 'done' as const;
     if (state.lock && (state.lockExpires || 0) > Date.now()) return 'busy' as const;
     state = { ...state, lock: claim, lockExpires: Date.now() + PHASE_LEASE_MS };
+    delete state.controlWait;
     await tx.query('UPDATE runs SET execution_binding=$2,heartbeat_at=now() WHERE id=$1', [
       runId,
       JSON.stringify(state),
@@ -269,6 +273,11 @@ export async function advanceCloudRun(
       canContinue: false,
     };
   if (context) context.run = run;
+  const observedControl = {
+    cancelled: run.cancel_requested,
+    inputId: run.input_request?.id ?? null,
+    answered: Boolean(run.input_request?.answer),
+  };
   const phase = state.phase;
   const stopStorageTiming = ['input', 'hydrate', 'restore', 'restore_wait'].includes(phase)
     ? startPerformanceStage('storage.restore')
@@ -282,6 +291,7 @@ export async function advanceCloudRun(
   let delaySeconds = 0;
   let committed = false;
   let canContinue = true;
+  let waitingForAnswer = false;
   try {
     state.advances = (state.advances || 0) + 1;
     // Deadline/counter ceilings survive restarts and successful-but-stalled polls.
@@ -484,8 +494,12 @@ export async function advanceCloudRun(
           ),
         );
       }
+      // A human response may take minutes. Do not occupy a control slot with
+      // an event wait while it is unanswered; committed controls wake the job.
+      waitingForAnswer = !stopping && run.status === 'waiting_for_input' && !run.input_request?.answer;
+      const probe = waitingForAnswer ? provider.probe : (provider.waitForEvents ?? provider.probe);
       const result = await observeWorkerStep('native_probe', { organization_id: org, run_id: runId }, () =>
-        (provider.waitForEvents ?? provider.probe).call(provider, state.machine!, state.eventOffset || 0),
+        probe.call(provider, state.machine!, state.eventOffset || 0),
       );
       // A quiet native wait yields its slot so a large active population does
       // not hold every control slot for the entire continuation quantum.
@@ -567,6 +581,8 @@ export async function advanceCloudRun(
           );
           await emit(tx, org, runId, 'run.persisting', {}, { id: 'lifecycle', sequence: 2 });
         });
+      } else if (waitingForAnswer) {
+        if (!result.events.length && !result.result) delaySeconds = NATIVE_QUESTION_WAIT_SECONDS;
       } else if (!result.result && !provider.waitForEvents) delaySeconds = 2;
     } else if (state.phase === 'index') {
       const page = await provider.snapshotPage(state.machine!, state.indexOffset || 0);
@@ -714,6 +730,10 @@ export async function advanceCloudRun(
       delaySeconds === 0 &&
       canContinue &&
       Boolean(context?.retainReady?.(phaseDispatchClass[state.phase]));
+    const controlWait =
+      !retained && waitingForAnswer && state.phase === 'poll' && state.failures === 0 && !canContinue;
+    if (controlWait) state.controlWait = true;
+    else delete state.controlWait;
     // Publish the phase and its due time together. A retained local quantum keeps
     // the normal crash backoff; making every ready phase due would let another
     // poller steal it between local handoffs. Real waits/yields remain durable.
@@ -723,12 +743,15 @@ export async function advanceCloudRun(
           await tx.query(
             `WITH updated AS (
           UPDATE runs SET execution_binding=$2::jsonb||jsonb_build_object('eventOffset',greatest(coalesce((execution_binding->>'eventOffset')::bigint,0),coalesce(($2::jsonb->>'eventOffset')::bigint,0))),heartbeat_at=now()
-          WHERE id=$1 AND execution_binding->>'lock'=$3 RETURNING id
+          WHERE id=$1 AND execution_binding->>'lock'=$3
+          RETURNING id,(cancel_requested AND NOT $7::boolean) OR
+            (input_request->'answer' IS NOT NULL AND (NOT $9::boolean OR input_request->>'id' IS DISTINCT FROM $8::text)) AS control_changed
         ), renewed AS (
           UPDATE dispatch_jobs SET state=CASE WHEN $4::text='done' THEN 'done' ELSE state END,
             lease_until=CASE WHEN $4::text='done' THEN NULL ELSE now()+interval '5 minutes' END,
             failure_attempts=0,error=NULL,
-            available_at=clock_timestamp()+($5::double precision*interval '1 second')
+            available_at=clock_timestamp()+
+              (CASE WHEN $6::boolean AND (SELECT control_changed FROM updated) THEN 0 ELSE $5::double precision END*interval '1 second')
           WHERE kind='run' AND resource_id IN(SELECT id FROM updated) AND state IN('pending','running') AND $4::text IS NOT NULL
           RETURNING id
         ) SELECT id FROM updated`,
@@ -738,6 +761,13 @@ export async function advanceCloudRun(
               claim,
               state.recoveryBlocked ? null : state.phase === 'done' ? 'done' : 'running',
               retained ? PHASE_LEASE_MS / 1000 : delaySeconds,
+              // Controls committed during provider I/O must not be lost when
+              // this owner publishes its ordinary quiet wait. Retained local
+              // phases already recheck controls; real failures retain backoff.
+              controlWait,
+              observedControl.cancelled,
+              observedControl.inputId,
+              observedControl.answered,
             ],
           )
         ).rowCount,

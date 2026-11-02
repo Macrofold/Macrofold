@@ -1,5 +1,5 @@
 import { afterAll, afterEach, expect, it, vi } from 'vitest';
-import { pool, authPool, credentialPool, transaction } from '../../packages/db';
+import { pool, authPool, credentialPool, transaction, lock, type Tx } from '../../packages/db';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { FaultMachine } from '../fixtures/cloud-machine';
 import { CloudDispatcher } from '../../packages/core/src/portable-dispatch';
@@ -12,11 +12,17 @@ import { createKey } from '../../packages/core/src/keys';
 import { credit } from '../../packages/core/src/ledger';
 import { config } from '../../packages/core/src/config';
 import { claimRun } from '../../packages/core/src/engine';
-import { queueObservations } from '../../packages/core/src/scheduling';
+import {
+  queueObservations,
+  pendingRunCandidates,
+  pendingRunFrontier,
+  schedulerTurn,
+} from '../../packages/core/src/scheduling';
 import * as resources from '../../packages/core/src/resources';
 import { decisionExample } from '../../examples/decisions/contracts';
 import { dispatchLimits } from '../../packages/core/src/capacity';
 const accounts: string[] = [];
+const setups = new Set<Promise<unknown>>();
 const originalPaid = config.allowPaid;
 function barrier() {
   let release!: () => void;
@@ -26,6 +32,9 @@ function barrier() {
   return { promise, release };
 }
 afterEach(async () => {
+  // Vitest timeouts do not cancel async setup. Drain the complete batch before
+  // retiring its tenant, or late admissions can block later files' fair heads.
+  await Promise.allSettled([...setups]);
   for (const org of accounts.splice(0)) await retireFixtureRuns(org);
   config.allowPaid = originalPaid;
   vi.restoreAllMocks();
@@ -36,6 +45,9 @@ afterAll(async () => {
   await Promise.all([pool.end(), authPool.end(), credentialPool.end()]);
 });
 async function fixture() {
+  // The scripted machine has no purchased compute; match simulator admission's
+  // zero financial liability when exercising the actual cloud finalizer.
+  vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '0');
   const { p } = await fixtureAccount('Independent poller');
   accounts.push(p.organizationId);
   const workspace = await transaction(p.organizationId, async (tx) => {
@@ -43,19 +55,104 @@ async function fixture() {
     await tx.query("UPDATE organizations SET plan='scale' WHERE id=$1", [p.organizationId]);
     return resources.create(tx, 'workspaces', p.organizationId, { name: 'Poller fixture' });
   });
-  const native = async () =>
+  const admitNative = (tx: Tx, worktreeId: string) =>
+    admitRun(tx, p, {
+      worktree_id: worktreeId,
+      harness: 'codex',
+      model: 'fixture-model',
+      billing_mode: 'managed',
+      prompt: 'Synthetic queue fixture',
+    });
+  const native = () =>
     transaction(p.organizationId, async (tx) => {
       const worktree = await createWorktree(tx, p, workspace.id, {});
-      return admitRun(tx, p, {
-        worktree_id: worktree.result.worktree_id,
-        harness: 'codex',
-        model: 'fixture-model',
-        billing_mode: 'managed',
-        prompt: 'Synthetic queue fixture',
-      });
+      return admitNative(tx, worktree.result.worktree_id);
     });
-  return { p, workspace, native, get: (id: string) => transaction(p.organizationId, (tx) => getRun(tx, id)) };
+  const nativeBatch = (count: number) => {
+    const setup = transaction(p.organizationId, async (tx) => {
+      const runs: Awaited<ReturnType<typeof admitNative>>[] = [];
+      for (let i = 0; i < count; i++) {
+        // These pool-only cases stub execution. Empty named worktrees retain
+        // real admission/ownership checks without repeated Git/ref preparation.
+        const worktree = await resources.create(tx, 'worktrees', p.organizationId, {
+          workspace_id: workspace.id,
+          name: `Pool fixture ${i}`,
+          branch: 'main',
+          status: 'idle',
+          deleted: false,
+          files: [],
+          git_files: [],
+        });
+        runs.push(await admitNative(tx, worktree.id));
+      }
+      return runs;
+    });
+    setups.add(setup);
+    return setup.finally(() => setups.delete(setup));
+  };
+  return {
+    p,
+    workspace,
+    native,
+    nativeBatch,
+    get: (id: string) => transaction(p.organizationId, (tx) => getRun(tx, id)),
+  };
 }
+
+it('discovers only current fair admission heads while retaining independent classes and cleanup', async () => {
+  const first = await fixture(),
+    second = await fixture();
+  config.allowPaid = true;
+  vi.stubEnv('ANTHROPIC_API_KEY', 'fixture-only');
+  const native = [await first.native(), await second.native(), await first.native()];
+  for (const f of [first, second, first])
+    await transaction(f.p.organizationId, async (tx) => {
+      const key = await createKey(tx, f.p, {
+        name: 'Frontier fixture',
+        workspace_id: f.workspace.id,
+        scopes: ['runs:read', 'runs:write'],
+      });
+      return admitInference(
+        tx,
+        { ...f.p, id: key.id, kind: 'api_key', workspaceIds: [f.workspace.id], scopes: key.scopes },
+        decisionExample(f.workspace.id, 'triage'),
+      );
+    });
+  const cancelled = await first.native(),
+    expired = await second.native();
+  await transaction(first.p.organizationId, (tx) =>
+    tx.query('UPDATE runs SET cancel_requested=true WHERE id=$1', [cancelled.run_id]),
+  );
+  await transaction(second.p.organizationId, (tx) =>
+    tx.query("UPDATE runs SET queue_expires_at=now()-interval '1 second' WHERE id=$1", [expired.run_id]),
+  );
+  const turn = (kind: 'native' | 'inference') =>
+    transaction(null, async (tx) => {
+      await lock(tx, 'capacity:global');
+      return schedulerTurn(tx, kind);
+    });
+  const expectedNative = await turn('native'),
+    expectedInference = await turn('inference');
+  const frontier = await pendingRunFrontier();
+  expect(frontier.map((row) => row.resource_id)).toEqual(
+    expect.arrayContaining([cancelled.run_id, expired.run_id, expectedNative?.id, expectedInference?.id]),
+  );
+  expect(frontier).toHaveLength(4);
+  expect(await pendingRunFrontier(100, 'native')).toHaveLength(3);
+  expect(await pendingRunFrontier(100, 'inference')).toHaveLength(1);
+  // Workflow/local batch callers retain prospective hints; only the portable
+  // lease path must not capture future turns before the current head starts.
+  expect(await pendingRunCandidates()).toHaveLength(8);
+  if (!expectedNative) throw new Error('The native fixture must have an eligible head.');
+  const owner = native.find((run) => run.run_id === expectedNative.id)?.run_id;
+  expect(owner).toBeDefined();
+  const organization = frontier.find((row) => row.resource_id === owner)?.organization_id;
+  if (!organization || !owner) throw new Error('The current head must retain its organization identity.');
+  expect(await claimRun(organization, owner)).not.toBeNull();
+  const following = await pendingRunFrontier(100, 'native');
+  expect(following.map((row) => row.resource_id)).not.toContain(owner);
+  expect(following).toHaveLength(3);
+});
 
 it('enforces separate fleet ceilings without blocking the other execution class', async () => {
   const f = await fixture();
@@ -346,7 +443,7 @@ it('rereads cancellation during retained work and preserves its checkpoint acros
 
 it('can fill more than twenty phase slots without exceeding the configured pool', async () => {
   const f = await fixture();
-  for (let i = 0; i < 26; i++) await f.native();
+  await f.nativeBatch(26);
   const gate = barrier();
   const advance = vi.spyOn(cloudEngine, 'advanceCloudRun').mockImplementation(async () => {
     await gate.promise;
@@ -382,8 +479,7 @@ it.each([
     limit = dispatchLimits()[resource];
   vi.stubEnv('GLOBAL_CONCURRENT_RUN_LIMIT', '1000');
   vi.stubEnv('NATIVE_CONCURRENT_RUN_LIMIT', '1000');
-  const ids: string[] = [];
-  for (let i = 0; i <= limit; i++) ids.push((await f.native()).run_id);
+  const ids = (await f.nativeBatch(limit + 1)).map((run) => run.run_id);
   if (phase)
     await transaction(f.p.organizationId, async (tx) => {
       await tx.query("UPDATE runs SET status='running',execution_binding=$2 WHERE id=ANY($1::uuid[])", [

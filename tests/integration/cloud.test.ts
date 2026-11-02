@@ -129,9 +129,9 @@ describe('prepared native phase advancement', () => {
       nextOffset: offset,
       status: { state: 'running' },
       result: null,
-      input:
-        control === 'answer' ? { id: 'wake-question', question: 'Synthetic question', details: {} } : null,
+      input: { id: 'wake-question', question: 'Synthetic question', details: {} },
     }));
+    await advanceCloudRun(s.org, s.runId, provider);
     await advanceCloudRun(s.org, s.runId, provider);
     const apply = () =>
       transaction(s.org, (tx) =>
@@ -176,6 +176,79 @@ describe('prepared native phase advancement', () => {
     },
   );
 
+  it.each(['quiet', 'output', 'terminal'] as const)(
+    'releases the control slot for an unanswered question with %s readiness',
+    async (readiness) => {
+      const fixture = await idleControl('answer');
+      const wait = vi.fn(async () => {
+        throw new Error('Unanswered questions must not occupy a long-poll slot');
+      });
+      Object.assign(fixture.provider, { waitForEvents: wait });
+      if (readiness === 'output')
+        vi.mocked(fixture.provider.probe).mockImplementationOnce(async (_binding, offset) => ({
+          events: [{ sequence: 1, type: 'output.delta', data: { text: 'Question-side output' } }],
+          nextOffset: offset + 1,
+          status: { state: 'running' },
+          input: { id: 'wake-question', question: 'Synthetic question', details: {} },
+          result: null,
+        }));
+      if (readiness === 'terminal') {
+        const completed = await FaultMachine.prototype.probe.call(
+          fixture.provider,
+          { name: 'fixture', sessionId: fixture.s.runId, createdAt: new Date().toISOString() },
+          100,
+        );
+        vi.mocked(fixture.provider.probe).mockResolvedValueOnce(completed);
+      }
+      const result = await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+      expect(wait).not.toHaveBeenCalled();
+      expect(result.delaySeconds).toBe(readiness === 'quiet' ? 1 : 0);
+      if (readiness === 'output') {
+        const events = await transaction(
+          fixture.s.org,
+          async (tx) =>
+            (
+              await tx.query(
+                "SELECT data->>'text' AS text FROM run_events WHERE run_id=$1 AND type='output.delta'",
+                [fixture.s.runId],
+              )
+            ).rows,
+        );
+        expect(events).toContainEqual({ text: 'Question-side output' });
+      }
+      if (readiness === 'terminal')
+        expect(
+          (await transaction(fixture.s.org, (tx) => getRun(tx, fixture.s.runId))).execution_binding?.phase,
+        ).toBe('index');
+    },
+  );
+
+  it.each(['running', 'answered', 'cancelled'] as const)(
+    'keeps the native event wait for a %s Run',
+    async (condition) => {
+      const fixture = await idleControl('answer');
+      if (condition === 'running')
+        await transaction(fixture.s.org, (tx) =>
+          tx.query("UPDATE runs SET status='running',input_request=NULL WHERE id=$1", [fixture.s.runId]),
+        );
+      else if (condition === 'answered') await fixture.apply();
+      else await transaction(fixture.s.org, (tx) => cancelRun(tx, fixture.s.p, fixture.s.runId));
+      const wait = vi.fn<FaultMachine['probe']>(async (_binding, offset) => ({
+        events: [],
+        nextOffset: offset,
+        status: { state: 'running' },
+        input: null,
+        result: null,
+      }));
+      Object.assign(fixture.provider, { waitForEvents: wait });
+      vi.mocked(fixture.provider.probe).mockClear();
+      await advanceCloudRun(fixture.s.org, fixture.s.runId, fixture.provider);
+      expect(wait).toHaveBeenCalledOnce();
+      expect(fixture.provider.probe).not.toHaveBeenCalled();
+      if (condition === 'cancelled') expect(fixture.provider.cancellations).toBe(1);
+    },
+  );
+
   it.each(['answer', 'cancel'] as const)(
     'preserves a %s arriving during a live quiet probe',
     async (control) => {
@@ -213,7 +286,7 @@ describe('prepared native phase advancement', () => {
     },
   );
 
-  it.each(['error', 'phase_failure', 'blocked', 'retained_phase'] as const)(
+  it.each(['error', 'phase_failure', 'blocked', 'retained_phase', 'dispatch_claim'] as const)(
     'does not shorten native control recovery or a %s',
     async (condition) => {
       const fixture = await idleControl('cancel');
@@ -234,6 +307,11 @@ describe('prepared native phase advancement', () => {
             fixture.s.runId,
             JSON.stringify({ lock: id(), lockExpires: Date.now() + 120_000 }),
           ]);
+        if (condition === 'dispatch_claim')
+          await tx.query(
+            "UPDATE dispatch_jobs SET available_at=clock_timestamp()+interval '2 minutes' WHERE resource_id=$1",
+            [fixture.s.runId],
+          );
       });
       const before = await fixture.job();
       await fixture.apply();

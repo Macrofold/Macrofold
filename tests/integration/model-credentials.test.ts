@@ -9,7 +9,7 @@ import {
   modelCredentialQuery,
 } from '../../packages/core/src/model-credentials';
 import { prepareInference } from '../../packages/core/src/inferences';
-import { refreshModelCatalog } from '../../packages/core/src/model-catalog';
+import { refreshModelCatalog, type CatalogCacheRow } from '../../packages/core/src/model-catalog';
 import * as resources from '../../packages/core/src/resources';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 
@@ -17,6 +17,7 @@ let account: Awaited<ReturnType<typeof fixtureAccount>>;
 let ownerId: string;
 const originalPaid = config.allowPaid;
 const originalExecution = config.execution;
+const originalOrchestration = config.orchestration;
 beforeAll(async () => {
   account = await fixtureAccount('Credential guard fixture');
   ownerId = account.p.userId ?? account.p.id;
@@ -27,13 +28,11 @@ beforeAll(async () => {
 afterEach(async () => {
   config.allowPaid = originalPaid;
   config.execution = originalExecution;
+  config.orchestration = originalOrchestration;
   vi.unstubAllEnvs();
   await retireFixtureRuns(account.p.organizationId);
   await transaction(account.p.organizationId, (tx) =>
     tx.query('UPDATE api_keys SET revoked_at=NULL WHERE key_hash=$1', [sha256(account.key)]),
-  );
-  await pool.query(
-    "UPDATE model_catalog_cache SET models=NULL,fetched_at=NULL,refresh_after=now()+interval '1 day' WHERE provider='openrouter'",
   );
 });
 afterAll(() => Promise.all([pool.end(), authPool.end(), credentialPool.end()]));
@@ -90,6 +89,10 @@ it('projects only exact credential fields and preserves tenant, owner and provid
     expect(Buffer.byteLength(JSON.stringify(legacy))).toBeGreaterThan(262144);
     expect(Buffer.byteLength(JSON.stringify(result.rows[0]))).toBeLessThan(512);
     expect(modelCredentialFromResult(ownerId, binding(saved.id), result)).toBe('fixture-customer-key');
+    expect(modelCredentialFromResult(ownerId, binding(saved.id.toUpperCase()), result)).toBe(
+      'fixture-customer-key',
+    );
+    expect(await modelCredential(tx, ownerId, binding(saved.id.toUpperCase()))).toBe('fixture-customer-key');
     expect(() => modelCredentialFromResult('other-owner', binding(saved.id), result)).toThrowError(
       expect.objectContaining({ code: 'credentials_unavailable' }),
     );
@@ -129,45 +132,76 @@ it('does not read a connection for managed funding or substitute it for unavaila
 });
 
 it('retains the exact routed BYOK binding when the guard group also checks catalog terms', async () => {
-  config.allowPaid = true;
-  config.execution = 'docker';
-  const principal = await apiPrincipal();
-  const saved = await connection('openrouter');
-  await refreshModelCatalog(
-    async () => [
-      {
-        id: 'openai/gpt-5.4-mini',
-        name: 'Credential catalog fixture',
-        tools: true,
-        context_tokens: 128000,
-        output_tokens: 8192,
-        text: true,
-        pricing: { prompt: '0.00000075', completion: '0.0000045', request: '0' },
-      },
-    ],
-    ['openrouter'],
-  );
-  const prepared = await prepareInference(
-    principal,
-    {
-      model_binding: {
-        provider: 'openrouter',
-        model: 'openai/gpt-5.4-mini',
-        billing_mode: 'byok',
-        provider_connection_id: saved.id,
-      },
-      input: { messages: [{ role: 'user', content: 'No provider request' }] },
-      limits: { timeout_seconds: 20, max_output_tokens: 32, max_cost_micro_usd: '50000' },
-    },
-    'inference',
-    true,
-  );
+  type Snapshot = CatalogCacheRow & { revision: string; refresh_token: string | null };
+  const snapshot = (
+    await pool.query<Snapshot>("SELECT * FROM model_catalog_cache WHERE provider='openrouter'")
+  ).rows[0];
+  if (!snapshot) throw new Error('The migrated fixture must contain the OpenRouter catalog row.');
   try {
-    await transaction(account.p.organizationId, (tx) => prepared.commit(tx, principal));
-    expect(prepared.inferencePermit?.()?.secret).toBe('fixture-customer-key');
+    config.allowPaid = true;
+    config.execution = 'docker';
+    config.orchestration = 'poller';
+    const principal = await apiPrincipal();
+    const saved = await connection('openrouter');
+    await pool.query("UPDATE model_catalog_cache SET refresh_after=now() WHERE provider='openrouter'");
+    await refreshModelCatalog(
+      async () => [
+        {
+          id: 'openai/gpt-5.4-mini',
+          name: 'Credential catalog fixture',
+          tools: true,
+          context_tokens: 128000,
+          output_tokens: 8192,
+          text: true,
+          pricing: { prompt: '0.00000075', completion: '0.0000045', request: '0' },
+        },
+      ],
+      ['openrouter'],
+    );
+    const prepared = await prepareInference(
+      principal,
+      {
+        model_binding: {
+          provider: 'openrouter',
+          model: 'openai/gpt-5.4-mini',
+          billing_mode: 'byok',
+          provider_connection_id: saved.id,
+        },
+        input: { messages: [{ role: 'user', content: 'No provider request' }] },
+        limits: { timeout_seconds: 20, max_output_tokens: 32, max_cost_micro_usd: '50000' },
+      },
+      'inference',
+      true,
+    );
+    try {
+      await transaction(account.p.organizationId, (tx) => prepared.commit(tx, principal));
+      expect(prepared.inferencePermit?.()?.secret).toBe('fixture-customer-key');
+    } finally {
+      await prepared.dispose();
+    }
   } finally {
-    await prepared.dispose();
+    // Restore global metadata even when preparation/admission fails. Updating
+    // models rotates revision, so restore its identity in the same transaction.
+    await transaction(null, async (tx) => {
+      await tx.query(
+        `UPDATE model_catalog_cache SET models=$1::jsonb,fetched_at=$2,refresh_after=$3,
+          refresh_token=$4,last_error=$5 WHERE provider='openrouter'`,
+        [
+          snapshot.models === null ? null : JSON.stringify(snapshot.models),
+          snapshot.fetched_at,
+          snapshot.refresh_after,
+          snapshot.refresh_token,
+          snapshot.last_error,
+        ],
+      );
+      await tx.query("UPDATE model_catalog_cache SET revision=$1 WHERE provider='openrouter'", [
+        snapshot.revision,
+      ]);
+    });
   }
+  expect(
+    (await pool.query<Snapshot>("SELECT * FROM model_catalog_cache WHERE provider='openrouter'")).rows[0],
+  ).toEqual(snapshot);
 });
 
 it.each(['rotate', 'disconnect', 'key_revocation'] as const)(

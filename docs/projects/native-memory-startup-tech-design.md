@@ -1,6 +1,6 @@
 # Native memory diagnostics and startup efficiency: technical design
 
-Status: proposed; implementation has not started under this design.
+Status: selected loading and local resource-reduction qualification are implemented. The additional failure-summary/native-profile design remains separate from the current overhead-only scope.
 
 Parent: [project index](README.md). Behavior/acceptance: [feature specification](native-memory-startup-feature-spec.md). Work: [maintainer tracker](../maintainers/TODO.md#native-memory-and-startup-efficiency).
 
@@ -350,9 +350,51 @@ Use a deterministic upstream delay long enough to retain multiple samples, and s
 
 Compare before/after with the same observer mode to establish startup savings; compare on/off within the same build to establish observer cost. Use the existing isolated load harness for the profiler's 1%-CPU and full-sampling latency budgets; a handful of native turns cannot qualify high-traffic CPU overhead. If no trustworthy baseline or clean machine is available, mark the affected result unverified instead of substituting local noise or mathematical estimates.
 
+### Resource-reduction qualification
+
+The overhead-only branch starts at main `0101368a`, extracting the small selected
+loader/factory changes rather than importing the separate diagnostic or optional
+agent-knowledge implementation. Build metadata rejects eager exclusive SDK/MCP
+imports. Actual image checks prove the selected SDK boundary and normal file,
+checkpoint and fresh-container continuation behavior for all six harnesses.
+
+The matched ARM64 Docker Desktop comparison uses the same pinned dependencies,
+two CPUs / 4 GiB, network-disabled containers and synthetic model transports.
+Baseline image `sha256:fcbdf54a1a460c1f71a4e39609503e4c40d50b39e09678c3ae6a72cd7daed68c`
+and candidate `sha256:8a1276e6995aa17e8edbeec39a1f3b14d99403c60ec5a028dd7a057d82b5a2d5`
+bake their actual sources; no runtime source mounts substitute for the image.
+All **160 turns** succeed with captured persistence. First calls and every full
+interval remain in `.data/request-efficiency/lazy/`, including the fixture/image
+identities, environment, raw per-harness JSON and `matched-summary.json`.
+
+| Harness  | Cold / warm samples per image | Cold first-model mean / p95, before → after | Observed RSS cold / warm means, before → after |
+| -------- | ----------------------------: | ------------------------------------------: | ---------------------------------------------: |
+| OpenCode |                       20 / 30 |    3,098.9 / 3,746.6 → 2,212.7 / 2,604.9 ms |              791.9 / 653.9 → 665.8 / 613.7 MiB |
+| Claude   |                        5 / 10 |        1,174.4 / 1,345.7 → 495.9 / 612.7 ms |              424.2 / 398.0 → 315.2 / 321.4 MiB |
+| Pi       |                        5 / 10 |          913.0 / 1,059.6 → 708.8 / 873.8 ms |              204.6 / 180.9 → 169.7 / 152.4 MiB |
+
+Cold means a fresh native process in a retained container with warmed image/OS
+caches. Controller readiness is separately observed; provider waits average
+approximately 2,507–2,515 ms and are not Macrofold startup overhead. The same
+test-only 250-ms UID RSS sampler runs in both conditions. RSS sums can double-count
+shared pages and exclude controller/kernel memory; PSS is not measured. No new
+production profiler, scan, limit or billing policy is introduced.
+
+Warm misses remain visible: Claude first-model mean rises 18.68→24.75 ms and p95
+30.57→79.94 ms; Pi complete-turn mean rises 2,603.9→2,604.5 ms and p95
+2,618→2,627 ms. These small shared-host cohorts do not establish a strict warm
+latency regression or an SLA. Fresh-container continuation and actual module
+loading establish lifecycle correctness; the comparison establishes local cold
+startup/RSS savings, not a hosted speedup, leak diagnosis or 1-GiB sizing promise.
+
 ### Completion and rollout
 
-Link evidence for N1–N7. Build matching application/runtime artifacts and coordinate activation through normal Host lifecycle controls while preserving the shared preview. With no users, no migrations, dual-format readers or rolling-version negotiation are required. Isolated test fixtures may be recreated. Verify the complete image, not just a source overlay; report local versus hosted results separately. A rollback uses the previous qualified image and disables optional capture, leaving safety enforcement active.
+N4/N5 and the local loading portion of N6 are qualified above; N1–N3 remain the
+separate diagnostic scope. Build the clean release image and coordinate matching
+application/worker activation through normal Host lifecycle controls, preserving
+the preview and verified checkpoints. No migration or compatibility reader is
+needed for selected loading. The local comparison image layers actual bundles
+over installed pinned dependencies; it is not clean-release or hosted acceptance.
 
 ## 9. Deliberate deferrals and evidence triggers
 
@@ -366,4 +408,6 @@ Link evidence for N1–N7. Build matching application/runtime artifacts and coor
 | Native queue/phase handoff changes | Existing [scheduling project](native-scheduling-latency.md); remaining hosted/tail acceptance belongs there. |
 | Deeper publisher-runtime tuning | Requires evidence after unused loading is removed. Preserve upstream APIs and native session semantics; do not assume a leak from a large RSS sum. |
 
-No unanswered product decision blocks this proposal. Real memory savings, observer cost, the adequate allocation size and provider-specific hosted behavior remain measurements to establish during implementation, not claims this design can supply.
+Matched local startup/RSS savings are recorded above. Observer expansion, an
+adequate allocation size for representative workloads and provider-specific
+hosted behavior remain separate; the measured gains do not supply those claims.

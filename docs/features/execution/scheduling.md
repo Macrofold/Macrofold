@@ -75,11 +75,14 @@ Account plan/concurrency/timeout changes also emit a committed hint; unchanged
 limits and unrelated account metadata remain silent. Raising a cap does not
 require another Run to finish or the periodic fallback before rediscovery.
 
-For the standalone poller, a committed native answer or cancellation makes a
-healthy idle quiet-probe job due immediately. Controls arriving during a live
-probe are retained by its fenced publication. This never steals a live phase,
-shortens failure backoff or replaces a retained local quantum. Workflow's bounded
-sleep and an already-running provider operation remain separate waits.
+For the standalone poller, an unanswered native question releases its control
+slot through a one-second durable wait instead of holding a long poll. Committed
+answers or cancellation while awaiting input make that healthy quiet job due.
+Fenced publication preserves controls arriving during the immediate probe;
+live phases, retained quanta, dispatcher claims and failure backoff remain intact.
+Ordinary output keeps event-watching long polls. Incidental output while waiting
+for a human may take roughly 1–1.75 seconds; native control consumption still uses
+the supervisor's 500-ms timer, independently of controller delivery.
 
 Each pool discovers work independently, so a slow query cannot hold another
 pool's later refill. Already-running transfer/control phases skip queued
@@ -91,6 +94,12 @@ The existing SQL claim still determines fair organization turns and capacity;
 provider/model execution does not hold the local admission turn. After a losing
 cloud admission claim, only its exact pending dispatcher lease is released,
 without immediately loading the request and attempting the same admission again.
+Before leasing pending jobs, cloud pollers select only the current fair head of
+each execution class through the shared scheduler. This avoids splitting future
+turns between pollers that repeatedly lose admission locks. Successful admission
+signals immediate refill before provider completion; running phases and queued
+cleanup remain independently concurrent. Workflow/simulator batch discovery keeps
+its existing prospective hints and is not qualified by this poller optimization.
 
 Ready native phases may exchange their local slot for a free next-class
 slot within one bounded sixteen-advance/five-second quantum; full targets and
@@ -98,8 +107,8 @@ real waits yield to SQL. Phase state and its next due time publish atomically.
 Retained local work keeps its crash backoff instead of being immediately stolen
 by another poller. Every advance freshly claims current cancellation, deadline,
 generation and phase ownership; only immutable accepted configuration is reused.
-Local refill signals follow slot release or a handoff that frees the old pool;
-merely consuming a slot does not wake another discovery sweep.
+Local refill signals follow successful pending admission, slot release or a
+handoff that frees the old pool; an ordinary running advance adds no extra sweep.
 
 The simulator uses [LocalDispatcher](../../../packages/core/src/local-dispatch.ts) with separate inference and native/control pools. Only its short admission is sequential; executions remain asynchronous. Workflow starts take up to 100 candidate jobs and issue at most 16 start acknowledgements concurrently; admission remains SQL-coordinated. Workflow steps themselves are scheduled by the hosting platform, not the standalone process pools. All execution paths share fleet/account/Worker admission.
 

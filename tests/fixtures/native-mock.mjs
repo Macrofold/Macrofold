@@ -52,6 +52,7 @@ const duration = permissionMode || mediaMode ? 120_000 : 60_000;
 const cancellation = process.argv[3] === 'cancel';
 const failureMode = cancellation || process.argv[3] === 'failure';
 let answered = 0;
+let questionId;
 const fixture = nativeModelFixture({
   questionMode,
   toolMode,
@@ -147,6 +148,7 @@ const answering = setInterval(async () => {
   try {
     const input = JSON.parse(await readFile('/platform-control/input.json', 'utf8'));
     if (!answered) {
+      questionId = input.id;
       await writeFile(
         '/platform-control/answer.json',
         JSON.stringify({ id: input.id, answer: { text: 'Continue with the saved note' } }),
@@ -162,6 +164,11 @@ await new Promise((resolve) => child.on('exit', resolve));
 clearInterval(answering);
 if (questionMode) {
   assert.equal(answered, 1, 'Interactive question must reach the supervisor');
+  assert.match(
+    questionId,
+    /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i,
+    'Native questions must expose a public UUID, not the vendor request ID',
+  );
   assert(
     observed.some((o) => o.hasAnswer),
     'Answer must return to the native model conversation',

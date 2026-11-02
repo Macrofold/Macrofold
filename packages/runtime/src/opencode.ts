@@ -1,4 +1,5 @@
 import { fileAccess, questionsAllowed } from '../../contracts/permissions';
+import { randomUUID } from 'node:crypto';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { openCodePermissionSettings } from './permission-settings';
@@ -190,7 +191,7 @@ class OpenCodeAdapter implements HarnessAdapter {
               sessionID: string;
               questions: { question: string }[];
             };
-            const answer = await ask(request.id, request.questions.map((q) => q.question).join('\n'), {
+            const answer = await ask(randomUUID(), request.questions.map((q) => q.question).join('\n'), {
               questions: request.questions,
             });
             const values = Array.isArray(answer.answers)

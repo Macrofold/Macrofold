@@ -43,7 +43,7 @@ The [model catalog](../features/execution/models.md) separates reviewed compatib
 
 Named account configuration is owned by `packages/core/src/connections.ts` and `claude-connections.ts`; Composio authorization by `composio-auth.ts`; native authentication path exclusions by `packages/runtime/src/auth-paths.ts`. See [feature behavior](../features/identity-integrations/named-connections.md) and [remaining subscription architecture](../engineering/testing/named-connections.md).
 
-The native adapter registry lives in `packages/contracts/harnesses.ts`; the native harness dispatcher selects Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness or Pi. The [Unified Harness Interface](../features/execution/unified-harness-interface.md) is implemented by `HarnessAdapter` in `packages/runtime/src/types.ts` and defines the contribution boundary. [Harness architecture](../features/execution/runtime.md#harness-adapters) explains the embedded cores, private process bridge and shared gateway/checkpoint boundaries.
+`packages/contracts/harnesses.ts` owns harness identifiers/metadata; `runtime/src/harness-adapters.ts` owns literal awaited factories that load only the selected adapter/SDKs. The [Unified Harness Interface](../features/execution/unified-harness-interface.md) is implemented by `HarnessAdapter` in `packages/runtime/src/types.ts` and defines the contribution boundary. [Harness architecture](../features/execution/runtime.md#harness-adapters) explains the embedded cores, private process bridge and shared gateway/checkpoint boundaries.
 
 ## Typed policy and preparation boundaries
 

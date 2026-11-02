@@ -1,5 +1,5 @@
 import { afterAll, afterEach, expect, it, vi } from 'vitest';
-import { pool, authPool, credentialPool, transaction } from '../../packages/db';
+import { pool, authPool, credentialPool, transaction, lock } from '../../packages/db';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { FaultMachine } from '../fixtures/cloud-machine';
 import { CloudDispatcher } from '../../packages/core/src/portable-dispatch';
@@ -12,7 +12,12 @@ import { createKey } from '../../packages/core/src/keys';
 import { credit } from '../../packages/core/src/ledger';
 import { config } from '../../packages/core/src/config';
 import { claimRun } from '../../packages/core/src/engine';
-import { queueObservations } from '../../packages/core/src/scheduling';
+import {
+  queueObservations,
+  pendingRunCandidates,
+  pendingRunFrontier,
+  schedulerTurn,
+} from '../../packages/core/src/scheduling';
 import * as resources from '../../packages/core/src/resources';
 import { decisionExample } from '../../examples/decisions/contracts';
 import { dispatchLimits } from '../../packages/core/src/capacity';
@@ -56,6 +61,61 @@ async function fixture() {
     });
   return { p, workspace, native, get: (id: string) => transaction(p.organizationId, (tx) => getRun(tx, id)) };
 }
+
+it('discovers only current fair admission heads while retaining independent classes and cleanup', async () => {
+  const first = await fixture(),
+    second = await fixture();
+  config.allowPaid = true;
+  vi.stubEnv('ANTHROPIC_API_KEY', 'fixture-only');
+  const native = [await first.native(), await second.native(), await first.native()];
+  for (const f of [first, second, first])
+    await transaction(f.p.organizationId, async (tx) => {
+      const key = await createKey(tx, f.p, {
+        name: 'Frontier fixture',
+        workspace_id: f.workspace.id,
+        scopes: ['runs:read', 'runs:write'],
+      });
+      return admitInference(
+        tx,
+        { ...f.p, id: key.id, kind: 'api_key', workspaceIds: [f.workspace.id], scopes: key.scopes },
+        decisionExample(f.workspace.id, 'triage'),
+      );
+    });
+  const cancelled = await first.native(),
+    expired = await second.native();
+  await transaction(first.p.organizationId, (tx) =>
+    tx.query('UPDATE runs SET cancel_requested=true WHERE id=$1', [cancelled.run_id]),
+  );
+  await transaction(second.p.organizationId, (tx) =>
+    tx.query("UPDATE runs SET queue_expires_at=now()-interval '1 second' WHERE id=$1", [expired.run_id]),
+  );
+  const turn = (kind: 'native' | 'inference') =>
+    transaction(null, async (tx) => {
+      await lock(tx, 'capacity:global');
+      return schedulerTurn(tx, kind);
+    });
+  const expectedNative = await turn('native'),
+    expectedInference = await turn('inference');
+  const frontier = await pendingRunFrontier();
+  expect(frontier.map((row) => row.resource_id)).toEqual(
+    expect.arrayContaining([cancelled.run_id, expired.run_id, expectedNative?.id, expectedInference?.id]),
+  );
+  expect(frontier).toHaveLength(4);
+  expect(await pendingRunFrontier(100, 'native')).toHaveLength(3);
+  expect(await pendingRunFrontier(100, 'inference')).toHaveLength(1);
+  // Workflow/local batch callers retain prospective hints; only the portable
+  // lease path must not capture future turns before the current head starts.
+  expect(await pendingRunCandidates()).toHaveLength(8);
+  if (!expectedNative) throw new Error('The native fixture must have an eligible head.');
+  const owner = native.find((run) => run.run_id === expectedNative.id)?.run_id;
+  expect(owner).toBeDefined();
+  const organization = frontier.find((row) => row.resource_id === owner)?.organization_id;
+  if (!organization || !owner) throw new Error('The current head must retain its organization identity.');
+  expect(await claimRun(organization, owner)).not.toBeNull();
+  const following = await pendingRunFrontier(100, 'native');
+  expect(following.map((row) => row.resource_id)).not.toContain(owner);
+  expect(following).toHaveLength(3);
+});
 
 it('enforces separate fleet ceilings without blocking the other execution class', async () => {
   const f = await fixture();

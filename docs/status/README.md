@@ -1,5 +1,7 @@
 # Implementation status
 
+[Focused request/native overhead reductions](../projects/execution-efficiency/optimization-verification.md#focused-request-and-native-overhead-qualification) are implemented in an isolated performance-only branch. All-six built-image module/continuation checks and 160 matched native turns pass; selected SDK loading lowers cold first-model means from 3.10→2.21 s for OpenCode, 1.17→0.50 s for Claude and 0.91→0.71 s for Pi, with lower observed RSS. Checkpoint buffer reuse reduces 801 allocations to one, restore metadata transactions fall 256→32 for 4,096 files, and human-wait control requests reach the Host in 42–60 ms mean instead of about one second, releasing control slots between probes. Post-lock credential batching removes two native BYOK SQL waits and one direct BYOK wait. Current-head poller admission reduces a 64-Run burst from 3,509 attempts to 64, cutting SQL statements by 87%. These are local synthetic-provider measurements with retained misses, not hosted SLAs; diagnostics/defaults, preview and unrelated memory-pack work remain unchanged.
+
 Direct inference now returns bounded, credential-redacted upstream rejection
 messages in `result.inference.provider_error`, beside the classified reason.
 Encrypted response ownership preserves JSON/SSE replay, current authorization,

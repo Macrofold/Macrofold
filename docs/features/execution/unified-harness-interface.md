@@ -12,6 +12,12 @@ The adapter owns native startup, model/tool configuration, event translation, co
 
 UHI names the existing adapter contract; its TypeScript interface remains `HarnessAdapter`. It is a repository extension point, not a separate HTTP protocol or dynamically installed plugin. Customers continue using the [public API](../api/README.md).
 
+Expose an awaited `createAdapter()` factory and register its literal import in
+[`harness-adapters.ts`](../../../packages/runtime/src/harness-adapters.ts). Import
+exclusive SDK values inside that factory, with type-only imports at module scope;
+the bundled artifact must not initialize other harnesses. The worker retains the
+adapter for compatible warm turns and checks cancellation before execution.
+
 ## Adapter contract
 
 The authoritative types are in [runtime types](../../../packages/runtime/src/types.ts). An adapter implements `run(context): Promise<NativeResult>`.
@@ -21,7 +27,7 @@ The authoritative types are in [runtime types](../../../packages/runtime/src/typ
 | `configuration` | Use the accepted prompt, instructions, model, worktree, native state directory, gateway URLs, run capability, deadline, and optional resume ID. |
 | `signal` | Honor cancellation during startup and execution; release listeners, SDK resources, and child processes. The supervisor also enforces process shutdown and deadlines. |
 | `emit(event)` | Publish normalized assistant text, tool activity, and native session identity. Await or drain pending events before returning; propagate delivery failures. |
-| `ask(id, question, details)` | Request user input through the existing control channel when the harness needs it. Handle cancellation while waiting. |
+| `ask(id, question, details)` | Request user input with a fresh public UUID; keep any vendor request ID private for its reply. Handle cancellation while waiting. |
 | `NativeResult` | Return complete assistant output, a native `resumeId` where applicable, and `success`, `failure`, `cancelled`, or `timed_out`. Preserve failure semantics and a safe failure code. |
 
 Emit `runtime.started` with `harness` and `native_session_id`, `output.delta` with new assistant text, and `tool.started` / `tool.completed` with stable tool-call identities. Keep tool failures distinct from successful results. Expose only readable provider-supplied thinking through `reasoning.started`, `reasoning.delta`, and `reasoning.completed`, using a stable `reasoning_id` per block and `format: summary | text`. Completion includes `status: completed | interrupted`. The worker batches fragments and closes remaining blocks when the turn ends. Do not publish secrets, encrypted reasoning, signatures or redacted blocks, and never mix thinking into `output.delta`. Follow the existing adapters and [event contract](../api/events.md); the supervisor and database assign replay sequences.
@@ -45,7 +51,7 @@ Use the [native and API acceptance runners](../../engineering/testing/harnesses.
 | Boundary | Required evidence |
 | --- | --- |
 | Adapter | Correct text/tool normalization, explicit errors, input where supported, cancellation, timeout, and missing continuation rejection. |
-| Native image | Actual file edits and granted tools; checkpoint restore into a replacement container retains worktree files, conversation and declared memory/resources while dropping an unknown runtime-home file. Credentials stay outside captured state. |
+| Native image | Selected SDK/module isolation, actual file edits and granted tools; checkpoint restore into a replacement container retains worktree files, conversation and declared memory/resources while dropping an unknown runtime-home file. Credentials stay outside captured state. |
 | Complete API journey | Admission, managed/BYOK gateway use, streaming/replay, worker recovery without duplicate execution, checkpoint publication, and reservation settlement/release. |
 | Public clients | Dashboard, CLI, and all five generated SDKs accept the registered harness and preserve existing run operations. |
 

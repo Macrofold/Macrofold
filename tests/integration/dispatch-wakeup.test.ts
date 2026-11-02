@@ -244,21 +244,26 @@ it('wakes for ordinary native admission and queued-head cancellation through the
   expect(await delivered()).toEqual(['']);
 });
 
-it.each(['answer', 'cancel'] as const)(
-  'commits an idle native %s wake without early notification',
-  async (control) => {
+it.each([
+  { control: 'answer', timing: 'future' },
+  { control: 'cancel', timing: 'future' },
+  { control: 'answer', timing: 'already due' },
+  { control: 'cancel', timing: 'already due' },
+] as const)(
+  'commits a $timing native $control wake without early notification',
+  async ({ control, timing }) => {
     const run = await nativeRun();
     expect(await claimRun(account.p.organizationId, run.run_id)).not.toBeNull();
     await transaction(account.p.organizationId, async (tx) => {
       await tx.query('UPDATE runs SET status=$2,execution_binding=$3,input_request=$4 WHERE id=$1', [
         run.run_id,
-        control === 'answer' ? 'waiting_for_input' : 'running',
+        'waiting_for_input',
         JSON.stringify({ phase: 'poll', failures: 0, controlWait: true }),
-        control === 'answer' ? JSON.stringify({ id: 'wake-question', question: 'Synthetic question' }) : null,
+        JSON.stringify({ id: 'wake-question', question: 'Synthetic question' }),
       ]);
       await tx.query(
-        "UPDATE dispatch_jobs SET available_at=clock_timestamp()+interval '1 minute' WHERE resource_id=$1",
-        [run.run_id],
+        "UPDATE dispatch_jobs SET available_at=clock_timestamp()+($2::integer*interval '1 second') WHERE resource_id=$1",
+        [run.run_id, timing === 'future' ? 1 : -1],
       );
     });
     await delivered();

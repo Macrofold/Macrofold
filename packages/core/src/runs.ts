@@ -801,7 +801,8 @@ export async function cancelRun(tx: Tx, p: Principal, runId: string) {
     await tx.query("UPDATE dispatch_jobs SET state='done' WHERE resource_id=$1", [runId]);
     await emit(tx, p.organizationId, runId, 'run.cancelled', { status: 'cancelled' });
   } else {
-    if (row.kind === 'native_agent' && !row.cancel_requested) await wakeNativeControl(tx, runId);
+    if (row.kind === 'native_agent' && row.status === 'waiting_for_input' && !row.cancel_requested)
+      await wakeNativeControl(tx, runId);
     await emit(tx, p.organizationId, runId, 'run.cancel_requested', {});
   }
   return presentRun(await getRun(tx, runId));

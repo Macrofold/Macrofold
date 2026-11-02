@@ -3,7 +3,7 @@ import { pool } from '../../db';
 import { advanceCloudRun, type CloudRunContext } from './cloud-engine';
 import type { MachineProvider } from './ports';
 import type { NativeRunRow } from './runs';
-import { orderDispatchJobs, pendingRunCandidates } from './scheduling';
+import { orderDispatchJobs, pendingRunFrontier } from './scheduling';
 import { claimRun } from './engine';
 import { observeWorkerStep } from './worker-diagnostics';
 import { errorDiagnostics } from './error-diagnostics';
@@ -23,12 +23,12 @@ async function claimJobs(
   organization?: string,
   active: string[] = [],
   resource?: DispatchClass,
-  observedPending?: Awaited<ReturnType<typeof pendingRunCandidates>>,
+  observedPending?: Awaited<ReturnType<typeof pendingRunFrontier>>,
 ) {
   const pending =
     observedPending ??
     (await observeWorkerStep('candidates', {}, () =>
-      pendingRunCandidates(
+      pendingRunFrontier(
         Math.max(100, concurrency),
         resource === 'inference' ? 'inference' : resource ? 'native' : undefined,
       ),
@@ -90,14 +90,17 @@ async function startJob(
       );
       if (!claimed) {
         await releasePendingClaim(job);
-        return { completion: Promise.resolve(false) };
+        return { completion: Promise.resolve(false), admitted: false };
       }
       if (claimed.kind === 'native_agent') preparedRun = claimed;
     }
   } catch (error) {
-    return { completion: failedJob(job, error) };
+    return { completion: failedJob(job, error), admitted: false };
   }
-  return { completion: advanceJob(provider, job, resource, handoff, preparedRun) };
+  return {
+    completion: advanceJob(provider, job, resource, handoff, preparedRun),
+    admitted: job.state === 'pending',
+  };
 }
 
 /** Already-admitted native work may transfer a free local slot, never queue for
@@ -240,7 +243,13 @@ export class CloudDispatcher {
           startJob(this.provider, job, resource, handoff),
         );
       } else started = startJob(this.provider, job, resource, handoff);
-      const { completion } = await started;
+      const { completion, admitted } = await started;
+      // Admission has released its shared locks. Refill the next fair head now,
+      // rather than waiting for a possibly long provider execution to finish.
+      if (admitted) {
+        this.progress();
+        this.refill(resource);
+      }
       await completion;
     })()
       .catch((error: unknown) => {
@@ -253,27 +262,27 @@ export class CloudDispatcher {
       });
   }
   async tick() {
-    if (this.draining) return;
     // Each class refills independently. A hung query must not stop later ticks
     // from refilling another class after its first quantum has finished.
-    for (const resource of dispatchClasses) {
-      const scan = this.scans.get(resource);
-      if (scan) {
-        // A wake may arrive after the scan's eligibility snapshot. Coalesce it
-        // into one fresh scan rather than losing it or queuing one per Run.
-        scan.again = true;
-        continue;
-      }
-      if (this.freeSlots(resource) <= 0) continue;
-      this.scan(resource);
+    for (const resource of dispatchClasses) this.refill(resource);
+  }
+  private refill(resource: DispatchClass) {
+    if (this.draining) return;
+    const scan = this.scans.get(resource);
+    if (scan) {
+      // A wake or short admission may follow an old eligibility snapshot.
+      // Coalesce one fresh scan rather than losing it or queuing one per Run.
+      scan.again = true;
+      return;
     }
+    if (this.freeSlots(resource) > 0) this.scan(resource);
   }
   private candidates(resource: DispatchClass) {
     // The scheduler view classifies every queued native Run as provision.
     // Running transfer/control phases need no fair-admission candidate scan.
     if (resource === 'transfer' || resource === 'control') return Promise.resolve([]);
     return observeWorkerStep('candidates', {}, () =>
-      pendingRunCandidates(
+      pendingRunFrontier(
         resource === 'inference'
           ? Math.max(100, this.limits.inference)
           : Math.max(100, this.limits.provision, this.limits.transfer, this.limits.control),

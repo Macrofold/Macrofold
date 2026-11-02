@@ -36,6 +36,7 @@ import {
 } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
 import { queueRetryAt } from './queue-wait';
+import { NATIVE_QUESTION_WAIT_SECONDS } from './run-control-wakeup';
 import { mapConcurrent } from './concurrent';
 import type { DispatchClass } from './capacity';
 
@@ -290,6 +291,7 @@ export async function advanceCloudRun(
   let delaySeconds = 0;
   let committed = false;
   let canContinue = true;
+  let waitingForAnswer = false;
   try {
     state.advances = (state.advances || 0) + 1;
     // Deadline/counter ceilings survive restarts and successful-but-stalled polls.
@@ -492,8 +494,12 @@ export async function advanceCloudRun(
           ),
         );
       }
+      // A human response may take minutes. Do not occupy a control slot with
+      // an event wait while it is unanswered; committed controls wake the job.
+      waitingForAnswer = !stopping && run.status === 'waiting_for_input' && !run.input_request?.answer;
+      const probe = waitingForAnswer ? provider.probe : (provider.waitForEvents ?? provider.probe);
       const result = await observeWorkerStep('native_probe', { organization_id: org, run_id: runId }, () =>
-        (provider.waitForEvents ?? provider.probe).call(provider, state.machine!, state.eventOffset || 0),
+        probe.call(provider, state.machine!, state.eventOffset || 0),
       );
       // A quiet native wait yields its slot so a large active population does
       // not hold every control slot for the entire continuation quantum.
@@ -575,6 +581,8 @@ export async function advanceCloudRun(
           );
           await emit(tx, org, runId, 'run.persisting', {}, { id: 'lifecycle', sequence: 2 });
         });
+      } else if (waitingForAnswer) {
+        if (!result.events.length && !result.result) delaySeconds = NATIVE_QUESTION_WAIT_SECONDS;
       } else if (!result.result && !provider.waitForEvents) delaySeconds = 2;
     } else if (state.phase === 'index') {
       const page = await provider.snapshotPage(state.machine!, state.indexOffset || 0);
@@ -722,7 +730,8 @@ export async function advanceCloudRun(
       delaySeconds === 0 &&
       canContinue &&
       Boolean(context?.retainReady?.(phaseDispatchClass[state.phase]));
-    const controlWait = !retained && state.phase === 'poll' && state.failures === 0 && !canContinue;
+    const controlWait =
+      !retained && waitingForAnswer && state.phase === 'poll' && state.failures === 0 && !canContinue;
     if (controlWait) state.controlWait = true;
     else delete state.controlWait;
     // Publish the phase and its due time together. A retained local quantum keeps

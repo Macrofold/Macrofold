@@ -382,11 +382,13 @@ Implementation owners and order:
    Increase restore metadata pages from 16 to 128 entries, leaving the four-MiB
    transfer envelope and read concurrency unchanged; qualify revision fencing,
    exact ordered coverage and many-small-file transaction counts separately.
-3. Existing Run controls and dispatch publication: accelerate an answered native
-   question or active cancellation without waiting for the two-second quiet
-   probe. Use the existing durable job/phase owner; controls arriving during a
-   live lease must survive its next publication without stealing ownership or
-   removing provider-error backoff. Notifications remain hints, not authority.
+3. Existing Run controls and dispatch publication: release control slots while
+   awaiting a human question, then wake the durable job on answers/cancellation.
+   Use immediate quiet probes and a one-second durable wait; ordinary output
+   keeps event-watching long polls. Controls during publication must survive
+   without stealing live/retained/dispatcher claims or removing failure backoff.
+   Notifications remain hints, not authority; native reaction is measured apart
+   from controller delivery.
 4. Model credential and gateway owners: narrow credential projections and batch
    independent actor/breaker/BYOK reads through existing ordered query groups
    after required locks. Preserve current owner/provider/health checks, exact
@@ -394,6 +396,14 @@ Implementation owners and order:
 5. Catalog preparation: remove a transaction around public global metadata only
    if existing deadline/checkout primitives give a small safe autocommit path.
    Keep current revision/expiry checks at admission; do not cache authority.
+6. Queued admission: use the shared scheduler's current fair frontier before
+   portable pollers lease pending jobs. An isolated 64-Run reproduction made
+   3,509 admission attempts and 69,477 SQL statements, dominated by losing locks
+   and prospective turns. Keep native/lightweight frontiers independent,
+   cleanup discoverable, and running phases concurrent; wake refill after short
+   admission rather than provider completion. Preserve prospective batch hints
+   for Workflow/local callers, authoritative SQL checks, and existing timeouts.
+   Compare the same bounded workload and all failure/status/financial facts.
 
 Each slice needs its existing focused tests, a real boundary check and matched
 before/after counts, latency or allocation evidence. Use disposable fixtures and

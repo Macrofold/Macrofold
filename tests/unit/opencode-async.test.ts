@@ -8,12 +8,21 @@ vi.mock('@opencode-ai/sdk/v2/server', () => ({ createOpencodeServer: vi.fn() }))
 afterEach(() => vi.resetAllMocks());
 
 type Scenario = {
-  mode: 'success' | 'submit-error' | 'session-error' | 'message-error' | 'final-error' | 'closed' | 'cancel';
+  mode:
+    | 'success'
+    | 'question'
+    | 'submit-error'
+    | 'session-error'
+    | 'message-error'
+    | 'final-error'
+    | 'closed'
+    | 'cancel';
   error?: unknown;
   code?: string;
 };
 const scenarios: Scenario[] = [
   { mode: 'success' },
+  { mode: 'question' },
   { mode: 'session-error', error: { message: 'private upstream text' }, code: 'turn_failed' },
   { mode: 'message-error', error: { message: 'private' }, code: 'turn_failed' },
   { mode: 'closed' },
@@ -60,9 +69,25 @@ it.each(scenarios)(
   async ({ mode, error, code }) => {
     let feed: ServerResponse | undefined;
     const paths: string[] = [];
+    const questionReplies: unknown[] = [];
     const abort = new AbortController();
     const event = (type: string, properties: Record<string, unknown>) =>
       feed!.write(`data: ${JSON.stringify({ type, properties })}\n\n`);
+    const complete = () => {
+      event('message.updated', {
+        info: {
+          id: 'a',
+          sessionID: 's',
+          role: 'assistant',
+          parentID: 'u',
+          ...(mode === 'message-error' ? { error } : {}),
+        },
+      });
+      event('message.part.updated', { part: { id: 'p', sessionID: 's', type: 'text' } });
+      event('message.part.delta', { sessionID: 's', partID: 'p', field: 'text', delta: 'streamed' });
+      event('session.idle', { sessionID: 'other' });
+      event('session.idle', { sessionID: 's' });
+    };
     const server = createServer(async (req, res) => {
       paths.push(`${req.method} ${req.url}`);
       if (req.url === '/event') {
@@ -93,20 +118,22 @@ it.each(scenarios)(
             event('session.error', { sessionID: 's', error });
             return;
           }
-          event('message.updated', {
-            info: {
-              id: 'a',
+          if (mode === 'question') {
+            event('question.asked', {
+              id: 'que_native_fixture',
               sessionID: 's',
-              role: 'assistant',
-              parentID: 'u',
-              ...(mode === 'message-error' ? { error } : {}),
-            },
-          });
-          event('message.part.updated', { part: { id: 'p', sessionID: 's', type: 'text' } });
-          event('message.part.delta', { sessionID: 's', partID: 'p', field: 'text', delta: 'streamed' });
-          event('session.idle', { sessionID: 'other' });
-          event('session.idle', { sessionID: 's' });
+              questions: [{ question: 'Continue?' }],
+            });
+            return;
+          }
+          complete();
         });
+      } else if (req.url === '/question/que_native_fixture/reply') {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        questionReplies.push(JSON.parse(body));
+        res.writeHead(200, { 'content-type': 'application/json' }).end('true');
+        setImmediate(complete);
       } else if (req.url === '/session/s/message/a') {
         res.setHeader('content-type', 'application/json');
         res.end(
@@ -146,9 +173,10 @@ it.each(scenarios)(
       permissions: [{ version: 1, files: { read: { include: [] }, write: { include: [] } }, shell: 'deny' }],
     };
     const emit = vi.fn();
+    const ask = vi.fn(async () => ({ text: 'Continue' }));
     try {
-      const result = (await createAdapter()).run({ configuration, signal: abort.signal, emit, ask: vi.fn() });
-      if (mode === 'success') {
+      const result = (await createAdapter()).run({ configuration, signal: abort.signal, emit, ask });
+      if (mode === 'success' || mode === 'question') {
         await expect(result).resolves.toMatchObject({
           outcome: 'success',
           output: 'final response',
@@ -156,6 +184,15 @@ it.each(scenarios)(
         });
         expect(emit).toHaveBeenCalledWith({ type: 'output.delta', data: { text: 'streamed' } });
         expect(paths).toContain('GET /session/s/message/a');
+        if (mode === 'question') {
+          expect(ask).toHaveBeenCalledExactlyOnceWith(
+            expect.stringMatching(/^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i),
+            'Continue?',
+            { questions: [{ question: 'Continue?' }] },
+          );
+          expect(questionReplies).toEqual([{ answers: [['Continue']] }]);
+          expect(paths).toContain('POST /question/que_native_fixture/reply');
+        }
       } else {
         await expect(result).rejects.toThrow();
         if (code) {

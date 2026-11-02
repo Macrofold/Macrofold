@@ -32,7 +32,8 @@ export function modelCredentialFromResult(
     const connection = result?.rows[0];
     assert(connection, 404, 'not_found', 'Resource not found.');
     assert(
-      connection.id === binding.provider_connection_id &&
+      // PostgreSQL projects UUIDs in lower case; public UUID selectors accept both.
+      connection.id === binding.provider_connection_id.toLowerCase() &&
         connection.provider === binding.provider &&
         connection.status === 'healthy' &&
         connection.owner_subject_id === userId,

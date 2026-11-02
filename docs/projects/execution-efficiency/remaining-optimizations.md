@@ -403,6 +403,11 @@ Implementation owners and order:
    cleanup discoverable, and running phases concurrent; wake refill after short
    admission rather than provider completion. Preserve prospective batch hints
    for Workflow/local callers, authoritative SQL checks, and existing timeouts.
+   A committed queued-to-provisioning transition must also wake sibling pollers
+   when another queued head exists: local refill cannot wake a sleeping replica.
+   Reuse the payload-free notification trigger with an indexed existence guard;
+   leave the admitted job's recovery schedule/lease intact. Verify a held-provider
+   case with real listener-driven sleeping pollers, not frequent fixture ticks.
    Compare the same bounded workload and all failure/status/financial facts.
 
 Each slice needs its existing focused tests, a real boundary check and matched

@@ -3,7 +3,7 @@ import pg from 'pg';
 import { pool, authPool, credentialPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { listenDatabaseNotifications } from '../../packages/db/notifications';
-import { dispatchWakeupChannel } from '../../packages/core/src/dispatch-wakeup';
+import { dispatchWakeupChannel, listenDispatchWakeup } from '../../packages/core/src/dispatch-wakeup';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';
@@ -14,9 +14,19 @@ import { createWorker, getWorker } from '../../packages/core/src/workers';
 import { reserveHost } from '../../packages/core/src/host-allocations';
 import { handleApi } from '../../packages/core/src/http';
 import type { InferenceCreate } from '../../packages/core/src/decision';
-import { pendingRunCandidates, queueObservations } from '../../packages/core/src/scheduling';
+import {
+  pendingRunCandidates,
+  pendingRunFrontier,
+  queueObservations,
+} from '../../packages/core/src/scheduling';
 import { updateExecutionPolicy } from '../../packages/core/src/organizations';
 import { claimRun } from '../../packages/core/src/engine';
+import { createKey } from '../../packages/core/src/keys';
+import { admitInference } from '../../packages/core/src/inferences';
+import { decisionExample } from '../../examples/decisions/contracts';
+import { CloudDispatcher } from '../../packages/core/src/portable-dispatch';
+import { PollerWakeup } from '../../packages/core/src/poller-wakeup';
+import { runPollerLoop } from '../../packages/core/src/poller-loop';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 let other: Awaited<ReturnType<typeof fixtureAccount>>;
@@ -128,6 +138,30 @@ async function nativeRun(fixture = account) {
   });
 }
 
+async function queuedInference(fixture = account) {
+  config.allowPaid = true;
+  vi.stubEnv('ANTHROPIC_API_KEY', 'synthetic-only');
+  return transaction(fixture.p.organizationId, async (tx) => {
+    const workspace = await resources.create(tx, 'workspaces', fixture.p.organizationId, {
+      name: 'Queued wake fixture',
+    });
+    const key = await createKey(tx, fixture.p, { name: 'Wake fixture', scopes: ['runs:read', 'runs:write'] });
+    return admitInference(
+      tx,
+      { ...fixture.p, id: key.id, kind: 'api_key', scopes: key.scopes },
+      decisionExample(workspace.id, 'triage'),
+    );
+  });
+}
+
+function barrier() {
+  let release = () => {};
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
 it('does not wake empty fleet discovery after a successful direct model response', async () => {
   await directInference();
   expect(await delivered()).toEqual([]);
@@ -209,6 +243,165 @@ it('delivers a content-free wake only after commit, coalesces a batch and sends 
     expect(received).toEqual([]);
   });
   expect(await delivered()).toEqual(['']);
+});
+
+it.each(['native', 'inference'] as const)(
+  'wakes the next %s fair head only after admission commits without changing its dispatcher claim',
+  async (kind) => {
+    const create = kind === 'native' ? nativeRun : queuedInference;
+    const first = await create();
+    await create(other);
+    const job = () =>
+      transaction(account.p.organizationId, (tx) =>
+        tx.query('SELECT state,available_at,lease_until FROM dispatch_jobs WHERE resource_id=$1', [
+          first.run_id,
+        ]),
+      );
+    await transaction(account.p.organizationId, (tx) =>
+      tx.query(
+        "UPDATE dispatch_jobs SET available_at=now()+interval '5 seconds',lease_until=now()+interval '5 seconds' WHERE resource_id=$1",
+        [first.run_id],
+      ),
+    );
+    const before = (await job()).rows[0];
+    await delivered();
+    const admit = async (rollback: boolean) =>
+      transaction(account.p.organizationId, async (tx) => {
+        expect(
+          (await tx.query("UPDATE runs SET status='provisioning' WHERE id=$1 RETURNING id", [first.run_id]))
+            .rowCount,
+        ).toBe(1);
+        expect(received).toEqual([]);
+        if (rollback) throw new Error('Rollback admission');
+      });
+    await expect(admit(true)).rejects.toThrow('Rollback admission');
+    expect(await delivered()).toEqual([]);
+    await admit(false);
+    expect(await delivered()).toEqual(['']);
+    expect((await job()).rows[0]).toEqual(before);
+    await transaction(account.p.organizationId, (tx) =>
+      tx.query('UPDATE runs SET status=status WHERE id=$1', [first.run_id]),
+    );
+    expect(await delivered()).toEqual([]);
+  },
+);
+
+it.each(['native', 'inference'] as const)('does not wake an empty queue after %s admission', async (kind) => {
+  const run = await (kind === 'native' ? nativeRun() : queuedInference());
+  await transaction(account.p.organizationId, (tx) =>
+    tx.query("UPDATE dispatch_jobs SET available_at=now()+interval '5 seconds' WHERE resource_id=$1", [
+      run.run_id,
+    ]),
+  );
+  await delivered();
+  expect(await claimRun(account.p.organizationId, run.run_id)).not.toBeNull();
+  expect(await delivered()).toEqual([]);
+});
+
+it('refills a sleeping sibling poller while the first admitted provider still occupies its only slot', async () => {
+  const runs = [await queuedInference(), await queuedInference(other)];
+  const head = (await pendingRunFrontier(1, 'inference'))[0];
+  if (!head || !runs.some((run) => run.run_id === head.resource_id))
+    throw new Error('Expected a fixture fair head.');
+  await delivered();
+  const releaseRow = barrier(),
+    heldProvider = barrier();
+  const wakeup = new PollerWakeup();
+  const hints: number[] = [];
+  const siblingListener = listenDispatchWakeup(() => {
+    hints.push(performance.now());
+    wakeup.notify();
+  });
+  const dispatchers = [0, 1].map(
+    () =>
+      new CloudDispatcher(
+        () => {
+          throw new Error('No native compute');
+        },
+        { inference: 1, provision: 1, transfer: 1, control: 1 },
+      ),
+  );
+  let closing = false,
+    secondAt = 0,
+    rowLocked = false,
+    waiting = false,
+    providerCalls = 0;
+  let loop: Promise<void> | undefined;
+  const held = transaction(head.organization_id, async (tx) => {
+    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [head.resource_id]);
+    rowLocked = true;
+    await releaseRow.promise;
+  });
+  const calls = vi.fn(async () => {
+    if (++providerCalls === 1) {
+      await heldProvider.promise;
+    } else {
+      secondAt = performance.now();
+      closing = true;
+      wakeup.notify();
+    }
+    return Response.json({
+      type: 'message',
+      content: [{ type: 'text', text: '"wait"' }],
+      usage: { input_tokens: 10, output_tokens: 2 },
+    });
+  });
+  vi.stubGlobal('fetch', calls);
+  try {
+    await vi.waitFor(() => expect(siblingListener.connected()).toBe(true));
+    await vi.waitFor(() => expect(rowLocked).toBe(true));
+    await dispatchers[0].tick();
+    await vi.waitFor(async () =>
+      expect(
+        (
+          await transaction(head.organization_id, (tx) =>
+            tx.query('SELECT lease_until FROM dispatch_jobs WHERE resource_id=$1', [head.resource_id]),
+          )
+        ).rows[0].lease_until,
+      ).not.toBeNull(),
+    );
+    loop = runPollerLoop(
+      {
+        tick: () => dispatchers[1].tick(),
+        drain: () => dispatchers[1].drain(),
+        waitForProgress: (signal) => {
+          waiting = true;
+          return dispatchers[1].waitForProgress(750, signal);
+        },
+      },
+      { tick: async () => {}, drain: async () => {} },
+      () => closing,
+      wakeup,
+    );
+    await vi.waitFor(() => expect(waiting).toBe(true));
+    await dispatchers[1].drain(); // The old snapshot saw only the leased fair head.
+    const releasedAt = performance.now(),
+      beforeHints = hints.length;
+    releaseRow.release();
+    await held;
+    await vi.waitFor(() => expect(calls).toHaveBeenCalledTimes(2));
+    expect(hints.length).toBeGreaterThan(beforeHints);
+    expect(calls).toHaveBeenCalledTimes(2);
+    const states = await pool.query('SELECT id,status FROM reporting.runs WHERE id=ANY($1::uuid[])', [
+      runs.map((run) => run.run_id),
+    ]);
+    expect(states.rows.find((row) => row.id === head.resource_id)?.status).toBe('running');
+    console.info(
+      JSON.stringify({
+        fixture: 'sleeping_frontier_poller',
+        release_to_sibling_provider_ms: secondAt - releasedAt,
+      }),
+    );
+  } finally {
+    releaseRow.release();
+    heldProvider.release();
+    closing = true;
+    wakeup.notify();
+    await held;
+    await loop;
+    await Promise.all(dispatchers.map((dispatcher) => dispatcher.drain()));
+    await siblingListener.close();
+  }
 });
 
 it('ignores unrelated jobs and future recovery rows, then wakes when a running job becomes due', async () => {

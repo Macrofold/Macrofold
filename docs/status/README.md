@@ -44,8 +44,8 @@ The [scheduling review](../projects/native-scheduling-latency.md#implementation-
 adds complete phase-owned write fencing, shared class-alternating admission,
 exact failed-claim release and safe failure diagnostics. Its separate matched
 80-call local profile records 45–47 ms commit-to-provision p95 and 9–17 ms p95
-per handoff type, with fewer SQL statements/commits. Interactive quiet-probe
-wakeups and mixed-provider poller routing remain explicit follow-ups.
+per handoff type, with fewer SQL statements/commits. The focused follow-through
+above implements human-wait wakeups; mixed-provider poller routing remains open.
 
 [OpenRouter inference catalogue recovery](../engineering/testing/model-catalog.md#direct-inference-recovery) refreshes missing/expired prices before admission without depending on the worker poller. Fresh requests avoid discovery; refresh claims, backoff, price expiry and frozen billing terms remain enforced. Focused regressions and a synthetic local Muse BYOK request pass. The original caller's complete character-decision journey and hosted rollout remain unverified.
 

@@ -239,13 +239,36 @@ Earlier rejected micro-optimizations and the original unmet twelve-group goal
 remain as documented; no authority cache, generic SQL engine, background money
 settlement or replacement scheduler is introduced.
 
+### Cross-poller review follow-through
+
+Current-head discovery exposed a missed eligibility hint: a poller that found
+the current head already leased could sleep through another poller's admission,
+even with a free slot. Local refill did not wake that sibling, and making the
+admitted job due would interfere with phase/recovery ownership.
+
+Migration 061 uses the existing content-free commit notification on the shared
+queued-to-provisioning transition. An indexed queued-existence guard suppresses
+empty-fleet scans; direct immediate requests remain silent. No new listener,
+polling loop, permission, capacity limit or execution identity is introduced.
+
+Actual PostgreSQL LISTEN, poller loops and a held provider reproduce sibling
+dispatch at **816.19 ms before and 80.85 ms after** releasing the admission
+barrier, with exactly two provider calls and the first still held. This is one
+local matched interval, not a hosted tail guarantee. Eighteen notification cases
+and 29 portable-continuation cases pass, including both execution classes,
+commit/rollback, empty queues and unchanged dispatcher claims. The existing
+fleet/fanout qualification remains open. Private evidence is retained under
+`.data/request-efficiency/frontier-wakeup/`; the preview remains unmigrated.
+
 ## Activation and reversal
 
 The earlier SQL/payload follow-up needs no runtime-image change; the focused
 continuation above does. Build matching application/worker and native-image
-artifacts, drain old native phase owners through normal lifecycle controls and
-restart the intended processes together. No migration, public contract or SDK
-generation is required. The preview and hosted deployments remain unchanged.
+artifacts. Apply migration 061 before activating the updated pollers; it changes
+only notification eligibility. Drain old native phase owners through normal
+lifecycle controls and restart the intended processes together. No public
+contract change or SDK generation is required. The preview and hosted deployments
+remain unchanged.
 The [operator guide](../../features/observability/performance.md) owns existing
 profiling/trace/HTTP-observation flags; defaults are preserved. Source rollback
 uses the previous qualified image without database reversal or loss of verified

@@ -56,7 +56,7 @@ Every Workflow invocation advances at most 128 phases before handing off the sam
 
 Standalone poller workers claim due rows with `FOR UPDATE SKIP LOCKED`; queued dispatch claims have a five-second lease and active cloud steps a two-minute dispatch backoff. [CloudDispatcher](../../../packages/core/src/portable-dispatch.ts) uses independent per-process pools: 256 inference advances, 16 native provisioning advances, eight restore/checkpoint transfers and 64 lifecycle/control advances. Migration 051 exposes only the derived `dispatch_class` in the restricted scheduler view. Locally active Run IDs remain excluded even if a dispatch claim expires; cross-process phase fencing remains authoritative. These settings replace `WORKER_CONCURRENCY` and its silent twenty-step clamp. They are separate from fleet active-Run ceilings and customer budgets. A full transfer pool cannot consume model slots.
 
-Migrations 059–060 publish content-free wake hints after due-job and eligibility
+Migrations 059–061 publish content-free wake hints after due-job and eligibility
 changes commit. A standalone poller owns one direct PostgreSQL session listener;
 lost hints or listener failures retain the 750 ms idle polling fallback. A
 notification never selects a tenant, authorizes a Run or overrides capacity.
@@ -98,7 +98,9 @@ Before leasing pending jobs, cloud pollers select only the current fair head of
 each execution class through the shared scheduler. This avoids splitting future
 turns between pollers that repeatedly lose admission locks. Successful admission
 signals immediate refill before provider completion; running phases and queued
-cleanup remain independently concurrent. Workflow/simulator batch discovery keeps
+cleanup remain independently concurrent. Admission commits also wake sibling
+pollers when queued work remains, without changing the admitted job's recovery
+schedule. Workflow/simulator batch discovery keeps
 its existing prospective hints and is not qualified by this poller optimization.
 
 Ready native phases may exchange their local slot for a free next-class
@@ -129,11 +131,6 @@ confirmed. Raw messages, SQL, connection URLs and request content are not copied
 into these logs.
 
 ### Remaining scheduling limits
-
-Answering a native question or cancelling an active quiet Run can still wait
-for the normal two-second probe interval, even when control capacity is free.
-Accelerating that path needs owner-safe due-job scheduling, not only a wake hint
-or an unfenced overwrite of another controller's retained phase schedule.
 
 Use matching execution-provider poller modes for one database. Heterogeneous
 Docker and Vercel pollers sharing that database do not have provider-aware

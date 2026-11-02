@@ -215,6 +215,8 @@ jobs:
     name: Native runtime image
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    outputs:
+      runtime_candidate: ${{ steps.runtime_candidate.outputs.artifact-id }}
     env:
       PLATFORM_MODE: local
       EXECUTION_PROVIDER: simulator
@@ -249,6 +251,7 @@ jobs:
           docker save "platform-runtime:candidate-${GITHUB_SHA}" | gzip -1 > runtime-candidate.tar.gz
           sha256sum runtime-candidate.tar.gz > runtime-candidate.sha256
       - name: Runtime candidate artifact
+        id: runtime_candidate
         if: github.event_name == 'workflow_dispatch' && inputs.runtime_image_artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -294,7 +297,7 @@ jobs:
     needs: native
     # Audit failures still permit diagnostic qualification of the explicitly
     # retained candidate; they never permit staging or production release.
-    if: always() && github.event_name == 'workflow_dispatch' && inputs.runtime_image_artifact
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.runtime_image_artifact && needs.native.outputs.runtime_candidate != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:

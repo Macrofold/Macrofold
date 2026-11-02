@@ -137,27 +137,30 @@ export function MemoryServiceSetup({
           maxLength={128}
         />
       </Field>
-      <label>
-        <input
-          type="checkbox"
-          checked={value.namespace_is_dedicated}
-          onChange={(event) => update({ namespace_is_dedicated: event.target.checked })}
-        />
-        This collection is dedicated to this worktree; I authorize Macrofold to capture this recipe’s Run
-        narratives and metadata, retrieve memories and manage it.
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={value.external_cost_acknowledged}
-          onChange={(event) => update({ external_cost_acknowledged: event.target.checked })}
-        />
-        I understand this service can charge separately for generation, embeddings, reads and storage.
-        Macrofold Run budgets do not cap those external charges.
-      </label>
+      <fieldset className="choice-fieldset">
+        <legend>Data and funding</legend>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={value.namespace_is_dedicated}
+            onChange={(event) => update({ namespace_is_dedicated: event.target.checked })}
+          />
+          This collection is dedicated to this worktree; I authorize Macrofold to capture this recipe’s Run
+          narratives and metadata, retrieve memories and manage it.
+        </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={value.external_cost_acknowledged}
+            onChange={(event) => update({ external_cost_acknowledged: event.target.checked })}
+          />
+          I understand this service can charge separately for generation, embeddings, reads and storage.
+          Macrofold Run budgets do not cap those external charges.
+        </label>
+      </fieldset>
       <details>
         <summary>Advanced availability</summary>
-        <label>
+        <label className="checkbox-label">
           <input
             type="checkbox"
             checked={value.required}

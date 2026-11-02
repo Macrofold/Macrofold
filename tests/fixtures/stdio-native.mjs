@@ -15,6 +15,7 @@ await writeFile(
     harness: 'codex',
     model: 'fixture-model',
     provider: 'openai',
+    modelLimits: { contextTokens: 128000, maxOutputTokens: 32768 },
     prompt: '',
     workspace: '/workspace',
     stateHome: '/agent-home',

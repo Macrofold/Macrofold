@@ -20,7 +20,7 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 - Native memory and startup efficiency: [feature specification](native-memory-startup-feature-spec.md) and [technical design](native-memory-startup-tech-design.md). Implemented protected allocation-memory failure facts, optional bounded native profiles and selected SDK factories. Matched local eager/lazy cohorts and all-six module isolation pass; observer budgets, clean release artifacts and hosted acceptance retain separate gates.
 
-- Optional agent library: [feature specification](agent-integration-library-feature-spec.md) and [technical design](agent-integration-library-tech-design.md). Editable-file memory and customer-owned Hindsight/Claude-mem recipes compose existing Worktrees, connections, execution and maintenance. Integration, lifecycle review and public-client qualification are in progress; a tools-only connection is not a qualified memory pack.
+- Optional agent library: [feature specification](agent-integration-library-feature-spec.md) and [technical design](agent-integration-library-tech-design.md). Editable memory and both customer-owned services pass local public API/native/fresh-Host capture/recall, lifecycle, client and UI qualification. Model transports are deterministic; real-model quality/pricing, managed hosting and hosted acceptance remain separate gates.
 
 - Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Implementation and verification in progress: immediate request ownership, shared accounting, batched authorization observation, typed recovery and all five SDKs. Hosted lifetime and measured deployment capacity remain acceptance gates.
 

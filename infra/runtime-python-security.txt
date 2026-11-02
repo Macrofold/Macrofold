@@ -1,6 +1,13 @@
 # Security overlay on the pinned Hermes lock. Remove when upstream locks these versions.
 # Same HTTPX2/HTTPCore2 release, hashed wheels; dependency consistency is checked in the image.
 # AnyIO 4.14.2 fixes CVE-2026-63374 in the locked 4.12.1; same MIT package and dependency set.
+# The Dockerfile mirrors the exact certifi/PyJWT/Pillow requirements before the
+# frozen install; otherwise the upstream metadata rejects these patched wheels.
 httpx2==2.12.0 --hash=sha256:cc8b6eecb8661c146b8f89a60e97456ee086e91a784ed31ac450c3a9e613dd36
 httpcore2==2.12.0 --hash=sha256:7e04258ce01013d7d615e5b910a3b27fac937d7a95038227e79652b4ba3b4ceb
 anyio==4.14.2 --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494
+certifi==2026.10.19 --hash=sha256:42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b
+PyJWT==2.14.0 --hash=sha256:ad0cef71c756a56e74863c2919cf0985f72decbcfcb550ee2f422e7c62b5eedc
+urllib3==2.8.0 --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3
+# CPython 3.11 Linux wheels for the supported AMD64 and ARM64 runtime builds.
+pillow==13.0.0 --hash=sha256:7c88c10dd432f3b39ccdafc9ed81d0c21b8fd634502574da76d1bfa4fe2c76d0 --hash=sha256:a625df9a2a5597fa5e5266e01aefc82604bb85d291e3547981e863560d75da6c

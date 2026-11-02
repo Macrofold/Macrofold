@@ -15,11 +15,11 @@ export type MemoryServiceSetupValue = {
 export function MemoryServiceSetup({
   provider,
   value,
-  onChange,
+  onChange: update,
 }: {
   provider: 'hindsight' | 'claude-mem';
   value: MemoryServiceSetupValue;
-  onChange: (value: MemoryServiceSetupValue) => void;
+  onChange: (patch: Partial<MemoryServiceSetupValue>) => void;
 }) {
   const identity = useData({ operation: 'getIdentity' });
   const connections = useDataPages({ operation: 'listConnections', params: { query: { limit: 100 } } });
@@ -28,7 +28,6 @@ export function MemoryServiceSetup({
     [key, setKey] = useState('');
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<Error>();
-  const update = (next: Partial<MemoryServiceSetupValue>) => onChange({ ...value, ...next });
   const owned =
     connections.data?.data.filter(
       (item) =>
@@ -44,9 +43,11 @@ export function MemoryServiceSetup({
       >
         <Select
           value={value.connection_id || '__none'}
-          onValueChange={(connection_id) =>
-            update({ connection_id: connection_id === '__none' ? '' : connection_id })
-          }
+          onValueChange={(connection_id) => {
+            // Clearing is the explicit __none option. Radix's native form
+            // bridge can emit bare '' while a newly added option registers.
+            if (connection_id) update({ connection_id: connection_id === '__none' ? '' : connection_id });
+          }}
           options={[
             { value: '__none', label: 'Choose your connection' },
             ...owned.map((item) => ({ value: item.id, label: `${item.name} · ${item.status}` })),

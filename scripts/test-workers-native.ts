@@ -85,6 +85,14 @@ async function run(harness: string, mode: 'concurrent' | 'export' | 'import' | '
       ? [
           '-e',
           `NATIVE_MEMORY_CAPTURE=${process.env.NATIVE_MEMORY_CAPTURE === '1' ? '1' : '0'}`,
+          ...(process.getuid && process.getgid
+            ? [
+                '-e',
+                `NATIVE_MEMORY_OUTPUT_UID=${process.getuid()}`,
+                '-e',
+                `NATIVE_MEMORY_OUTPUT_GID=${process.getgid()}`,
+              ]
+            : []),
           ...['COLD_COUNT', 'WARM_COUNT', 'DELAY_MS', 'CASE', 'EXPECT_DIAGNOSTICS', 'EXPECT_LAZY'].flatMap(
             (key) =>
               process.env[`NATIVE_MEMORY_${key}`] === undefined

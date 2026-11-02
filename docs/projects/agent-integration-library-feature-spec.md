@@ -1,8 +1,8 @@
 # Agent integration library — feature specification
 
-| Status                                 | Current progress                                                                                                                                              | Last updated |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| Implemented; qualification in progress | Optional library, editable files and full bring-your-own Hindsight/hosted Claude-mem turn lifecycle. Managed provisioning/live vendor acceptance remain open. | 2026-11-01   |
+| Status                         | Current progress                                                                                                                                                | Last updated |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Implemented; locally qualified | Optional library, editable files and both actual service/native lifecycles pass. Managed hosting, real-model quality/pricing and hosted acceptance remain open. | 2026-11-01   |
 
 ## Outcome
 

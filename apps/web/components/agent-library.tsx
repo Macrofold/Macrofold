@@ -126,7 +126,7 @@ function InstallMemory({
           <MemoryServiceSetup
             provider={pack as 'hindsight' | 'claude-mem'}
             value={service}
-            onChange={setService}
+            onChange={(patch) => setService((current) => ({ ...current, ...patch }))}
           />
         )}
         {!remote && (

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { fixtureAccount } from '../fixtures/account';
+import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { memoryServiceFixture } from '../fixtures/memory-service';
 import { pool, authPool, transaction } from '../../packages/db';
 import { Client } from '../../sdk/typescript/src/client';
@@ -25,6 +25,7 @@ beforeAll(async () => {
   });
 });
 afterAll(async () => {
+  if (account) await retireFixtureRuns(account.p.organizationId);
   if (originalOrigins === undefined) delete process.env.LOCAL_MEMORY_SERVICE_ALLOWED_ORIGINS;
   else process.env.LOCAL_MEMORY_SERVICE_ALLOWED_ORIGINS = originalOrigins;
   await Promise.all(services.map((service) => service.close()));

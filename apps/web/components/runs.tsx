@@ -342,9 +342,11 @@ export function RunDetail({ runId }: { runId: string }) {
                   <p>
                     {result.data?.content_expired
                       ? 'Prompts, outputs and tool details were removed under the retention policy. Usage and completion records remain.'
-                      : recovering || !live
-                        ? 'Inspect the outcome above. Recorded output and events remain available.'
-                        : 'Your run is saved. You can leave this page and come back later.'}
+                      : recovering
+                        ? 'Inspect the failure details above. Recorded output and events remain available.'
+                        : !live
+                          ? 'Inspect the outcome above. Recorded output and events remain available.'
+                          : 'Your run is saved. You can leave this page and come back later.'}
                   </p>
                 </div>
               )}

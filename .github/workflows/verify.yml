@@ -306,6 +306,7 @@ jobs:
       ALLOW_PAID_EXECUTION: 'false'
       DOCKER_RUNTIME_IMAGE: platform-runtime:candidate-${{ github.sha }}
       NATIVE_MEMORY_EXPECT_DIAGNOSTICS: '1'
+      NATIVE_MEMORY_EXPECT_LAZY: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

@@ -82,10 +82,47 @@ test('remote setup requires explicit dedication and external funding before acti
   await expect(dialog.getByRole('button', { name: 'Save connection', exact: true })).toBeDisabled();
   await dialog.getByLabel('Service API base URL').fill(new URL(page.url()).origin);
   await dialog.getByLabel('Service bearer key').fill('synthetic-browser-key');
-  await dialog.getByRole('button', { name: 'Save connection', exact: true }).click();
-  await expect(dialog.getByRole('button', { name: 'Add service connection', exact: true })).toBeVisible();
-  await dialog.getByLabel(/This collection is dedicated/).check();
-  await dialog.getByLabel(/I understand this service can charge separately/).check();
+  let saveStarted!: () => void;
+  let releaseSave!: () => void;
+  const started = new Promise<void>((resolve) => {
+    saveStarted = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    releaseSave = resolve;
+  });
+  let pendingSave: Promise<void> | undefined;
+  const holdSave = async (route: import('@playwright/test').Route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    saveStarted();
+    pendingSave = gate.then(() => route.continue());
+    await pendingSave;
+  };
+  await page.route('**/v1/connections', holdSave);
+  try {
+    await dialog.getByRole('button', { name: 'Save connection', exact: true }).click();
+    await started;
+    // Edits made after Save starts must survive its eventual response/refetch.
+    const namespace = dialog.getByLabel('Dedicated Claude-mem project ID', { exact: true });
+    const dedicated = dialog.getByLabel(/This collection is dedicated/);
+    const costs = dialog.getByLabel(/I understand this service can charge separately/);
+    await namespace.fill('dedicated-browser-project');
+    await dedicated.check();
+    await costs.check();
+    await expect(dialog.getByRole('button', { name: 'Add memory', exact: true })).toBeDisabled();
+    releaseSave();
+    await expect(dialog.getByRole('button', { name: 'Add service connection', exact: true })).toBeVisible();
+    await expect(
+      dialog.getByRole('combobox', { name: 'Memory service connection', exact: true }),
+    ).toContainText('Claude-mem memory service');
+    await expect(namespace).toHaveValue('dedicated-browser-project');
+    await expect(dedicated).toBeChecked();
+    await expect(costs).toBeChecked();
+    await expect(dialog.getByRole('button', { name: 'Add memory', exact: true })).toBeEnabled();
+  } finally {
+    releaseSave();
+    await pendingSave;
+    await page.unroute('**/v1/connections', holdSave);
+  }
   await dialog.getByText('Advanced availability', { exact: true }).click();
   await expect(dialog.getByLabel('Require memory before starting the agent.')).not.toBeChecked();
   await expect(dialog).toContainText('Macrofold Run budgets do not cap');

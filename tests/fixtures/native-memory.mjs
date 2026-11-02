@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { chown, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { nativeModelFixture } from './native-model.mjs';
 import { nativeBroker } from './native-broker.mjs';
 
@@ -751,6 +751,14 @@ try {
       ),
       { mode: 0o600, flag: 'wx' },
     );
+    if (process.env.NATIVE_MEMORY_OUTPUT_UID !== undefined) {
+      const uid = Number(process.env.NATIVE_MEMORY_OUTPUT_UID),
+        gid = Number(process.env.NATIVE_MEMORY_OUTPUT_GID);
+      assert(Number.isSafeInteger(uid) && uid >= 0 && Number.isSafeInteger(gid) && gid >= 0);
+      // Keep diagnostics private while returning this fixture-owned file to
+      // the invoking host user. Linux CI cannot read a root-owned 0600 file.
+      await chown('/worker-exchange/measurements.json', uid, gid);
+    }
   } finally {
     control.kill('SIGTERM');
     model.closeAllConnections();

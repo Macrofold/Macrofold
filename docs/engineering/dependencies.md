@@ -42,9 +42,24 @@ The [declared-license inventory](../../examples/integrations/prisma/dependency-l
 
 PDF.js (`pdfjs-dist` 6.3.289, Apache-2.0) and Mammoth 1.12.3 (BSD-2-Clause) are pinned dependencies for text extraction. PDF.js also provides an on-demand browser preview worker at the same version. image-size 2.0.4 (MIT) validates image headers and dimensions in both admission and runtime code. Preserve their bundled notices in runtime distributions. The refreshed production inventory contains 1,291 package entries. Processing uses a bounded subprocess with no external extraction service; [media decisions](../features/media/implementation.md) document limits and replacement boundaries.
 
-The current production pnpm audit reports no known findings. Narrow overrides select js-yaml 4.3.2 and devalue 5.9.2. The official Better Auth CIMD plugin 1.7.2 adds public-address-pinned OAuth client metadata retrieval and shares the existing auth version.
+The earlier production pnpm audit reported no known findings; the current application/development blockers below supersede that result. Narrow overrides select js-yaml 4.3.2 and devalue 5.9.2. The official Better Auth CIMD plugin 1.7.2 adds public-address-pinned OAuth client metadata retrieval and shares the existing auth version.
 
-The complete runtime image is scanned with pinned Trivy 0.74.0 in CI and weekly verification. The gate fails on fixable high/critical OS, Python or JavaScript findings and retains its report; unfixed and lower-severity findings still require review. The accepted local image has no fixable high/critical findings. The runtime updates Debian security packages, pins global npm 11.19.1, and applies the hash-pinned `infra/runtime-python-security.txt` overlay for Hermes httpx2/httpcore2 2.12.0 and AnyIO 4.14.2 (CVE-2026-63374) after its frozen upstream install. `uv pip check` and native continuation fixtures pass. Remove that narrow overlay when the upstream lock includes the fixes. This local scan does not establish that a hosted image was replaced.
+The complete runtime image is scanned with pinned Trivy 0.74.0 in CI and weekly verification. The gate fails on fixable high/critical OS, Python or JavaScript findings and retains its report; unfixed and lower-severity findings still require review. The pre-security clean AMD64 candidate exposed 26 JavaScript and 38 Python findings, including npm's separately bundled packages; an older local scan does not clear this release. Compatible workspace overrides now select MCP 1.32.0, Undici 7.30.1/8.12.2, Zod 4.6.6 and patched parser/image dependencies. The runtime pins npm 11.21.1 with an exact checksum-verified bundled Undici 6.29.1 replacement, and hash-pinned certifi 2026.10.19, PyJWT 2.14.0, Pillow 13.0.0 and urllib3 2.8.0 alongside the existing httpx2/httpcore2/AnyIO overlay. The [runtime security boundary](../features/execution/runtime.md#runtime-image-and-process-isolation) owns the asserted upstream-requirement corrections, build checks and removal triggers. New image audit/native acceptance remains required; these updates do not establish that a hosted image was replaced.
+
+## Current application advisory blockers
+
+The full-workspace audit after the native dependency corrections still reports 11 high and four critical findings in these separate families; repeated advisories/paths are not distinct packages. They remain a shared CI/release blocker, not a reason to waive the complete-image gate. The native artifact repair does not automatically change application authentication, framework or development-tool behavior.
+
+| Family        | Audit-reported fixed floor | Required follow-through                                                       |
+| ------------- | -------------------------- | ----------------------------------------------------------------------------- |
+| Next.js       | 16.4.1                     | Review framework changes and repeat application/SSR/image acceptance.         |
+| Better Auth   | 1.7.7                      | Coordinate core/plugins; qualify OAuth, sessions and delegated access.        |
+| Nodemailer    | 10.0.6                     | Verify authentication/email transport and address handling.                   |
+| devalue       | 5.9.3                      | Update the existing narrow override; qualify Workflow serialization/recovery. |
+| source-map-js | 1.2.2                      | Patch the compatible tooling dependency and rerun affected builds.            |
+| Vite          | 8.2.4                      | Patch the compatible development dependency and rerun affected tests.         |
+
+The [ongoing-quality release gate](../maintainers/TODO.md#ongoing-quality) tracks this work. A supported update still requires its affected checks; this table is an audit record, not evidence those changes were implemented.
 
 ## Execution tracing
 

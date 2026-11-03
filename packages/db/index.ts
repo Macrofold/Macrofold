@@ -4,6 +4,7 @@ import { beginDatabaseGroup, beginDatabaseTransaction } from './diagnostics';
 import { config } from '../core/src/config';
 import { capacitySetting } from '../core/src/capacity';
 import { queryTimeoutMs, statementTimeoutMs as defaultStatementTimeoutMs } from './timeouts';
+import { observePoolErrors } from './error-diagnostics';
 import {
   acquireWithin,
   budgetedClient,
@@ -110,6 +111,9 @@ export const credentialPool = (globals.credentialPool ||= new pg.Pool({
   idleTimeoutMillis: 10000,
   ...databaseTimeouts,
 }));
+observePoolErrors(pool, 'domain');
+observePoolErrors(authPool, 'identity');
+observePoolErrors(credentialPool, 'credential');
 export async function transaction<T>(
   organization: string | null,
   fn: (tx: Tx) => Promise<T>,

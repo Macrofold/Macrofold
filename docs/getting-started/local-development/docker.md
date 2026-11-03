@@ -73,7 +73,16 @@ The idempotent CLI provisioner refreshes the first-party OAuth client's supporte
 
 The Worker cutover (migration 045) requires all previous Sandbox allocations to be destroyed and their reservations settled. Drain and destroy them through the previous version before upgrading; paused allocations also need retirement. If old records outlive their containers, reconcile their provider state and financial reservations before retiring them. Never bypass the migration guard or reset saved Runs, files, or Sessions.
 
-Repeated `maintenance_failed` messages for `workers` and `runs`, together with unavailable dispatch immediately after an update, can indicate unapplied migrations. Check the migration command's result before investigating provider availability. An old runtime image can separately prevent Host startup even after the schema is current.
+If every dispatch class, maintenance and `dispatch_wakeup_unavailable` fail together, check local PostgreSQL first:
+
+```sh
+docker compose -f infra/compose.yml ps --all
+docker compose -f infra/compose.yml start postgres mail
+```
+
+This starts the existing infrastructure containers without resetting the database volume. PostgreSQL and mail restart automatically after Docker restarts unless explicitly stopped. Live pollers reconnect through their existing retry paths; restart the dispatcher if its process exited. Do not restart agent execution containers to replay work.
+
+If PostgreSQL is healthy but `maintenance_failed` and unavailable dispatch continue immediately after an update, check the migration command's result before investigating provider availability. An old runtime image can separately prevent Host startup even after the schema is current.
 
 If Runs stay queued, inspect the Worker's `failure_code` and run `pnpm doctor:docker`. `docker_image_missing` means the exact `DOCKER_RUNTIME_IMAGE` tag is unavailable. Rebuild that tag with the command above, or explicitly select an already-built compatible image; Docker never pulls or substitutes an image automatically. `docker_daemon_unavailable`, `docker_network_missing`, `docker_disk_full` and `docker_command_timeout` identify other local setup/health failures. Diagnostics omit raw Docker output. Repair the reported cause; provisioning will retry through the existing reconciliation loop. Do not restart a stopped execution container to replay an agent.
 
